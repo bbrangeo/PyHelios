@@ -37,9 +37,18 @@ class TestExceptionHandling:
             assert any(keyword in error_msg for keyword in 
                       ["mock", "library", "native", "unavailable", "development"])
         else:
-            # In native mode, this test may crash the current library
-            # Skip for now until native error handling is improved
-            pytest.skip("Native library error handling needs improvement - would cause crash")
+            # In native mode, test that proper error handling works without crashing
+            # Try to create a patch with invalid parameters - should not crash
+            context = Context()
+            
+            # Test with extreme/invalid size values that should be handled gracefully
+            with pytest.raises((RuntimeError, ValueError, Exception)) as exc_info:
+                # This should raise an exception rather than crash
+                center = vec3(0, 0, 0)
+                size = vec2(-1, -1)  # Negative size should be invalid
+                context.addPatch(center=center, size=size)
+            
+            # The exact exception type may vary, but it should not crash
     
     def test_invalid_uuid_access_raises_exception(self):
         """Test that accessing non-existent UUIDs raises appropriate exceptions."""

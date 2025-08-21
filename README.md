@@ -3,7 +3,7 @@
 [![Test Linux](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-linux.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-linux.yml) [![Test Windows](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-windows.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-windows.yml) [![Test MacOS](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-macos.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-macos.yml) [![Docs](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/docs.yml)
 
 <div align="center">
-  <img src="docs/images/PyHelios_logo_whiteborder.png"  alt="" width="300" />
+  <img src="https://raw.githubusercontent.com/PlantSimulationLab/PyHelios/master/docs/images/PyHelios_logo_whiteborder.png"  alt="" width="300" />
 </div>
 
 # PyHelios
@@ -123,24 +123,18 @@ from pyhelios.RadiationModel import RadiationModelError
 context = Context()
 # Add geometry (PLY files, patches, trees, etc.)
 
-try:
-    # RadiationModel automatically checks plugin availability
-    with RadiationModel(context) as radiation:
-        radiation.addRadiationBand("SW")
-        radiation.setDirectRayCount("SW", 100)
-        radiation.setDiffuseRayCount("SW", 300)
+with RadiationModel(context) as radiation:
+    radiation.addRadiationBand("SW")
+    radiation.setDirectRayCount("SW", 100)
+    radiation.setDiffuseRayCount("SW", 300)
         
-        # Run GPU simulation
-        radiation.runBand("SW")
-        results = radiation.getTotalAbsorbedFlux()
+    # Run GPU simulation
+    radiation.runBand("SW")
+    results = radiation.getTotalAbsorbedFlux()
         
-        # Apply native pseudocolor mapping for visualization
-        all_uuids = context.getAllUUIDs()
-        context.colorPrimitiveByDataPseudocolor(all_uuids, "radiation_flux_SW", "hot", 256)
-        
-except RadiationModelError as e:
-    print(f"Radiation modeling not available: {e}")
-    # Error includes specific instructions for enabling radiation plugin
+    # Apply native pseudocolor mapping for visualization
+    all_uuids = context.getAllUUIDs()
+    context.colorPrimitiveByDataPseudocolor(all_uuids, "radiation_flux_SW", "hot", 256)
 ```
 
 ### Command-Line Plugin Tools
@@ -179,39 +173,17 @@ pytest --cov=pyhelios
 
 PyHelios now supports **flexible plugin selection** for customized builds based on your hardware and requirements. Choose from **21 available plugins** using predefined profiles or explicit selection.
 
-### Quick Start with Profiles
-
-```bash
-# Minimal build (core functionality only)
-build_scripts/build_helios --profile minimal
-
-# Standard build (recommended for most users)
-build_scripts/build_helios --profile standard
-
-# GPU-accelerated build (requires CUDA for radiation modeling)
-build_scripts/build_helios --profile gpu-accelerated
-
-# Full research suite (comprehensive plugin set)
-build_scripts/build_helios --profile research
-```
-
 ### Advanced Plugin Selection
 
 ```bash
 # Custom plugin selection
-build_scripts/build_helios --plugins weberpenntree,canopygenerator,visualizer,energybalance
+build_scripts/build_helios --plugins weberpenntree,visualizer
 
 # Interactive selection (guided setup)
 build_scripts/build_helios --interactive
 
 # Exclude problematic plugins
-build_scripts/build_helios --profile standard --exclude radiation
-
-# Discover optimal configuration for your system
-python -m pyhelios.plugins discover
-
-# Check plugin status and availability
-python -m pyhelios.plugins status
+build_scripts/build_helios --exclude radiation
 ```
 
 ### Configuration File Support
@@ -239,16 +211,6 @@ plugins:
 - **development**: Minimal set for PyHelios development
 
 ## Troubleshooting
-
-### Native Library Requirements
-- **Problem**: Operations raise "mock mode" or "native library required" errors
-- **Solution**: Build and install native libraries using `build_scripts/build_helios`
-- **Note**: PyHelios requires native libraries for full functionality - mock mode is only for development/testing
-
-### Build Issues  
-- **Windows**: Ensure Visual Studio or Build Tools are installed
-- **macOS**: Install Xcode command line tools with `xcode-select --install`
-- **Linux**: Install build essentials with `sudo apt-get install build-essential cmake`
 
 ### Import Errors
 - Verify installation: `pip list | grep pyhelios`

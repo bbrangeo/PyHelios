@@ -213,6 +213,93 @@ species = context.getPrimitiveDataString(uuid, "species")
 velocity_list = context.getPrimitiveDataVec3(uuid, "velocity")  # Returns [x, y, z]
 ```
 
+#### Getting Multiple Primitive Data Values as Arrays
+
+PyHelios provides `getPrimitiveDataArray()` for efficiently retrieving primitive data from multiple primitives:
+
+```python
+import numpy as np
+
+# Create multiple primitives and set data
+patch_uuids = []
+for i in range(10):
+    uuid = context.addPatch(center=vec3(i, 0, 0))
+    context.setPrimitiveDataFloat(uuid, "temperature", 20.0 + i * 2.5)
+    context.setPrimitiveDataInt(uuid, "leaf_count", 50 + i * 10)
+    context.setPrimitiveDataString(uuid, "species", f"species_{i}")
+    patch_uuids.append(uuid)
+
+# Get data arrays - automatically determines appropriate NumPy dtype
+temperatures = context.getPrimitiveDataArray(patch_uuids, "temperature")
+# Returns: numpy.ndarray with dtype=float32, shape=(10,)
+# Values: [20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0, 42.5]
+
+leaf_counts = context.getPrimitiveDataArray(patch_uuids, "leaf_count")
+# Returns: numpy.ndarray with dtype=int32, shape=(10,)
+# Values: [50, 60, 70, 80, 90, 100, 110, 120, 130, 140]
+
+species_names = context.getPrimitiveDataArray(patch_uuids, "species")
+# Returns: numpy.ndarray with dtype=object, shape=(10,)
+# Values: ['species_0', 'species_1', ..., 'species_9']
+
+# Works with any primitive type and data type
+triangle_uuids = [
+    context.addTriangle(vec3(0,0,0), vec3(1,0,0), vec3(0.5,1,0)),
+    context.addTriangle(vec3(2,0,0), vec3(3,0,0), vec3(2.5,1,0))
+]
+for i, uuid in enumerate(triangle_uuids):
+    context.setPrimitiveDataFloat(uuid, "area", (i + 1) * 0.5)
+
+areas = context.getPrimitiveDataArray(triangle_uuids, "area")
+# Returns: numpy.ndarray with dtype=float32, shape=(2,)
+# Values: [0.5, 1.0]
+
+# Vector data returns 2D arrays
+for i, uuid in enumerate(patch_uuids[:3]):
+    context.setPrimitiveDataFloat(uuid, "velocity_x", float(i))
+    context.setPrimitiveDataFloat(uuid, "velocity_y", float(i + 10))
+    context.setPrimitiveDataFloat(uuid, "velocity_z", float(i + 20))
+
+velocities_x = context.getPrimitiveDataArray(patch_uuids[:3], "velocity_x")
+velocities_y = context.getPrimitiveDataArray(patch_uuids[:3], "velocity_y")
+velocities_z = context.getPrimitiveDataArray(patch_uuids[:3], "velocity_z")
+# Each returns: numpy.ndarray with dtype=float32, shape=(3,)
+
+# Combine into velocity vectors if needed
+velocities = np.column_stack([velocities_x, velocities_y, velocities_z])
+# Shape: (3, 3) - 3 primitives, each with 3D velocity
+```
+
+**Array Data Types:**
+- `int` data → `numpy.int32` array
+- `uint` data → `numpy.uint32` array  
+- `float` data → `numpy.float32` array
+- `double` data → `numpy.float64` array
+- `string` data → `numpy.object` array
+- `vec2/vec3/vec4` data → `numpy.float32` array with shape `(N, vector_size)`
+- `int2/int3/int4` data → `numpy.int32` array with shape `(N, vector_size)`
+
+**Error Handling:**
+```python
+# Empty UUID list
+try:
+    data = context.getPrimitiveDataArray([], "temperature")
+except ValueError as e:
+    print("Error:", e)  # "UUID list cannot be empty"
+
+# Invalid UUID
+try:
+    data = context.getPrimitiveDataArray([999999], "temperature")
+except ValueError as e:
+    print("Error:", e)  # "Primitive data 'temperature' does not exist for UUID 999999"
+
+# Non-existent data label
+try:
+    data = context.getPrimitiveDataArray(patch_uuids, "nonexistent_label")
+except ValueError as e:
+    print("Error:", e)  # "Primitive data 'nonexistent_label' does not exist for UUID <uuid>"
+```
+
 ### Actual File Operations
 
 These methods are verified from the wrapper implementation:

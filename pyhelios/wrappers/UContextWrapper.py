@@ -190,6 +190,8 @@ try:
     helios_lib.getPrimitiveDataGeneric.argtypes = [ctypes.POINTER(UContext), ctypes.c_uint, ctypes.c_char_p, ctypes.c_void_p, ctypes.c_int]
     helios_lib.getPrimitiveDataGeneric.restype = ctypes.c_int
 
+    # Note: getPrimitiveDataAuto is implemented in Python using type detection
+
     # Mark that primitive data functions are available
     _PRIMITIVE_DATA_FUNCTIONS_AVAILABLE = True
 
@@ -718,9 +720,11 @@ def getPrimitiveDataAuto(context, uuid:int, label:str):
     if not _PRIMITIVE_DATA_FUNCTIONS_AVAILABLE:
         raise NotImplementedError("Primitive data functions not available in current Helios library. These require updated C++ wrapper implementation.")
     
-    label_encoded = label.encode('utf-8')
+    # First, get the data type
+    data_type = getPrimitiveDataTypeWrapper(context, uuid, label)
     
-    # Constants for HeliosDataType (should match Context.h)
+    # Map data types to appropriate getters
+    # These constants match the Helios C++ HeliosDataType enum
     HELIOS_TYPE_INT = 0
     HELIOS_TYPE_UINT = 1  
     HELIOS_TYPE_FLOAT = 2
@@ -732,54 +736,31 @@ def getPrimitiveDataAuto(context, uuid:int, label:str):
     HELIOS_TYPE_INT3 = 8
     HELIOS_TYPE_INT4 = 9
     HELIOS_TYPE_STRING = 10
-    HELIOS_TYPE_BOOL = 11
-    HELIOS_TYPE_UNKNOWN = 12
     
-    # Create a buffer large enough for any data type (4 * sizeof(double) should be enough)
-    buffer_size = 32  # 4 * 8 bytes
-    buffer = ctypes.create_string_buffer(buffer_size)
-    
-    # Call the generic function
-    data_type = helios_lib.getPrimitiveDataGeneric(context, uuid, label_encoded, buffer, buffer_size)
-    
-    if data_type == -1:
-        raise RuntimeError(f"Failed to get primitive data for label '{label}'")
-    elif data_type == HELIOS_TYPE_INT:
-        return ctypes.cast(buffer, ctypes.POINTER(ctypes.c_int)).contents.value
+    if data_type == HELIOS_TYPE_INT:
+        return getPrimitiveDataInt(context, uuid, label)
     elif data_type == HELIOS_TYPE_UINT:
-        return ctypes.cast(buffer, ctypes.POINTER(ctypes.c_uint)).contents.value
+        return getPrimitiveDataUInt(context, uuid, label)
     elif data_type == HELIOS_TYPE_FLOAT:
-        return ctypes.cast(buffer, ctypes.POINTER(ctypes.c_float)).contents.value
+        return getPrimitiveDataFloat(context, uuid, label)
     elif data_type == HELIOS_TYPE_DOUBLE:
-        return ctypes.cast(buffer, ctypes.POINTER(ctypes.c_double)).contents.value
+        return getPrimitiveDataDouble(context, uuid, label)
     elif data_type == HELIOS_TYPE_VEC2:
-        float_array = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_float * 2)).contents
-        from pyhelios.wrappers.DataTypes import vec2
-        return vec2(float_array[0], float_array[1])
+        return getPrimitiveDataVec2(context, uuid, label)
     elif data_type == HELIOS_TYPE_VEC3:
-        float_array = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_float * 3)).contents
-        from pyhelios.wrappers.DataTypes import vec3
-        return vec3(float_array[0], float_array[1], float_array[2])
+        return getPrimitiveDataVec3(context, uuid, label)
     elif data_type == HELIOS_TYPE_VEC4:
-        float_array = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_float * 4)).contents
-        from pyhelios.wrappers.DataTypes import vec4
-        return vec4(float_array[0], float_array[1], float_array[2], float_array[3])
+        return getPrimitiveDataVec4(context, uuid, label)
     elif data_type == HELIOS_TYPE_INT2:
-        int_array = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_int * 2)).contents
-        from pyhelios.wrappers.DataTypes import int2
-        return int2(int_array[0], int_array[1])
+        return getPrimitiveDataInt2(context, uuid, label)
     elif data_type == HELIOS_TYPE_INT3:
-        int_array = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_int * 3)).contents
-        from pyhelios.wrappers.DataTypes import int3
-        return int3(int_array[0], int_array[1], int_array[2])
+        return getPrimitiveDataInt3(context, uuid, label)
     elif data_type == HELIOS_TYPE_INT4:
-        int_array = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_int * 4)).contents
-        from pyhelios.wrappers.DataTypes import int4
-        return int4(int_array[0], int_array[1], int_array[2], int_array[3])
+        return getPrimitiveDataInt4(context, uuid, label)
     elif data_type == HELIOS_TYPE_STRING:
-        return buffer.value.decode('utf-8')
+        return getPrimitiveDataString(context, uuid, label)
     else:
-        raise RuntimeError(f"Unsupported data type: {data_type}")
+        raise ValueError(f"Unknown data type {data_type} for primitive {uuid}, label '{label}'")
 
 
 # Try to set up pseudocolor function prototypes

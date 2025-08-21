@@ -95,9 +95,17 @@ set_target_properties(pyhelios_interface PROPERTIES
 # Create the PyHelios shared library for Python ctypes interface
 add_library(pyhelios_shared SHARED ../native/src/pyhelios_wrapper.cpp)
 
+# Set C++ standard to match Helios core requirements
+set_target_properties(pyhelios_shared PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
 # Add same include directories
 target_include_directories(pyhelios_shared PRIVATE
     ${BASE_DIRECTORY}/core/include
+    ${BASE_DIRECTORY}/core/lib/pugixml
     ../native/include
 )
 

@@ -37,6 +37,37 @@ class PrimitiveInfo:
 
 
 class Context:
+    """
+    Central simulation environment for PyHelios that manages 3D primitives and their data.
+    
+    The Context class provides methods for:
+    - Creating geometric primitives (patches, triangles)
+    - Loading 3D models from files (PLY, OBJ, XML)
+    - Managing primitive data (flexible key-value storage)
+    - Querying primitive properties and collections
+    - Batch operations on multiple primitives
+    
+    Key features:
+    - UUID-based primitive tracking
+    - Comprehensive primitive data system with auto-type detection
+    - Efficient array-based data retrieval via getPrimitiveDataArray()
+    - Cross-platform compatibility with mock mode support
+    - Context manager protocol for resource cleanup
+    
+    Example:
+        >>> with Context() as context:
+        ...     # Create primitives
+        ...     patch_uuid = context.addPatch(center=vec3(0, 0, 0))
+        ...     triangle_uuid = context.addTriangle(vec3(0,0,0), vec3(1,0,0), vec3(0.5,1,0))
+        ...     
+        ...     # Set primitive data
+        ...     context.setPrimitiveDataFloat(patch_uuid, "temperature", 25.5)
+        ...     context.setPrimitiveDataFloat(triangle_uuid, "temperature", 30.2)
+        ...     
+        ...     # Get data efficiently as NumPy array
+        ...     temps = context.getPrimitiveDataArray([patch_uuid, triangle_uuid], "temperature")
+        ...     print(temps)  # [25.5 30.2]
+    """
 
     def __init__(self):
         # Initialize plugin registry for availability checking
@@ -556,86 +587,6 @@ class Context:
     # Primitive data is a flexible key-value store where users can associate 
     # arbitrary data with primitives using string keys
     
-    def setPrimitiveData(self, uuid: int, label: str, value) -> None:
-        """
-        Set primitive data for a specific primitive with automatic type detection.
-        
-        Args:
-            uuid: UUID of the primitive
-            label: String key for the data
-            value: Value to store (int, uint, float, double, bool*, string, vec2, vec3, vec4, int2, int3, int4, etc.)
-                   *bool values are stored as int (0/1) since Helios core doesn't support native bool
-        """
-        # Handle basic types
-        if isinstance(value, bool):
-            # Bool is not supported by Helios core - treat as int (0/1)
-            int_value = 1 if value else 0
-            context_wrapper.setPrimitiveDataInt(self.context, uuid, label, int_value)
-        elif isinstance(value, int):
-            # For now, treat all Python int as signed int. Could add uint detection later
-            if value < 0 or value <= 2147483647:  # Check if it fits in signed int
-                context_wrapper.setPrimitiveDataInt(self.context, uuid, label, value)
-            else:
-                # Use uint for larger positive values
-                context_wrapper.setPrimitiveDataUInt(self.context, uuid, label, value)
-        elif isinstance(value, float):
-            # Could add double detection for high precision values
-            context_wrapper.setPrimitiveDataFloat(self.context, uuid, label, value)
-        elif isinstance(value, str):
-            context_wrapper.setPrimitiveDataString(self.context, uuid, label, value)
-        
-        # Handle Helios vector types
-        elif isinstance(value, vec2):
-            context_wrapper.setPrimitiveDataVec2(self.context, uuid, label, value.x, value.y)
-        elif isinstance(value, vec3):
-            context_wrapper.setPrimitiveDataVec3(self.context, uuid, label, value.x, value.y, value.z)
-        elif isinstance(value, vec4):
-            context_wrapper.setPrimitiveDataVec4(self.context, uuid, label, value.x, value.y, value.z, value.w)
-        elif isinstance(value, int2):
-            context_wrapper.setPrimitiveDataInt2(self.context, uuid, label, value.x, value.y)
-        elif isinstance(value, int3):
-            context_wrapper.setPrimitiveDataInt3(self.context, uuid, label, value.x, value.y, value.z)
-        elif isinstance(value, int4):
-            context_wrapper.setPrimitiveDataInt4(self.context, uuid, label, value.x, value.y, value.z, value.w)
-        
-        # Handle duck typing and list/tuple conversions
-        elif hasattr(value, 'x') and hasattr(value, 'y') and hasattr(value, 'z') and hasattr(value, 'w'):
-            # Handle any vec4-like object (duck typing)
-            context_wrapper.setPrimitiveDataVec4(self.context, uuid, label, float(value.x), float(value.y), float(value.z), float(value.w))
-        elif hasattr(value, 'x') and hasattr(value, 'y') and hasattr(value, 'z'):
-            # Handle any vec3-like object (duck typing)
-            context_wrapper.setPrimitiveDataVec3(self.context, uuid, label, float(value.x), float(value.y), float(value.z))
-        elif hasattr(value, 'x') and hasattr(value, 'y') and not hasattr(value, 'z'):
-            # Handle any vec2-like object (duck typing)  
-            context_wrapper.setPrimitiveDataVec2(self.context, uuid, label, float(value.x), float(value.y))
-        
-        # Handle lists and tuples
-        elif isinstance(value, (list, tuple)):
-            if len(value) == 2:
-                # Handle as vec2 or int2 based on element type
-                if all(isinstance(v, int) for v in value):
-                    context_wrapper.setPrimitiveDataInt2(self.context, uuid, label, int(value[0]), int(value[1]))
-                else:
-                    context_wrapper.setPrimitiveDataVec2(self.context, uuid, label, float(value[0]), float(value[1]))
-            elif len(value) == 3:
-                # Handle as vec3 or int3 based on element type
-                if all(isinstance(v, int) for v in value):
-                    context_wrapper.setPrimitiveDataInt3(self.context, uuid, label, int(value[0]), int(value[1]), int(value[2]))
-                else:
-                    context_wrapper.setPrimitiveDataVec3(self.context, uuid, label, float(value[0]), float(value[1]), float(value[2]))
-            elif len(value) == 4:
-                # Handle as vec4 or int4 based on element type
-                if all(isinstance(v, int) for v in value):
-                    context_wrapper.setPrimitiveDataInt4(self.context, uuid, label, int(value[0]), int(value[1]), int(value[2]), int(value[3]))
-                else:
-                    context_wrapper.setPrimitiveDataVec4(self.context, uuid, label, float(value[0]), float(value[1]), float(value[2]), float(value[3]))
-            else:
-                raise ValueError(f"Unsupported list/tuple length: {len(value)}. Supported lengths: 2, 3, 4")
-        else:
-            raise ValueError(f"Unsupported primitive data type: {type(value)}. "
-                           f"Supported types: bool, int, float, str, vec2, vec3, vec4, int2, int3, int4, "
-                           f"or 2/3/4-element list/tuple")
-    
     def setPrimitiveDataInt(self, uuid: int, label: str, value: int) -> None:
         """
         Set primitive data as signed 32-bit integer.
@@ -809,6 +760,118 @@ class Context:
             Size of data array, or 1 for scalar data
         """
         return context_wrapper.getPrimitiveDataSizeWrapper(self.context, uuid, label)
+    
+    def getPrimitiveDataArray(self, uuids: List[int], label: str) -> np.ndarray:
+        """
+        Get primitive data values for multiple primitives as a NumPy array.
+        
+        This method retrieves primitive data for a list of UUIDs and returns the values
+        as a NumPy array. The output array has the same length as the input UUID list,
+        with each index corresponding to the primitive data value for that UUID.
+        
+        Args:
+            uuids: List of primitive UUIDs to get data for
+            label: String key for the primitive data to retrieve
+            
+        Returns:
+            NumPy array of primitive data values corresponding to each UUID.
+            The array type depends on the data type:
+            - int data: int32 array
+            - uint data: uint32 array  
+            - float data: float32 array
+            - double data: float64 array
+            - vector data: float32 array with shape (N, vector_size)
+            - string data: object array of strings
+            
+        Raises:
+            ValueError: If UUID list is empty or UUIDs don't exist
+            RuntimeError: If context is in mock mode or data doesn't exist for some UUIDs
+        """
+        self._check_context_available()
+        
+        if not uuids:
+            raise ValueError("UUID list cannot be empty")
+        
+        # First validate that all UUIDs exist
+        for uuid in uuids:
+            self._validate_uuid(uuid)
+        
+        # Then check that all UUIDs have the specified data
+        for uuid in uuids:
+            if not self.doesPrimitiveDataExist(uuid, label):
+                raise ValueError(f"Primitive data '{label}' does not exist for UUID {uuid}")
+        
+        # Get data type from the first UUID to determine array type
+        first_uuid = uuids[0]
+        data_type = self.getPrimitiveDataType(first_uuid, label)
+        
+        # Map Helios data types to NumPy array creation
+        # Based on HeliosDataType enum from Helios core
+        if data_type == 0:  # HELIOS_TYPE_INT
+            result = np.empty(len(uuids), dtype=np.int32)
+            for i, uuid in enumerate(uuids):
+                result[i] = self.getPrimitiveData(uuid, label, int)
+                
+        elif data_type == 1:  # HELIOS_TYPE_UINT
+            result = np.empty(len(uuids), dtype=np.uint32)
+            for i, uuid in enumerate(uuids):
+                result[i] = self.getPrimitiveData(uuid, label, "uint")
+                
+        elif data_type == 2:  # HELIOS_TYPE_FLOAT
+            result = np.empty(len(uuids), dtype=np.float32)
+            for i, uuid in enumerate(uuids):
+                result[i] = self.getPrimitiveData(uuid, label, float)
+                
+        elif data_type == 3:  # HELIOS_TYPE_DOUBLE
+            result = np.empty(len(uuids), dtype=np.float64)
+            for i, uuid in enumerate(uuids):
+                result[i] = self.getPrimitiveData(uuid, label, "double")
+                
+        elif data_type == 4:  # HELIOS_TYPE_VEC2
+            result = np.empty((len(uuids), 2), dtype=np.float32)
+            for i, uuid in enumerate(uuids):
+                vec_data = self.getPrimitiveData(uuid, label, vec2)
+                result[i] = [vec_data.x, vec_data.y]
+                
+        elif data_type == 5:  # HELIOS_TYPE_VEC3
+            result = np.empty((len(uuids), 3), dtype=np.float32)
+            for i, uuid in enumerate(uuids):
+                vec_data = self.getPrimitiveData(uuid, label, vec3)
+                result[i] = [vec_data.x, vec_data.y, vec_data.z]
+                
+        elif data_type == 6:  # HELIOS_TYPE_VEC4
+            result = np.empty((len(uuids), 4), dtype=np.float32)
+            for i, uuid in enumerate(uuids):
+                vec_data = self.getPrimitiveData(uuid, label, vec4)
+                result[i] = [vec_data.x, vec_data.y, vec_data.z, vec_data.w]
+                
+        elif data_type == 7:  # HELIOS_TYPE_INT2
+            result = np.empty((len(uuids), 2), dtype=np.int32)
+            for i, uuid in enumerate(uuids):
+                int_data = self.getPrimitiveData(uuid, label, int2)
+                result[i] = [int_data.x, int_data.y]
+                
+        elif data_type == 8:  # HELIOS_TYPE_INT3
+            result = np.empty((len(uuids), 3), dtype=np.int32)
+            for i, uuid in enumerate(uuids):
+                int_data = self.getPrimitiveData(uuid, label, int3)
+                result[i] = [int_data.x, int_data.y, int_data.z]
+                
+        elif data_type == 9:  # HELIOS_TYPE_INT4
+            result = np.empty((len(uuids), 4), dtype=np.int32)
+            for i, uuid in enumerate(uuids):
+                int_data = self.getPrimitiveData(uuid, label, int4)
+                result[i] = [int_data.x, int_data.y, int_data.z, int_data.w]
+                
+        elif data_type == 10:  # HELIOS_TYPE_STRING
+            result = np.empty(len(uuids), dtype=object)
+            for i, uuid in enumerate(uuids):
+                result[i] = self.getPrimitiveData(uuid, label, str)
+                
+        else:
+            raise ValueError(f"Unsupported primitive data type: {data_type}")
+        
+        return result
     
     
     def colorPrimitiveByDataPseudocolor(self, uuids: List[int], primitive_data: str, 

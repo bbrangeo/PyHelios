@@ -1399,26 +1399,30 @@ class HeliosBuilder:
 
 def get_default_plugins() -> List[str]:
     """
-    Get the default set of plugins (all non-GPU-compute plugins, including visualization).
+    Get the default set of plugins (only the 3 currently integrated plugins).
     
-    Note: Visualization plugins like 'visualizer' only require OpenGL, not specialized
-    GPU compute APIs like CUDA/OptiX, so they should be included by default.
+    Currently only 3 plugins are integrated into PyHelios:
+    - visualizer: OpenGL-based 3D visualization
+    - weberpenntree: Procedural tree generation
+    - radiation: OptiX-accelerated ray tracing (GPU optional)
     
     Returns:
         List of default plugins
     """
+    # Only return the 3 plugins that are actually integrated into PyHelios
+    integrated_plugins = ["visualizer", "weberpenntree", "radiation"]
+    
+    # Filter by platform compatibility
     default_plugins = []
-    for name, metadata in PLUGIN_METADATA.items():
-        # Include if it's platform compatible and doesn't require specialized GPU compute
-        platform_name = platform.system().lower()
-        if platform_name == "darwin":
-            platform_name = "macos"
-        
-        if platform_name in metadata.platforms:
-            # Only exclude plugins that require specialized GPU compute (CUDA/OptiX)
-            # OpenGL-based visualization is not considered "GPU compute"
-            if not metadata.gpu_required:
-                default_plugins.append(name)
+    platform_name = platform.system().lower()
+    if platform_name == "darwin":
+        platform_name = "macos"
+    
+    for plugin in integrated_plugins:
+        if plugin in PLUGIN_METADATA:
+            metadata = PLUGIN_METADATA[plugin]
+            if platform_name in metadata.platforms:
+                default_plugins.append(plugin)
     
     return sorted(default_plugins)
 
