@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# IDEs and editors
+.vscode/
+.idea/
+*.pydevproject
+*.project
+*.settings/
+*.tmproj
+*.esproj
+*.sublime-workspace
+*.sublime-project
+
+# Miscellaneous
+*.bak
+*.swp
+*.tmp
+*.log
+*.cache
+*.DS_Store
+*.bak
+*.orig
+*.rej
+*.~*
+
+# Auto-synced WeberPennTree resources (automatically maintained)
+/plugins/

@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""
+PyHelios Visualization Sample
+
+This example demonstrates basic visualization capabilities using the PyHelios
+native visualizer plugin. 
+
+Requirements:
+- PyHelios built with visualizer plugin
+- OpenGL-capable graphics system
+"""
+
+import sys
+import os
+
+# Add PyHelios to path if running from examples directory
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+try:
+    from pyhelios import Context, Visualizer
+    from pyhelios.types import *
+    from pyhelios.Visualizer import VisualizerError
+except ImportError as e:
+    print(f"Error importing PyHelios: {e}")
+    print("Make sure PyHelios is installed and built with visualizer plugin.")
+    sys.exit(1)
+
+
+def main():
+    """Simple visualization example."""
+    print("PyHelios Visualization Sample")
+    print("============================")
+    
+    try:
+        # Create a context with some geometry
+        with Context() as context:
+            # Add a few patches with different colors
+            colors = [
+                [1.0, 0.2, 0.2],  # Red
+                [0.2, 1.0, 0.2],  # Green 
+                [0.2, 0.2, 1.0],  # Blue
+                [1.0, 1.0, 0.2],  # Yellow
+            ]
+            
+            positions = [
+                [0, 0, 0],
+                [2, 0, 0], 
+                [0, 2, 0],
+                [1, 1, 1],
+            ]
+            
+            print("Creating sample geometry...")
+            for i, (pos, color) in enumerate(zip(positions, colors)):
+                center = vec3(*pos)
+                size = vec2(0.8, 0.8)
+                color_rgb = RGBcolor(*color)
+                uuid = context.addPatch(center=center, size=size, color=color_rgb)
+                print(f"  Created patch {i+1} at {pos} with color {color}")
+            
+            # Create visualizer and display
+            print("\nOpening visualization...")
+            with Visualizer(800, 600) as visualizer:
+                # Load geometry and configure scene
+                visualizer.buildContextGeometry(context)
+                visualizer.setBackgroundColor([0.1, 0.1, 0.15])
+                visualizer.setLightDirection([1, 1, -1])
+                visualizer.setLightingModel("phong")
+                
+                # Set camera to get a good view
+                visualizer.setCameraPosition([4, 4, 3], [1, 1, 0.5])
+                
+                print("Interactive visualization opened.")
+                print("Use mouse and keyboard to navigate:")
+                print("  - Mouse scroll: Zoom")
+                print("  - Left drag: Rotate")
+                print("  - Right drag: Pan")
+                print("  - Close window to exit")
+                
+                # Show interactive visualization
+                visualizer.plotInteractive()
+                
+        print("\nVisualization complete!")
+        
+    except VisualizerError as e:
+        print(f"Visualization error: {e}")
+        print("\nTo enable visualization, build PyHelios with:")
+        print("  build_scripts/build_helios --plugins visualizer")
+        return 1
+        
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

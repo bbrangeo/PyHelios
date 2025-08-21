@@ -1,0 +1,566 @@
+# Visualizer Plugin {#VisualizerDoc}
+
+The Visualizer plugin provides OpenGL-based 3D visualization and rendering capabilities. This documentation is based on the actual implementation.
+
+## Overview
+
+The Visualizer class provides interactive 3D visualization of Helios scenes with real-time rendering, camera controls, and image export capabilities.
+
+## Requirements
+
+The visualizer plugin requires:
+- OpenGL 3.3 or higher
+- GLFW library for window management
+- FreeType library for text rendering  
+- Display/graphics drivers (X11 on Linux, native on Windows/macOS)
+
+## Basic Usage
+
+```python
+from pyhelios import Context, Visualizer, VisualizerError
+from pyhelios import DataTypes
+
+# Create context with geometry
+context = Context()
+patch_uuid = context.addPatch(
+    center=DataTypes.vec3(0, 0, 0),
+    size=DataTypes.vec2(2, 2),
+    color=DataTypes.RGBcolor(0.3, 0.7, 0.2)
+)
+
+# Use Visualizer with context manager (recommended)
+with Visualizer(width=1024, height=768, antialiasing_samples=4) as visualizer:
+    # Build scene geometry
+    visualizer.buildContextGeometry(context)
+    
+    # Set up camera
+    visualizer.setCameraPosition(
+        position=[5, 5, 5],
+        lookAt=[0, 0, 0]
+    )
+    
+    # Configure scene
+    visualizer.setBackgroundColor([0.5, 0.7, 1.0])  # Sky blue
+    visualizer.setLightingModel("phong")
+    
+    # Show interactive visualization
+    visualizer.plotInteractive()
+```
+
+## Visualizer Creation
+
+### Basic Initialization
+
+```python
+# Basic visualizer (verified constructor parameters)
+visualizer = Visualizer(
+    width=800, 
+    height=600, 
+    antialiasing_samples=1, 
+    headless=False
+)
+
+# High-quality visualizer with antialiasing
+visualizer = Visualizer(
+    width=1920, 
+    height=1080, 
+    antialiasing_samples=8, 
+    headless=False
+)
+
+# Headless mode for batch processing
+visualizer = Visualizer(
+    width=1024, 
+    height=768, 
+    antialiasing_samples=1, 
+    headless=True
+)
+```
+
+### Context Manager Usage
+
+```python
+# Recommended: use context manager for automatic cleanup
+with Visualizer(1024, 768, antialiasing_samples=4) as visualizer:
+    # Visualization code here
+    pass  # Automatic cleanup when done
+```
+
+## Geometry Loading
+
+### Building Context Geometry
+
+```python
+# Load all geometry from context (verified method)
+visualizer.buildContextGeometry(context)
+
+# Load specific geometry UUIDs only
+specific_uuids = [patch_uuid, triangle_uuid]
+visualizer.buildContextGeometry(context, uuids=specific_uuids)
+```
+
+### Progressive Loading
+
+```python
+# Load geometry progressively for large scenes
+all_uuids = context.getAllUUIDs()
+batch_size = 1000
+
+for i in range(0, len(all_uuids), batch_size):
+    batch_uuids = all_uuids[i:i + batch_size]
+    visualizer.buildContextGeometry(context, uuids=batch_uuids)
+    print(f"Loaded batch {i//batch_size + 1}")
+```
+
+## Visualization Modes
+
+### Interactive Visualization
+
+```python
+# Open interactive window (verified method)
+visualizer.plotInteractive()
+
+# Interactive controls available:
+# - Mouse scroll: Zoom in/out
+# - Left mouse + drag: Rotate camera
+# - Right mouse + drag: Pan camera  
+# - Arrow keys: Camera movement
+# - +/- keys: Zoom in/out
+```
+
+### Non-Interactive Updates
+
+```python
+# Update visualization without interaction (verified method)
+visualizer.plotUpdate()
+
+# Useful for batch processing or animation sequences
+for frame in range(100):
+    # Update scene data
+    update_scene_data(frame)
+    
+    # Rebuild geometry if needed
+    visualizer.buildContextGeometry(context)
+    
+    # Update visualization
+    visualizer.plotUpdate()
+    
+    # Save frame
+    visualizer.printWindow(f"frame_{frame:03d}.jpg")
+```
+
+## Camera Control
+
+### Cartesian Camera Positioning
+
+```python
+# Set camera position using Cartesian coordinates (verified method)
+visualizer.setCameraPosition(
+    position=[10, 10, 10],  # Camera position [x, y, z]
+    lookAt=[0, 0, 0]        # Look-at point [x, y, z]
+)
+
+# Top-down view
+visualizer.setCameraPosition(
+    position=[0, 0, 20],
+    lookAt=[0, 0, 0]
+)
+
+# Side view
+visualizer.setCameraPosition(
+    position=[20, 0, 5],
+    lookAt=[0, 0, 5]
+)
+```
+
+### Spherical Camera Positioning
+
+```python
+# Set camera position using spherical coordinates (verified method)
+visualizer.setCameraPositionSpherical(
+    angle=[15, 0.785, 1.57],  # [radius, zenith, azimuth] in radians
+    lookAt=[0, 0, 0]          # Look-at point [x, y, z]
+)
+
+# Orbit around scene
+import math
+for angle in range(0, 360, 10):
+    azimuth = math.radians(angle)
+    visualizer.setCameraPositionSpherical(
+        angle=[20, math.pi/4, azimuth],  # Fixed radius and zenith
+        lookAt=[0, 0, 0]
+    )
+    visualizer.plotUpdate()
+    visualizer.printWindow(f"orbit_{angle:03d}.jpg")
+```
+
+### Camera Animation
+
+```python
+# Smooth camera animation
+def animate_camera(visualizer, start_pos, end_pos, frames=30):
+    for i in range(frames):
+        # Linear interpolation
+        t = i / (frames - 1)
+        current_pos = [
+            start_pos[j] + t * (end_pos[j] - start_pos[j])
+            for j in range(3)
+        ]
+        
+        visualizer.setCameraPosition(current_pos, [0, 0, 0])
+        visualizer.plotUpdate()
+        visualizer.printWindow(f"camera_anim_{i:03d}.jpg")
+
+# Use the animation
+start = [20, 0, 10]
+end = [0, 20, 10]
+animate_camera(visualizer, start, end)
+```
+
+## Scene Configuration
+
+### Background and Lighting
+
+```python
+# Set background color (verified method)
+visualizer.setBackgroundColor([0.2, 0.3, 0.5])  # Dark blue
+visualizer.setBackgroundColor([1.0, 1.0, 1.0])  # White
+visualizer.setBackgroundColor([0.0, 0.0, 0.0])  # Black
+
+# Set light direction (verified method)
+visualizer.setLightDirection([0.5, 0.5, -1.0])  # Directional light
+
+# Configure lighting model (verified method and constants)
+visualizer.setLightingModel(0)              # No lighting
+visualizer.setLightingModel(1)              # Phong shading  
+visualizer.setLightingModel(2)              # Phong with shadows
+visualizer.setLightingModel("none")         # String equivalent
+visualizer.setLightingModel("phong")        # String equivalent
+visualizer.setLightingModel("phong_shadowed")  # String equivalent
+```
+
+### Lighting Scenarios
+
+```python
+# Outdoor daylight
+visualizer.setBackgroundColor([0.5, 0.7, 1.0])     # Sky blue
+visualizer.setLightDirection([0.3, 0.3, -0.9])     # Sun direction
+visualizer.setLightingModel("phong_shadowed")       # Realistic shadows
+
+# Indoor studio lighting
+visualizer.setBackgroundColor([0.1, 0.1, 0.1])     # Dark background
+visualizer.setLightDirection([0.0, 0.0, -1.0])     # Top-down light
+visualizer.setLightingModel("phong")                # Clean lighting
+
+# Technical/CAD view
+visualizer.setBackgroundColor([0.9, 0.9, 0.9])     # Light gray
+visualizer.setLightDirection([0.577, 0.577, -0.577])  # Isometric
+visualizer.setLightingModel("phong")                # Even lighting
+```
+
+## Image Export
+
+### Basic Image Saving
+
+```python
+# Save current view to image (verified method)
+visualizer.printWindow("scene_view.jpg")
+
+# High-resolution image export
+high_res_visualizer = Visualizer(3840, 2160, headless=True)
+high_res_visualizer.buildContextGeometry(context)
+high_res_visualizer.setCameraPosition([10, 10, 10], [0, 0, 0])
+high_res_visualizer.plotUpdate()
+high_res_visualizer.printWindow("high_res_scene.jpg")
+```
+
+### Batch Image Generation
+
+```python
+# Generate multiple views
+views = {
+    "front": ([0, 15, 5], [0, 0, 5]),
+    "side": ([15, 0, 5], [0, 0, 5]),
+    "top": ([0, 0, 20], [0, 0, 0]),
+    "iso": ([10, 10, 10], [0, 0, 0])
+}
+
+for view_name, (position, look_at) in views.items():
+    visualizer.setCameraPosition(position, look_at)
+    visualizer.plotUpdate()
+    visualizer.printWindow(f"scene_{view_name}.jpg")
+```
+
+## Window Management
+
+### Window Control
+
+```python
+# Close visualization window (verified method)
+visualizer.closeWindow()
+
+# Safe to call even if no window is open
+visualizer.closeWindow()  # No error
+```
+
+## Complete Workflow Examples
+
+### Tree Visualization
+
+```python
+from pyhelios import Context, WeberPennTree, WPTType, Visualizer, DataTypes
+
+# Create scene
+context = Context()
+
+# Generate tree
+wpt = WeberPennTree(context)
+tree_id = wpt.buildTree(WPTType.APPLE)
+
+# Add ground plane
+ground_uuid = context.addPatch(
+    center=DataTypes.vec3(0, 0, 0),
+    size=DataTypes.vec2(10, 10),
+    color=DataTypes.RGBcolor(0.4, 0.3, 0.2)
+)
+
+# Visualize
+try:
+    with Visualizer(1200, 800, antialiasing_samples=4) as visualizer:
+        # Build all geometry
+        visualizer.buildContextGeometry(context)
+        
+        # Set up nice view
+        visualizer.setCameraPosition([8, 8, 6], [0, 0, 3])
+        visualizer.setBackgroundColor([0.5, 0.7, 1.0])
+        visualizer.setLightDirection([0.3, 0.3, -0.9])
+        visualizer.setLightingModel("phong_shadowed")
+        
+        # Show interactive view
+        visualizer.plotInteractive()
+        
+        # Save image
+        visualizer.printWindow("apple_tree.jpg")
+        
+except VisualizerError as e:
+    print(f"Visualization failed: {e}")
+```
+
+### Animation Sequence
+
+```python
+# Create animation of rotating tree
+with WeberPennTree(context) as wpt:
+    tree_id = wpt.buildTree(WPTType.LEMON)
+
+try:
+    with Visualizer(800, 600, headless=True) as visualizer:
+        visualizer.buildContextGeometry(context)
+        visualizer.setBackgroundColor([0.8, 0.9, 1.0])
+        visualizer.setLightingModel("phong")
+        
+        # Create 360-degree rotation
+        for angle in range(0, 360, 5):
+            import math
+            radians = math.radians(angle)
+            radius = 12
+            x = radius * math.cos(radians)
+            y = radius * math.sin(radians)
+            
+            visualizer.setCameraPosition([x, y, 6], [0, 0, 3])
+            visualizer.plotUpdate()
+            visualizer.printWindow(f"animation/frame_{angle:03d}.jpg")
+            
+    print("Animation sequence complete")
+    
+except VisualizerError as e:
+    print(f"Animation failed: {e}")
+```
+
+### Multi-Scene Comparison
+
+```python
+# Compare different tree types
+tree_types = [WPTType.APPLE, WPTType.LEMON, WPTType.OLIVE]
+
+for i, tree_type in enumerate(tree_types):
+    # Create clean context for each tree
+    context = Context()
+    wpt = WeberPennTree(context)
+    tree_id = wpt.buildTree(tree_type)
+    
+    try:
+        with Visualizer(600, 600, headless=True) as visualizer:
+            visualizer.buildContextGeometry(context)
+            
+            # Standardized view
+            visualizer.setCameraPosition([6, 6, 6], [0, 0, 3])
+            visualizer.setBackgroundColor([1.0, 1.0, 1.0])
+            visualizer.setLightingModel("phong")
+            
+            visualizer.plotUpdate()
+            visualizer.printWindow(f"tree_comparison_{tree_type.name.lower()}.jpg")
+            
+    except VisualizerError as e:
+        print(f"Failed to visualize {tree_type.name}: {e}")
+```
+
+## Integration with Other Components
+
+### With RadiationModel
+
+```python
+from pyhelios import RadiationModel
+
+# Run radiation simulation
+try:
+    with RadiationModel(context) as radiation:
+        radiation.add_radiation_band("PAR")
+        source_id = radiation.add_collimated_radiation_source()
+        radiation.set_source_flux(source_id, "PAR", 1000.0)
+        radiation.run_band("PAR")
+        
+        # Store results in primitive data
+        results = radiation.get_total_absorbed_flux()
+        all_uuids = context.getAllUUIDs()
+        
+        for i, uuid in enumerate(all_uuids):
+            if i < len(results):
+                context.setPrimitiveDataFloat(uuid, "par_flux", results[i])
+        
+        # Visualize radiation results
+        context.colorPrimitiveByDataPseudocolor(
+            all_uuids, "par_flux", "hot", 256
+        )
+        
+        # Show colored visualization
+        with Visualizer(1024, 768) as visualizer:
+            visualizer.buildContextGeometry(context)
+            visualizer.setCameraPosition([8, 8, 8], [0, 0, 3])
+            visualizer.setLightingModel("none")  # Show colors directly
+            visualizer.plotInteractive()
+            visualizer.printWindow("radiation_visualization.jpg")
+            
+except (RadiationModelError, VisualizerError) as e:
+    print(f"Visualization failed: {e}")
+```
+
+## Error Handling
+
+```python
+try:
+    visualizer = Visualizer(1024, 768, antialiasing_samples=4)
+    
+except VisualizerError as e:
+    print(f"Visualizer initialization failed: {e}")
+    
+    # Check platform-specific requirements
+    import platform
+    system = platform.system().lower()
+    
+    if 'linux' in system:
+        print("Linux: Install X11 dev packages (libx11-dev, xorg-dev)")
+        print("       sudo apt-get install libx11-dev xorg-dev libgl1-mesa-dev")
+    elif 'darwin' in system:
+        print("macOS: Install XQuartz (brew install --cask xquartz)")
+    elif 'windows' in system:
+        print("Windows: Update graphics drivers and Visual Studio runtime")
+
+except ValueError as e:
+    print(f"Invalid parameters: {e}")
+    # Check width, height, antialiasing_samples values
+```
+
+## Performance Optimization
+
+### Optimized Settings
+
+```python
+# Performance vs quality trade-offs
+performance_configs = {
+    "fast": {
+        "width": 800,
+        "height": 600,
+        "antialiasing": 1,
+        "lighting": "none"
+    },
+    "balanced": {
+        "width": 1024,
+        "height": 768,
+        "antialiasing": 4,
+        "lighting": "phong"
+    },
+    "high_quality": {
+        "width": 1920,
+        "height": 1080,
+        "antialiasing": 8,
+        "lighting": "phong_shadowed"
+    }
+}
+
+# Apply configuration
+config = performance_configs["balanced"]
+visualizer = Visualizer(
+    config["width"], 
+    config["height"], 
+    antialiasing_samples=config["antialiasing"]
+)
+visualizer.setLightingModel(config["lighting"])
+```
+
+### Memory Management
+
+```python
+# For large scenes, load geometry in batches
+def visualize_large_scene(context, batch_size=1000):
+    all_uuids = context.getAllUUIDs()
+    total_primitives = len(all_uuids)
+    
+    with Visualizer(1024, 768) as visualizer:
+        # Process in batches to manage memory
+        for i in range(0, total_primitives, batch_size):
+            batch_uuids = all_uuids[i:i + batch_size]
+            visualizer.buildContextGeometry(context, uuids=batch_uuids)
+            
+            # Update visualization
+            visualizer.plotUpdate()
+            print(f"Processed {min(i + batch_size, total_primitives)}/{total_primitives} primitives")
+```
+
+## Build Requirements
+
+```bash
+# Build with visualizer plugin
+build_scripts/build_helios --plugins visualizer
+
+# Or use profiles that include visualization
+build_scripts/build_helios --profile standard
+build_scripts/build_helios --profile visualization
+
+# Check if visualizer is available
+python -c "from pyhelios.plugins import get_plugin_registry; print(get_plugin_registry().is_plugin_available('visualizer'))"
+```
+
+## Platform-Specific Installation
+
+### Linux (Ubuntu/Debian)
+```bash
+sudo apt-get install libx11-dev xorg-dev libgl1-mesa-dev libglu1-mesa-dev
+```
+
+### Linux (CentOS/RHEL)  
+```bash
+sudo yum install libX11-devel mesa-libGL-devel mesa-libGLU-devel
+```
+
+### macOS
+```bash
+brew install --cask xquartz
+# OpenGL should be available by default
+```
+
+### Windows
+- OpenGL drivers provided by graphics card drivers
+- Visual Studio runtime may be required
+
+This documentation covers the actual Visualizer implementation in PyHelios, verified against the wrapper code and high-level interface.

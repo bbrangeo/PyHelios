@@ -1,0 +1,41 @@
+/* PyHelios custom CSS fixes */
+
+/* Fix header background color consistency - override doxygen-awesome */
+#titlearea, #titlearea table, #titlearea tbody, #titlearea tr, #titlearea td {
+    background: var(--page-background-color) !important;
+    background-color: var(--page-background-color) !important;
+}
+
+#projectlogo, #projectalign {
+    background: var(--page-background-color) !important;
+    background-color: var(--page-background-color) !important;
+}
+
+/* Force header to have solid background */
+#top {
+    background: var(--page-background-color) !important;
+    background-color: var(--page-background-color) !important;
+}
+
+/* Fix tab layout and indentation issues */
+.tabs, .tabs2, .tabs3 {
+    background: var(--page-background-color) !important;
+}
+
+/* Clean navigation styling - Classes and Files tabs have been disabled */
+#nav-tree .item {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+/* Ensure consistent indentation for all navigation items */
+#nav-tree > .children > .item {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+/* Ensure consistent header styling */
+#projectname {
+    color: var(--page-foreground-color);
+    font-weight: bold;
+}
