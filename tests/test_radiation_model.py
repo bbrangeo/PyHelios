@@ -184,7 +184,7 @@ class TestRadiationModel:
         with Context() as context:
             # Add simple geometry
             patch = context.addPatch()
-            context.setPrimitiveData(patch, "radiation_flux_SW", 500.0)
+            context.setPrimitiveDataFloat(patch, "radiation_flux_SW", 500.0)
             
             with RadiationModel(context) as radiation_model:
                 radiation_model.addRadiationBand("SW")
@@ -230,7 +230,7 @@ class TestContextPseudocolor:
             
             # Set primitive data
             for i, patch in enumerate(patches):
-                context.setPrimitiveData(patch, "test_data", float(i * 100))
+                context.setPrimitiveDataFloat(patch, "test_data", float(i * 100))
             
             # Apply pseudocolor (may raise NotImplementedError in mock mode)
             try:
@@ -248,7 +248,7 @@ class TestContextPseudocolor:
             
             # Set primitive data
             for i, patch in enumerate(patches):
-                context.setPrimitiveData(patch, "test_data", float(i * 100))
+                context.setPrimitiveDataFloat(patch, "test_data", float(i * 100))
             
             # Apply pseudocolor with range (may raise NotImplementedError in mock mode)
             try:
@@ -262,7 +262,7 @@ class TestContextPseudocolor:
         """Test different colormap options"""
         with Context() as context:
             patch = context.addPatch()
-            context.setPrimitiveData(patch, "test_data", 100.0)
+            context.setPrimitiveDataFloat(patch, "test_data", 100.0)
             
             # Test different colormaps (may raise NotImplementedError in mock mode)
             colormaps = ["hot", "cool", "parula", "rainbow", "gray", "lava"]

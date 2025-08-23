@@ -1,5 +1,31 @@
 # Changelog
 
+# [v0.0.3] 2025-08-23
+
+## Context
+- Added comprehensive file loading support with `loadPLY()`, `loadOBJ()`, and `loadXML()` methods
+- Enhanced `loadPLY()` with 5 overloads supporting origin, height, rotation, color, and upaxis transformations
+- Enhanced `loadOBJ()` with 4 overloads including scale transformations and upaxis specification
+- Added complete `loadXML()` implementation for Helios XML geometry files
+- Extended native C++ wrapper with 9 new file loading functions and proper error handling
+- Added comprehensive parameter validation and security path checking
+- Implemented `addTriangleTextured()`
+- Implemented `addTrianglesFromArraysTextured()`
+
+## Examples
+- Added example geometry files: `suzanne.ply`, `suzanne.obj`, `suzanne.mtl`, and `leaf_cube.xml`
+- Updated `external_geometry_sample.py` and `stanford_bunny_radiation.py` for demonstration
+
+## Documentation
+- Major README.md restructuring with simplified installation and quick start guide
+- Streamlined documentation structure with consolidated user guide sections
+- Updated Doxygen configuration for cleaner documentation generation
+- Removed redundant documentation files and consolidated content
+
+## Testing
+- Enhanced existing tests with file loading functionality validation
+- Added cross-platform API tests that work with and without native library
+
 # [v0.0.2] 2025-08-22
 
 ## Context

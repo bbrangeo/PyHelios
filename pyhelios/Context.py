@@ -175,6 +175,12 @@ class Context:
         if abs_path != normalized_path:
             raise ValueError(f"Invalid file path (potential path traversal): {filename}")
         
+        # Check file extension first (before checking existence) - better UX
+        if expected_extensions:
+            file_ext = os.path.splitext(abs_path)[1].lower()
+            if file_ext not in [ext.lower() for ext in expected_extensions]:
+                raise ValueError(f"Invalid file extension '{file_ext}'. Expected one of: {expected_extensions}")
+        
         # Check if file exists
         if not os.path.exists(abs_path):
             raise FileNotFoundError(f"File not found: {abs_path}")
@@ -182,12 +188,6 @@ class Context:
         # Check if it's actually a file (not a directory)
         if not os.path.isfile(abs_path):
             raise ValueError(f"Path is not a file: {abs_path}")
-        
-        # Check file extension if specified
-        if expected_extensions:
-            file_ext = os.path.splitext(abs_path)[1].lower()
-            if file_ext not in [ext.lower() for ext in expected_extensions]:
-                raise ValueError(f"Invalid file extension '{file_ext}'. Expected one of: {expected_extensions}")
         
         return abs_path
 
@@ -220,7 +220,9 @@ class Context:
         self._check_context_available()
         rotation = rotation or SphericalCoord(1, 0, 0)  # radius=1, elevation=0, azimuth=0 (no effective rotation)
         color = color or RGBcolor(1, 1, 1)
-        return context_wrapper.addPatchWithCenterSizeRotationAndColor(self.context, center.to_list(), size.to_list(), rotation.to_list(), color.to_list())
+        # C++ interface expects [radius, elevation, azimuth] (3 values), not [radius, elevation, zenith, azimuth] (4 values)
+        rotation_list = [rotation.radius, rotation.elevation, rotation.azimuth]
+        return context_wrapper.addPatchWithCenterSizeRotationAndColor(self.context, center.to_list(), size.to_list(), rotation_list, color.to_list())
         
     def addTriangle(self, vertex0: vec3, vertex1: vec3, vertex2: vec3, color: Optional[RGBcolor] = None) -> int:
         """Add a triangle primitive to the context
@@ -239,6 +241,57 @@ class Context:
             return context_wrapper.addTriangle(self.context, vertex0.to_list(), vertex1.to_list(), vertex2.to_list())
         else:
             return context_wrapper.addTriangleWithColor(self.context, vertex0.to_list(), vertex1.to_list(), vertex2.to_list(), color.to_list())
+
+    def addTriangleTextured(self, vertex0: vec3, vertex1: vec3, vertex2: vec3, 
+                           texture_file: str, uv0: vec2, uv1: vec2, uv2: vec2) -> int:
+        """Add a textured triangle primitive to the context
+        
+        Creates a triangle with texture mapping. The texture image is mapped to the triangle
+        surface using UV coordinates, where (0,0) represents the top-left corner of the image
+        and (1,1) represents the bottom-right corner.
+        
+        Args:
+            vertex0: First vertex of the triangle
+            vertex1: Second vertex of the triangle
+            vertex2: Third vertex of the triangle
+            texture_file: Path to texture image file (supports PNG, JPG, JPEG, TGA, BMP)
+            uv0: UV texture coordinates for first vertex
+            uv1: UV texture coordinates for second vertex
+            uv2: UV texture coordinates for third vertex
+            
+        Returns:
+            UUID of the created textured triangle primitive
+            
+        Raises:
+            ValueError: If texture file path is invalid
+            FileNotFoundError: If texture file doesn't exist
+            RuntimeError: If context is in mock mode
+            
+        Example:
+            >>> context = Context()
+            >>> # Create a textured triangle
+            >>> vertex0 = vec3(0, 0, 0)
+            >>> vertex1 = vec3(1, 0, 0) 
+            >>> vertex2 = vec3(0.5, 1, 0)
+            >>> uv0 = vec2(0, 0)     # Bottom-left of texture
+            >>> uv1 = vec2(1, 0)     # Bottom-right of texture
+            >>> uv2 = vec2(0.5, 1)   # Top-center of texture
+            >>> uuid = context.addTriangleTextured(vertex0, vertex1, vertex2, 
+            ...                                    "texture.png", uv0, uv1, uv2)
+        """
+        self._check_context_available()
+        
+        # Validate texture file path
+        validated_texture_file = self._validate_file_path(texture_file, 
+                                                          ['.png', '.jpg', '.jpeg', '.tga', '.bmp'])
+        
+        # Call the wrapper function
+        return context_wrapper.addTriangleWithTexture(
+            self.context, 
+            vertex0.to_list(), vertex1.to_list(), vertex2.to_list(),
+            validated_texture_file,
+            uv0.to_list(), uv1.to_list(), uv2.to_list()
+        )
 
     def getPrimitiveType(self, uuid: int) -> PrimitiveType:
         self._check_context_available()
@@ -590,7 +643,8 @@ class Context:
         
         elif origin is not None and height is not None and rotation is not None and color is None:
             # Load with origin, height, and rotation
-            return context_wrapper.loadPLYWithOriginHeightRotation(self.context, validated_filename, origin.to_list(), height, rotation.to_list(), upaxis, silent)
+            rotation_list = [rotation.radius, rotation.elevation, rotation.azimuth]
+            return context_wrapper.loadPLYWithOriginHeightRotation(self.context, validated_filename, origin.to_list(), height, rotation_list, upaxis, silent)
         
         elif origin is not None and height is not None and rotation is None and color is not None:
             # Load with origin, height, and color
@@ -598,7 +652,8 @@ class Context:
         
         elif origin is not None and height is not None and rotation is not None and color is not None:
             # Load with all parameters
-            return context_wrapper.loadPLYWithOriginHeightRotationColor(self.context, validated_filename, origin.to_list(), height, rotation.to_list(), color.to_list(), upaxis, silent)
+            rotation_list = [rotation.radius, rotation.elevation, rotation.azimuth]
+            return context_wrapper.loadPLYWithOriginHeightRotationColor(self.context, validated_filename, origin.to_list(), height, rotation_list, color.to_list(), upaxis, silent)
         
         else:
             raise ValueError("Invalid parameter combination. When using transformations, both origin and height are required.")
@@ -743,22 +798,41 @@ class Context:
         return triangle_uuids
 
     def addTrianglesFromArraysTextured(self, vertices: np.ndarray, faces: np.ndarray,
-                                      uv_coords: np.ndarray, texture_file: str) -> List[int]:
+                                      uv_coords: np.ndarray, texture_files: Union[str, List[str]], 
+                                      material_ids: Optional[np.ndarray] = None) -> List[int]:
         """
-        Add textured triangles from NumPy arrays.
+        Add textured triangles from NumPy arrays with support for multiple textures.
+        
+        This method supports both single-texture and multi-texture workflows:
+        - Single texture: Pass a single texture file string, all faces use the same texture
+        - Multiple textures: Pass a list of texture files and material_ids array specifying which texture each face uses
         
         Args:
             vertices: NumPy array of shape (N, 3) containing vertex coordinates as float32/float64
             faces: NumPy array of shape (M, 3) containing triangle vertex indices as int32/int64
             uv_coords: NumPy array of shape (N, 2) containing UV texture coordinates as float32/float64
-            texture_file: Path to the texture image file
+            texture_files: Single texture file path (str) or list of texture file paths (List[str])
+            material_ids: Optional NumPy array of shape (M,) containing material ID for each face.
+                         If None and texture_files is a list, all faces use texture 0.
+                         If None and texture_files is a string, this parameter is ignored.
             
         Returns:
             List of UUIDs for the added textured triangles
             
         Raises:
-            ValueError: If array dimensions are invalid
+            ValueError: If array dimensions are invalid or material IDs are out of range
+            
+        Example:
+            # Single texture usage (backward compatible)
+            >>> uuids = context.addTrianglesFromArraysTextured(vertices, faces, uvs, "texture.png")
+            
+            # Multi-texture usage (Open3D style)
+            >>> texture_files = ["wood.png", "metal.png", "glass.png"]
+            >>> material_ids = np.array([0, 0, 1, 1, 2, 2])  # 6 faces using different textures
+            >>> uuids = context.addTrianglesFromArraysTextured(vertices, faces, uvs, texture_files, material_ids)
         """
+        self._check_context_available()
+        
         # Validate input arrays
         if vertices.ndim != 2 or vertices.shape[1] != 3:
             raise ValueError(f"Vertices array must have shape (N, 3), got {vertices.shape}")
@@ -776,33 +850,79 @@ class Context:
         if max_vertex_index >= vertices.shape[0]:
             raise ValueError(f"Face indices reference vertex {max_vertex_index}, but only {vertices.shape[0]} vertices provided")
         
-        # Convert arrays to appropriate data types
-        vertices_float = vertices.astype(np.float32)
-        faces_int = faces.astype(np.int32)
-        uv_coords_float = uv_coords.astype(np.float32)
+        # Handle texture files parameter (single string or list)
+        if isinstance(texture_files, str):
+            # Single texture case - use original implementation for efficiency
+            texture_file_list = [texture_files]
+            if material_ids is None:
+                material_ids = np.zeros(faces.shape[0], dtype=np.uint32)
+            else:
+                # Validate that all material IDs are 0 for single texture
+                if not np.all(material_ids == 0):
+                    raise ValueError("When using single texture file, all material IDs must be 0")
+        else:
+            # Multiple textures case
+            texture_file_list = list(texture_files)
+            if len(texture_file_list) == 0:
+                raise ValueError("Texture files list cannot be empty")
+            
+            if material_ids is None:
+                # Default: all faces use first texture
+                material_ids = np.zeros(faces.shape[0], dtype=np.uint32)
+            else:
+                # Validate material IDs array
+                if material_ids.ndim != 1 or material_ids.shape[0] != faces.shape[0]:
+                    raise ValueError(f"Material IDs must have shape ({faces.shape[0]},), got {material_ids.shape}")
+                
+                # Check material ID range
+                max_material_id = np.max(material_ids)
+                if max_material_id >= len(texture_file_list):
+                    raise ValueError(f"Material ID {max_material_id} exceeds texture count {len(texture_file_list)}")
         
-        # Add textured triangles
-        triangle_uuids = []
-        for i in range(faces.shape[0]):
-            # Get vertex indices for this triangle
-            v0_idx, v1_idx, v2_idx = faces_int[i]
-            
-            # Get vertex coordinates
-            vertex0 = vertices_float[v0_idx].tolist()
-            vertex1 = vertices_float[v1_idx].tolist()
-            vertex2 = vertices_float[v2_idx].tolist()
-            
-            # Get UV coordinates
-            uv0 = uv_coords_float[v0_idx].tolist()
-            uv1 = uv_coords_float[v1_idx].tolist()
-            uv2 = uv_coords_float[v2_idx].tolist()
-            
-            # Add textured triangle
-            uuid = context_wrapper.addTriangleWithTexture(self.context, vertex0, vertex1, vertex2, 
-                                                         texture_file, uv0, uv1, uv2)
-            triangle_uuids.append(uuid)
+        # Validate all texture files exist
+        for i, texture_file in enumerate(texture_file_list):
+            try:
+                self._validate_file_path(texture_file)
+            except (FileNotFoundError, ValueError) as e:
+                raise ValueError(f"Texture file {i} ({texture_file}): {e}")
         
-        return triangle_uuids
+        # Use efficient multi-texture C++ implementation if available, otherwise triangle-by-triangle
+        if 'addTrianglesFromArraysMultiTextured' in context_wrapper._AVAILABLE_TRIANGLE_FUNCTIONS:
+            return context_wrapper.addTrianglesFromArraysMultiTextured(
+                self.context, vertices, faces, uv_coords, texture_file_list, material_ids
+            )
+        else:
+            # Use triangle-by-triangle approach with addTriangleTextured
+            from .wrappers.DataTypes import vec3, vec2
+            
+            vertices_float = vertices.astype(np.float32)
+            faces_int = faces.astype(np.int32)
+            uv_coords_float = uv_coords.astype(np.float32)
+            
+            triangle_uuids = []
+            for i in range(faces.shape[0]):
+                # Get vertex indices for this triangle
+                v0_idx, v1_idx, v2_idx = faces_int[i]
+                
+                # Get vertex coordinates as vec3 objects
+                vertex0 = vec3(vertices_float[v0_idx][0], vertices_float[v0_idx][1], vertices_float[v0_idx][2])
+                vertex1 = vec3(vertices_float[v1_idx][0], vertices_float[v1_idx][1], vertices_float[v1_idx][2])
+                vertex2 = vec3(vertices_float[v2_idx][0], vertices_float[v2_idx][1], vertices_float[v2_idx][2])
+                
+                # Get UV coordinates as vec2 objects
+                uv0 = vec2(uv_coords_float[v0_idx][0], uv_coords_float[v0_idx][1])
+                uv1 = vec2(uv_coords_float[v1_idx][0], uv_coords_float[v1_idx][1])
+                uv2 = vec2(uv_coords_float[v2_idx][0], uv_coords_float[v2_idx][1])
+                
+                # Use texture file based on material ID for this triangle
+                material_id = material_ids[i]
+                texture_file = texture_file_list[material_id]
+                
+                # Add textured triangle using the new addTriangleTextured method
+                uuid = self.addTriangleTextured(vertex0, vertex1, vertex2, texture_file, uv0, uv1, uv2)
+                triangle_uuids.append(uuid)
+            
+            return triangle_uuids
 
     # ==================== PRIMITIVE DATA METHODS ====================
     # Primitive data is a flexible key-value store where users can associate 

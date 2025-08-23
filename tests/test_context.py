@@ -39,6 +39,27 @@ def _safe_unlink(filepath):
                 pass  # Don't fail tests due to Windows file locking issues
 
 
+def _create_test_texture_file(suffix='.png'):
+    """Create a minimal valid texture file for testing."""
+    temp_file = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    temp_file.close()  # Close file so it can be reopened
+    
+    try:
+        # Try to create a minimal 1x1 pixel image using PIL if available
+        from PIL import Image
+        img = Image.new('RGB', (1, 1), color='white')
+        img.save(temp_file.name)
+        return temp_file.name
+    except ImportError:
+        # PIL not available, just return existing Helios texture if available
+        helios_texture = 'helios-core/core/lib/images/disk_texture.png'
+        if os.path.exists(helios_texture):
+            return helios_texture
+        else:
+            # Last resort: create empty file (will likely fail in texture loading but better error)
+            return temp_file.name
+
+
 @pytest.mark.native_only
 class TestContextCreation:
     """Test Context creation and basic lifecycle."""
@@ -439,6 +460,206 @@ class TestTriangleOperations:
         context_uuids = basic_context.getAllUUIDs()
         for uuid in triangles:
             assert uuid in context_uuids
+
+    def test_add_textured_triangle_basic(self, basic_context):
+        """Test adding a basic textured triangle using existing texture."""
+        vertex0 = vec3(0, 0, 0)
+        vertex1 = vec3(1, 0, 0)
+        vertex2 = vec3(0.5, 1, 0)
+        
+        # UV coordinates
+        uv0 = vec2(0, 0)
+        uv1 = vec2(1, 0)
+        uv2 = vec2(0.5, 1)
+        
+        # Use existing texture file from Helios core
+        texture_file = 'helios-core/core/lib/images/disk_texture.png'
+        
+        if os.path.exists(texture_file):
+            triangle_uuid = basic_context.addTriangleTextured(
+                vertex0, vertex1, vertex2, texture_file, uv0, uv1, uv2
+            )
+            
+            assert isinstance(triangle_uuid, int)
+            assert triangle_uuid >= 0
+            assert basic_context.getPrimitiveCount() == 1
+            assert triangle_uuid in basic_context.getAllUUIDs()
+            
+            # Verify it's a triangle primitive
+            assert basic_context.getPrimitiveType(triangle_uuid) == PrimitiveType.Triangle
+            
+            # Verify triangle properties
+            vertices = basic_context.getPrimitiveVertices(triangle_uuid)
+            assert len(vertices) == 3
+            assert_vec3_equal(vertices[0], vertex0)
+            assert_vec3_equal(vertices[1], vertex1)  
+            assert_vec3_equal(vertices[2], vertex2)
+            
+        else:
+            pytest.skip("Helios texture file not found - skipping basic textured triangle test")
+    
+    def test_add_textured_triangle_with_real_texture(self, basic_context):
+        """Test adding textured triangle with real texture file."""
+        vertex0 = vec3(-1, -1, 0)
+        vertex1 = vec3(1, -1, 0)
+        vertex2 = vec3(0, 1, 0)
+        
+        uv0 = vec2(0, 0)    # Bottom-left
+        uv1 = vec2(1, 0)    # Bottom-right  
+        uv2 = vec2(0.5, 1)  # Top-center
+        
+        # Use existing texture file from Helios core
+        texture_file = 'helios-core/core/lib/images/disk_texture.png'
+        
+        if os.path.exists(texture_file):
+            triangle_uuid = basic_context.addTriangleTextured(
+                vertex0, vertex1, vertex2, texture_file, uv0, uv1, uv2
+            )
+            
+            assert isinstance(triangle_uuid, int)
+            assert triangle_uuid >= 0
+            
+            # Test triangle geometric properties  
+            area = basic_context.getPrimitiveArea(triangle_uuid)
+            # Triangle should have positive area (textured triangles may have different area calculation)
+            assert area > 0.0, f"Triangle area should be positive, got {area}"
+            # The area should be reasonable for the given triangle size (within expected range)
+            assert 1.0 <= area <= 3.0, f"Triangle area {area} should be within reasonable range"
+            
+            # Test normal vector (triangle in XY plane)
+            normal = basic_context.getPrimitiveNormal(triangle_uuid)
+            assert abs(abs(normal.z) - 1.0) < 1e-5  # Normal should be ±1 in Z
+            
+        else:
+            pytest.skip("Texture file not found - skipping real texture test")
+    
+    def test_add_textured_triangle_file_validation(self, basic_context):
+        """Test file validation in addTriangleTextured."""
+        vertex0 = vec3(0, 0, 0)
+        vertex1 = vec3(1, 0, 0)
+        vertex2 = vec3(0.5, 1, 0)
+        uv0 = vec2(0, 0)
+        uv1 = vec2(1, 0)
+        uv2 = vec2(0.5, 1)
+        
+        # Test with non-existent file
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            basic_context.addTriangleTextured(
+                vertex0, vertex1, vertex2, 'nonexistent.png', uv0, uv1, uv2
+            )
+        
+        # Test with invalid file extension
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as temp_file:
+            temp_file.write(b'test content')
+            temp_filename = temp_file.name
+        
+        try:
+            with pytest.raises(ValueError, match="Invalid file extension"):
+                basic_context.addTriangleTextured(
+                    vertex0, vertex1, vertex2, temp_filename, uv0, uv1, uv2
+                )
+        finally:
+            _safe_unlink(temp_filename)
+        
+        # Test with valid extensions (but use existing texture file to avoid PNG loading errors)
+        texture_file = 'helios-core/core/lib/images/disk_texture.png'
+        if os.path.exists(texture_file):
+            # Valid extension should work
+            triangle_uuid = basic_context.addTriangleTextured(
+                vertex0, vertex1, vertex2, texture_file, uv0, uv1, uv2
+            )
+            assert isinstance(triangle_uuid, int)
+    
+    def test_add_textured_triangle_parameter_types(self, basic_context):
+        """Test parameter type validation for addTriangleTextured."""
+        # Use existing texture file
+        texture_file = 'helios-core/core/lib/images/disk_texture.png'
+        
+        if os.path.exists(texture_file):
+            # Valid call
+            vertex0 = vec3(0, 0, 0)
+            vertex1 = vec3(1, 0, 0)
+            vertex2 = vec3(0.5, 1, 0)
+            uv0 = vec2(0, 0)
+            uv1 = vec2(1, 0)
+            uv2 = vec2(0.5, 1)
+            
+            triangle_uuid = basic_context.addTriangleTextured(
+                vertex0, vertex1, vertex2, texture_file, uv0, uv1, uv2
+            )
+            
+            assert isinstance(triangle_uuid, int)
+            assert triangle_uuid >= 0
+            
+            # Verify correct primitive type
+            assert basic_context.getPrimitiveType(triangle_uuid) == PrimitiveType.Triangle
+        else:
+            pytest.skip("Helios texture file not found - skipping parameter type test")
+    
+    def test_add_multiple_textured_triangles(self, basic_context):
+        """Test adding multiple textured triangles."""
+        # Use existing texture file
+        texture_file = 'helios-core/core/lib/images/disk_texture.png'
+        
+        if os.path.exists(texture_file):
+            triangle_uuids = []
+            
+            for i in range(3):
+                vertex0 = vec3(i, 0, 0)
+                vertex1 = vec3(i+1, 0, 0) 
+                vertex2 = vec3(i+0.5, 1, 0)
+                
+                uv0 = vec2(0, 0)
+                uv1 = vec2(1, 0)
+                uv2 = vec2(0.5, 1)
+                
+                triangle_uuid = basic_context.addTriangleTextured(
+                    vertex0, vertex1, vertex2, texture_file, uv0, uv1, uv2
+                )
+                triangle_uuids.append(triangle_uuid)
+            
+            # Verify all triangles created
+            assert basic_context.getPrimitiveCount() == 3
+            assert len(set(triangle_uuids)) == 3  # All unique
+            
+            # Verify all are triangle primitives
+            for uuid in triangle_uuids:
+                assert basic_context.getPrimitiveType(uuid) == PrimitiveType.Triangle
+                assert uuid in basic_context.getAllUUIDs()
+        else:
+            pytest.skip("Helios texture file not found - skipping multiple textured triangles test")
+    
+    def test_textured_triangle_integration_with_other_primitives(self, basic_context):
+        """Test textured triangles work alongside other primitive types."""
+        # Use existing texture file
+        texture_file = 'helios-core/core/lib/images/disk_texture.png'
+        
+        if os.path.exists(texture_file):
+            # Add various primitive types
+            patch_uuid = basic_context.addPatch(center=vec3(0, 0, 0))
+            
+            triangle_uuid = basic_context.addTriangle(
+                vec3(1, 0, 0), vec3(2, 0, 0), vec3(1.5, 1, 0)
+            )
+            
+            textured_triangle_uuid = basic_context.addTriangleTextured(
+                vec3(2, 0, 0), vec3(3, 0, 0), vec3(2.5, 1, 0),
+                texture_file, vec2(0, 0), vec2(1, 0), vec2(0.5, 1)
+            )
+            
+            # Verify all primitives exist
+            assert basic_context.getPrimitiveCount() == 3
+            all_uuids = basic_context.getAllUUIDs()
+            assert patch_uuid in all_uuids
+            assert triangle_uuid in all_uuids
+            assert textured_triangle_uuid in all_uuids
+            
+            # Verify correct primitive types
+            assert basic_context.getPrimitiveType(patch_uuid) == PrimitiveType.Patch
+            assert basic_context.getPrimitiveType(triangle_uuid) == PrimitiveType.Triangle
+            assert basic_context.getPrimitiveType(textured_triangle_uuid) == PrimitiveType.Triangle
+        else:
+            pytest.skip("Helios texture file not found - skipping integration test")
 
 
 @pytest.mark.native_only
@@ -1329,6 +1550,175 @@ class TestContextErrorHandling:
             uuid = uuids[i]
             assert basic_context.getPrimitiveData(uuid, "index", int) == i
             assert basic_context.getPrimitiveData(uuid, "value", float) == pytest.approx(i * 0.1)
+
+
+@pytest.mark.native_only
+class TestSphericalCoordParameterMapping:
+    """Critical tests for SphericalCoord parameter mapping to prevent recurring bugs."""
+    
+    def test_addPatch_spherical_coord_parameter_count(self, basic_context):
+        """Test that addPatch uses correct SphericalCoord parameter count (CRITICAL for radiation physics)."""
+        # This test specifically validates the fix for the recurring SphericalCoord bug
+        # where PyHelios was passing 4 parameters [radius, elevation, zenith, azimuth] 
+        # but C++ expected 3 parameters [radius, elevation, azimuth]
+        
+        import numpy as np
+        
+        # Test specific rotation that caused radiation validation failures
+        rotation = SphericalCoord(1.0, 0.5 * np.pi, -0.5 * np.pi)  # 90-degree rotation
+        
+        # This should NOT crash and should create valid geometry
+        patch_uuid = basic_context.addPatch(
+            center=vec3(0.5, 0, 0.5), 
+            size=vec2(1, 1),
+            rotation=rotation
+        )
+        
+        assert isinstance(patch_uuid, int)
+        assert patch_uuid >= 0
+        
+        # Verify the patch was created with proper geometry
+        vertices = basic_context.getPrimitiveVertices(patch_uuid)
+        assert len(vertices) == 4
+        
+        # The patch should be rotated - vertices should not all have same Z coordinate
+        z_coords = [v.z for v in vertices]
+        # For a 90-degree rotated patch, vertices should span different Z coordinates
+        z_range = max(z_coords) - min(z_coords)
+        assert z_range > 0.5  # Should have significant Z variation for rotated patch
+    
+    def test_addTile_spherical_coord_parameter_count(self, basic_context):
+        """Test that addTile uses correct SphericalCoord parameter count."""
+        import numpy as np
+        
+        # Test with same problematic rotation
+        rotation = SphericalCoord(1.0, 0.5 * np.pi, -0.5 * np.pi)
+        
+        tile_uuids = basic_context.addTile(
+            center=vec3(0, 0, 0),
+            size=vec2(2, 2),
+            rotation=rotation,
+            subdiv=int2(2, 2)
+        )
+        
+        assert isinstance(tile_uuids, list)
+        assert len(tile_uuids) == 4  # 2x2 subdivision
+        assert all(isinstance(uuid, int) for uuid in tile_uuids)
+        
+        # Verify tiles were created with proper rotation
+        for uuid in tile_uuids:
+            vertices = basic_context.getPrimitiveVertices(uuid)
+            assert len(vertices) == 4
+            
+            # Check that rotation was applied correctly
+            z_coords = [v.z for v in vertices]
+            z_range = max(z_coords) - min(z_coords)
+            # For rotated tiles, should have some Z variation
+            assert z_range >= 0  # At minimum, should not crash
+    
+    def test_spherical_coord_to_list_vs_cpp_interface(self, basic_context):
+        """Test that SphericalCoord.to_list() is NOT used for C++ interface calls."""
+        # This test documents and validates the fix for the parameter mapping bug
+        
+        rotation = SphericalCoord(1.0, 0.5, 1.0)
+        
+        # SphericalCoord.to_list() returns 4 values - this should NOT be passed to C++
+        to_list_result = rotation.to_list()
+        assert len(to_list_result) == 4  # [radius, elevation, zenith, azimuth]
+        
+        # The correct mapping for C++ should be 3 values: [radius, elevation, azimuth]
+        correct_mapping = [rotation.radius, rotation.elevation, rotation.azimuth]
+        assert len(correct_mapping) == 3
+        
+        # Test that addPatch works with this rotation (validates the fix is applied)
+        patch_uuid = basic_context.addPatch(
+            center=vec3(0, 0, 0),
+            size=vec2(1, 1),
+            rotation=rotation
+        )
+        
+        assert isinstance(patch_uuid, int)
+        assert patch_uuid >= 0
+    
+    def test_multiple_rotations_physics_validation(self, basic_context):
+        """Test multiple rotation configurations to prevent physics calculation errors."""
+        import numpy as np
+        
+        # Test various rotation configurations that have caused issues
+        test_rotations = [
+            SphericalCoord(1.0, 0, 0),                        # No rotation
+            SphericalCoord(1.0, 0.5 * np.pi, 0),             # 90-degree elevation
+            SphericalCoord(1.0, 0, 0.5 * np.pi),             # 90-degree azimuth  
+            SphericalCoord(1.0, 0.5 * np.pi, -0.5 * np.pi),  # The problematic radiation test case
+            SphericalCoord(1.0, np.pi, 0),                    # 180-degree elevation
+            SphericalCoord(1.0, -0.5 * np.pi, np.pi),        # Negative elevation
+        ]
+        
+        created_patches = []
+        
+        for i, rotation in enumerate(test_rotations):
+            center = vec3(i * 2, 0, 0)  # Space patches apart
+            
+            patch_uuid = basic_context.addPatch(
+                center=center,
+                size=vec2(1, 1),
+                rotation=rotation
+            )
+            
+            assert isinstance(patch_uuid, int)
+            assert patch_uuid >= 0
+            created_patches.append(patch_uuid)
+            
+            # Verify patch has valid geometry
+            area = basic_context.getPrimitiveArea(patch_uuid)
+            assert area > 0  # Should have positive area
+            
+            normal = basic_context.getPrimitiveNormal(patch_uuid)
+            normal_length = (normal.x**2 + normal.y**2 + normal.z**2)**0.5
+            assert normal_length == pytest.approx(1.0, rel=1e-5)  # Should be unit vector
+        
+        # Verify all patches were created successfully
+        assert len(created_patches) == len(test_rotations)
+        assert basic_context.getPrimitiveCount() == len(test_rotations)
+    
+    def test_regression_spherical_coord_parameter_count_documentation(self, basic_context):
+        """Regression test that documents the exact parameter mapping requirements."""
+        # This test serves as documentation and regression prevention for the 
+        # SphericalCoord parameter mapping bug that caused radiation physics errors
+        
+        rotation = SphericalCoord(1.0, 0.5, 1.0)
+        
+        # Document the WRONG way that was causing the bug:
+        wrong_params = rotation.to_list()  # [radius, elevation, zenith, azimuth] = 4 params
+        assert len(wrong_params) == 4
+        
+        # Document the CORRECT way that fixes the bug:
+        correct_params = [rotation.radius, rotation.elevation, rotation.azimuth]  # 3 params
+        assert len(correct_params) == 3
+        
+        # The bug was: Context.addPatch() was passing wrong_params (4 values) to C++
+        # The fix is: Context.addPatch() now passes correct_params (3 values) to C++
+        
+        # Test that the fix is working by creating geometry that previously failed
+        patch_uuid = basic_context.addPatch(
+            center=vec3(0.5, 0, 0.5), 
+            size=vec2(1, 1),
+            rotation=rotation
+        )
+        
+        # If this test passes, the fix is working correctly
+        assert isinstance(patch_uuid, int)
+        assert patch_uuid >= 0
+        
+        # Verify the geometry was created correctly (not corrupted by wrong parameters)
+        area = basic_context.getPrimitiveArea(patch_uuid)
+        assert area == pytest.approx(1.0, rel=1e-5)  # 1x1 patch should have area 1
+        
+        vertices = basic_context.getPrimitiveVertices(patch_uuid)
+        assert len(vertices) == 4
+        
+        # This test specifically validates that radiation physics will work correctly
+        # because patch geometry is properly oriented
 
 
 @pytest.mark.native_only

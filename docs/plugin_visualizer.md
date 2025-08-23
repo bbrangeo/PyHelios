@@ -17,19 +17,19 @@ The visualizer plugin requires:
 ## Basic Usage
 
 ```python
-from pyhelios import Context, Visualizer, VisualizerError
-from pyhelios import DataTypes
+from pyhelios import Context, Visualizer
+from pyhelios.types import *
 
 # Create context with geometry
 context = Context()
 patch_uuid = context.addPatch(
-    center=DataTypes.vec3(0, 0, 0),
-    size=DataTypes.vec2(2, 2),
-    color=DataTypes.RGBcolor(0.3, 0.7, 0.2)
+    center=vec3(0, 0, 0),
+    size=vec2(2, 2),
+    color=RGBcolor(0.3, 0.7, 0.2)
 )
 
 # Use Visualizer with context manager (recommended)
-with Visualizer(width=1024, height=768, antialiasing_samples=4) as visualizer:
+with Visualizer(width=1024, height=768) as visualizer:
     # Build scene geometry
     visualizer.buildContextGeometry(context)
     
@@ -81,7 +81,7 @@ visualizer = Visualizer(
 
 ```python
 # Recommended: use context manager for automatic cleanup
-with Visualizer(1024, 768, antialiasing_samples=4) as visualizer:
+with Visualizer(1024, 768) as visualizer:
     # Visualization code here
     pass  # Automatic cleanup when done
 ```
@@ -136,8 +136,8 @@ visualizer.plotUpdate()
 
 # Useful for batch processing or animation sequences
 for frame in range(100):
-    # Update scene data
-    update_scene_data(frame)
+    
+    # Update scene data here
     
     # Rebuild geometry if needed
     visualizer.buildContextGeometry(context)
@@ -308,7 +308,8 @@ visualizer.closeWindow()  # No error
 ### Tree Visualization
 
 ```python
-from pyhelios import Context, WeberPennTree, WPTType, Visualizer, DataTypes
+from pyhelios import Context, WeberPennTree, WPTType, Visualizer
+from pyhelios.types import *
 
 # Create scene
 context = Context()
@@ -319,9 +320,9 @@ tree_id = wpt.buildTree(WPTType.APPLE)
 
 # Add ground plane
 ground_uuid = context.addPatch(
-    center=DataTypes.vec3(0, 0, 0),
-    size=DataTypes.vec2(10, 10),
-    color=DataTypes.RGBcolor(0.4, 0.3, 0.2)
+    center=vec3(0, 0, 0),
+    size=vec2(10, 10),
+    color=RGBcolor(0.4, 0.3, 0.2)
 )
 
 # Visualize
@@ -403,46 +404,6 @@ for i, tree_type in enumerate(tree_types):
             
     except VisualizerError as e:
         print(f"Failed to visualize {tree_type.name}: {e}")
-```
-
-## Integration with Other Components
-
-### With RadiationModel
-
-```python
-from pyhelios import RadiationModel
-
-# Run radiation simulation
-try:
-    with RadiationModel(context) as radiation:
-        radiation.add_radiation_band("PAR")
-        source_id = radiation.add_collimated_radiation_source()
-        radiation.set_source_flux(source_id, "PAR", 1000.0)
-        radiation.run_band("PAR")
-        
-        # Store results in primitive data
-        results = radiation.get_total_absorbed_flux()
-        all_uuids = context.getAllUUIDs()
-        
-        for i, uuid in enumerate(all_uuids):
-            if i < len(results):
-                context.setPrimitiveDataFloat(uuid, "par_flux", results[i])
-        
-        # Visualize radiation results
-        context.colorPrimitiveByDataPseudocolor(
-            all_uuids, "par_flux", "hot", 256
-        )
-        
-        # Show colored visualization
-        with Visualizer(1024, 768) as visualizer:
-            visualizer.buildContextGeometry(context)
-            visualizer.setCameraPosition([8, 8, 8], [0, 0, 3])
-            visualizer.setLightingModel("none")  # Show colors directly
-            visualizer.plotInteractive()
-            visualizer.printWindow("radiation_visualization.jpg")
-            
-except (RadiationModelError, VisualizerError) as e:
-    print(f"Visualization failed: {e}")
 ```
 
 ## Error Handling
@@ -534,8 +495,8 @@ def visualize_large_scene(context, batch_size=1000):
 build_scripts/build_helios --plugins visualizer
 
 # Or use profiles that include visualization
-build_scripts/build_helios --profile standard
-build_scripts/build_helios --profile visualization
+build_scripts/build_helios                              # Default build includes visualizer
+build_scripts/build_helios --plugins visualizer           # Visualizer-only build
 
 # Check if visualizer is available
 python -c "from pyhelios.plugins import get_plugin_registry; print(get_plugin_registry().is_plugin_available('visualizer'))"

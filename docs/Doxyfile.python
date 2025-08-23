@@ -6,7 +6,7 @@
 #---------------------------------------------------------------------------
 
 PROJECT_NAME           = "PyHelios"
-PROJECT_NUMBER         = 0.0.1
+PROJECT_NUMBER         = 0.0.3
 PROJECT_BRIEF          =
 PROJECT_LOGO           = docs/images/PyHelios_logo_whiteborder.png
 OUTPUT_DIRECTORY       = docs/generated
@@ -124,21 +124,16 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 
 INPUT                  = pyhelios \
-                         docs/cpp_plugin_integration_guide.md \
                          docs/getting_started.md \
-                         docs/installation.md \
-                         docs/quick_start.md \
                          docs/cross_platform.md \
                          docs/plugin_system.md \
-                         docs/mock_mode.md \
                          docs/user_guide.md \
-                         docs/overview.md \
-                         docs/api_guide.md \
-                         docs/file_io.md \
-                         docs/plugins_main.md \
+                         docs/plugin_integration_guide.md \
+                         docs/cpp_plugin_integration_guide.md \
                          docs/plugin_radiation.md \
                          docs/plugin_visualizer.md \
                          docs/plugin_weberpenntree.md \
+                         docs/CHANGELOG.md \
                          README.md
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    = 

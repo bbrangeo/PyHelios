@@ -65,12 +65,12 @@ def main():
                             # Silver patches with low reflectivity
                             color = RGBcolor(0.75, 0.75, 0.75)
                             patch_uuid = context.addPatch(center=center, size=dx, color=color)
-                            context.setPrimitiveData(patch_uuid, "reflectivity_SW", 0.0)
+                            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_SW", 0.0)
                         else:
                             # White patches with higher reflectivity  
                             color = RGBcolor(1.0, 1.0, 1.0)
                             patch_uuid = context.addPatch(center=center, size=dx, color=color)
-                            context.setPrimitiveData(patch_uuid, "reflectivity_SW", 0.6)
+                            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_SW", 0.6)
 
                         ground_uuids.append(patch_uuid)
         
@@ -116,13 +116,13 @@ def main():
             visualizer.buildContextGeometry(context)
 
             # Position camera for Stanford Bunny view (bunny is ~4 units tall)
-            camera_position = [6.0, -6.0, 4.0]  # Elevated view
+            camera_position = [2.0, -10, 4.0]  # Elevated view
             lookat_point = [0.0, 0.0, 1.5]  # Look at bunny center
 
             visualizer.setCameraPosition(camera_position, lookat_point)
 
-            # Set background color to black for better contrast
-            visualizer.setBackgroundColor([0.0, 0.0, 0.0])
+            # Set background color for better contrast
+            visualizer.setBackgroundColor([0.2, 0.2, 0.3])
 
             # Start the visualization loop - this will open a window and run until user exits
             visualizer.plotInteractive()  # Blocking call - runs until user closes window

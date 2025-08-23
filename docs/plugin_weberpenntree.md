@@ -10,7 +10,7 @@ The WeberPennTree class generates realistic tree structures for various fruit an
 
 ```python
 from pyhelios import Context, WeberPennTree, WPTType
-from pyhelios import DataTypes
+from pyhelios.types import *
 
 # Create context and tree generator
 context = Context()
@@ -22,7 +22,7 @@ tree_id = wpt.buildTree(WPTType.LEMON)
 # Generate tree with custom position and scale
 tree_id = wpt.buildTree(
     wpt_type=WPTType.APPLE,
-    origin=DataTypes.vec3(5, 10, 0),
+    origin=vec3(5, 10, 0),
     scale=1.5
 )
 
@@ -133,7 +133,7 @@ for i in range(3):
         # Position trees in a grid
         x = i * tree_spacing
         y = j * tree_spacing
-        position = DataTypes.vec3(x, y, 0)
+        position = vec3(x, y, 0)
         
         # Alternate tree types
         tree_types = [WPTType.APPLE, WPTType.LEMON, WPTType.OLIVE]
@@ -249,7 +249,7 @@ for uuid in leaf_uuids:
     
     # Green gradient based on height
     green_intensity = min(1.0, height / 5.0)  # Normalize to 5m max height
-    color = DataTypes.RGBcolor(0.2, green_intensity, 0.2)
+    color = RGBcolor(0.2, green_intensity, 0.2)
     
     # Set primitive color (this would need actual Context method)
     # context.setPrimitiveColor(uuid, color)  # Method may not exist
@@ -286,8 +286,8 @@ The WeberPennTree plugin is included in most PyHelios builds:
 build_scripts/build_helios --plugins weberpenntree
 
 # Or use a profile that includes it
-build_scripts/build_helios --profile minimal      # Includes WeberPennTree
-build_scripts/build_helios --profile standard     # Includes WeberPennTree
+build_scripts/build_helios --plugins weberpenntree           # WeberPennTree only
+build_scripts/build_helios                                  # Default build includes WeberPennTree
 ```
 
 ## Performance Considerations

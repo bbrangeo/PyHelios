@@ -22,66 +22,57 @@ def main():
     
     # ==================== METHOD 1: PLY FILE LOADING ====================
     print("\n1. PLY File Loading")
-    try:
-        # Simple PLY loading
-        ply_uuids = context.loadPLY("models/example.ply", silent=True)
-        print(f"   Simple PLY load: {len(ply_uuids)} primitives loaded")
-        
-        # PLY loading with transformations
-        origin = vec3(2.0, 0.0, 1.0)
-        color = RGBcolor(0.8, 0.2, 0.2)  # Red tint
-        rotation = SphericalCoord(1.0, 0.0, 0.0, np.pi/4)  # 45 degree rotation
-        
-        transformed_uuids = context.loadPLY(
-            filename="models/example.ply",
-            origin=origin,
-            height=2.0,
-            rotation=rotation,
-            color=color,
-            upaxis="YUP",
-            silent=True
-        )
-        print(f"   Transformed PLY load: {len(transformed_uuids)} primitives loaded")
-        
-    except Exception as e:
-        print(f"   PLY loading failed (file may not exist): {e}")
+
+    # Simple PLY loading
+    ply_uuids = context.loadPLY("models/suzanne.ply", silent=True)
+    print(f"   Simple PLY load: {len(ply_uuids)} primitives loaded")
+
+    # PLY loading with transformations
+    origin = vec3(2.0, 0.0, 1.0)
+    color = RGBcolor(0.8, 0.2, 0.2)  # Red tint
+    rotation = SphericalCoord(1.0, 0.0, np.pi/4)  # 45 degree rotation
+
+    transformed_uuids = context.loadPLY(
+        filename="models/suzanne.ply",
+        origin=origin,
+        height=2.0,
+        rotation=rotation,
+        color=color,
+        upaxis="YUP",
+        silent=True
+    )
+    print(f"   Transformed PLY load: {len(transformed_uuids)} primitives loaded")
     
     # ==================== METHOD 2: OBJ FILE LOADING ====================
     print("\n2. OBJ File Loading")
-    try:
-        # Simple OBJ loading
-        obj_uuids = context.loadOBJ("models/example.obj", silent=True)
-        print(f"   Simple OBJ load: {len(obj_uuids)} primitives loaded")
-        
-        # OBJ loading with full transformations
-        origin = vec3(-2.0, 0.0, 1.0)
-        scale = vec3(0.5, 0.5, 0.5)  # Half scale
-        rotation = SphericalCoord(1.0, 0.0, 0.0, -np.pi/6)  # -30 degree rotation
-        color = RGBcolor(0.2, 0.8, 0.2)  # Green tint
-        
-        transformed_obj_uuids = context.loadOBJ(
-            filename="models/example.obj",
-            origin=origin,
-            scale=scale,
-            rotation=rotation,
-            color=color,
-            upaxis="ZUP",
-            silent=True
-        )
-        print(f"   Transformed OBJ load: {len(transformed_obj_uuids)} primitives loaded")
-        
-    except Exception as e:
-        print(f"   OBJ loading failed (file may not exist): {e}")
-    
-    # ==================== METHOD 3: XML FILE LOADING ====================
+
+    # Simple OBJ loading
+    obj_uuids = context.loadOBJ("models/suzanne.obj", silent=True)
+    print(f"   Simple OBJ load: {len(obj_uuids)} primitives loaded")
+
+    # OBJ loading with full transformations
+    origin = vec3(-2.0, 0.0, 1.0)
+    scale = vec3(0.5, 0.5, 0.5)  # Half scale
+    rotation = SphericalCoord(1.0, 0.0, -np.pi/6)  # -30 degree rotation
+    color = RGBcolor(0.2, 0.8, 0.2)  # Green tint
+
+    transformed_obj_uuids = context.loadOBJ(
+        filename="models/suzanne.obj",
+        origin=origin,
+        scale=scale,
+        rotation=rotation,
+        color=color,
+        upaxis="ZUP",
+        silent=True
+    )
+    print(f"   Transformed OBJ load: {len(transformed_obj_uuids)} primitives loaded")
+
+# ==================== METHOD 3: XML FILE LOADING ====================
     print("\n3. Helios XML File Loading")
-    try:
-        xml_uuids = context.loadXML("geometry/scene.xml", quiet=True)
-        print(f"   XML load: {len(xml_uuids)} primitives loaded")
-        
-    except Exception as e:
-        print(f"   XML loading failed (file may not exist): {e}")
-    
+
+    xml_uuids = context.loadXML("models/leaf_cube.xml", quiet=True)
+    print(f"   XML load: {len(xml_uuids)} primitives loaded")
+
     # ==================== METHOD 4: NUMPY ARRAY IMPORT ====================
     print("\n4. NumPy Array Import (trimesh/Open3D compatible)")
     
@@ -136,21 +127,61 @@ def main():
         [1.0, 1.0],  # top-right UV
         [0.0, 1.0]   # top-left UV
     ], dtype=np.float32)
+
+    # Single texture example (backward compatible)
+    textured_uuids = context.addTrianglesFromArraysTextured(
+        vertices=quad_vertices,
+        faces=quad_faces,
+        uv_coords=uv_coords,
+        texture_files="models/Helios_logo.jpeg"  # Note: now uses texture_files parameter
+    )
+    print(f"   Single textured triangles: {len(textured_uuids)} triangles added")
+    print(f"   Textured UUIDs: {textured_uuids}")
+    
+    # Multi-texture example (new functionality)
+    print("\n   Multi-texture example:")
+    
+    # Create a simple 2x1 rectangle with 4 triangles using different textures
+    multi_vertices = np.array([
+        [0.0, 0.0, 2.0],   # bottom-left
+        [1.0, 0.0, 2.0],   # bottom-middle
+        [2.0, 0.0, 2.0],   # bottom-right
+        [0.0, 1.0, 2.0],   # top-left
+        [1.0, 1.0, 2.0],   # top-middle
+        [2.0, 1.0, 2.0]    # top-right
+    ], dtype=np.float32)
+    
+    multi_faces = np.array([
+        [0, 1, 3],  # left bottom triangle
+        [1, 4, 3],  # left top triangle
+        [1, 2, 4],  # right bottom triangle
+        [2, 5, 4]   # right top triangle
+    ], dtype=np.uint32)
+    
+    multi_uv_coords = np.array([
+        [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],  # bottom row UVs
+        [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]   # top row UVs
+    ], dtype=np.float32)
+    
+    # Material IDs: left triangles use texture 0, right triangles use texture 1
+    material_ids = np.array([0, 0, 1, 1], dtype=np.uint32)
     
     try:
-        textured_uuids = context.addTrianglesFromArraysTextured(
-            vertices=quad_vertices,
-            faces=quad_faces,
-            uv_coords=uv_coords,
-            texture_file="textures/test_texture.png"
+        # Attempt multi-texture with dummy texture files (will fail validation but shows API)
+        multi_textured_uuids = context.addTrianglesFromArraysTextured(
+            vertices=multi_vertices,
+            faces=multi_faces,
+            uv_coords=multi_uv_coords,
+            texture_files=["models/Helios_logo.jpeg", "models/Helios_logo.jpeg"],  # Using same texture twice for demo
+            material_ids=material_ids
         )
-        print(f"   Textured triangles: {len(textured_uuids)} triangles added")
-        print(f"   Textured UUIDs: {textured_uuids}")
-        
+        print(f"   Multi-textured triangles: {len(multi_textured_uuids)} triangles added")
+        print(f"   Multi-texture UUIDs: {multi_textured_uuids}")
     except Exception as e:
-        print(f"   Textured triangle import failed: {e}")
-    
-    # ==================== PRIMITIVE INFO RETRIEVAL ====================
+        print(f"   Multi-texture example skipped: {e}")
+        print("   (This is expected if texture files don't exist or native library isn't built)")
+
+# ==================== PRIMITIVE INFO RETRIEVAL ====================
     print("\n6. Primitive Information Retrieval")
     
     # Get information about the triangles we just created

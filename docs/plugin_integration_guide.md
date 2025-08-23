@@ -192,7 +192,7 @@ Test that your plugin builds correctly:
 build_scripts/build_helios --clean --plugins yourplugin
 
 # Test with profile
-build_scripts/build_helios --profile research
+build_scripts/build_helios --interactive
 
 # Interactive selection (verify plugin appears)
 build_scripts/build_helios --interactive
@@ -418,6 +418,9 @@ if _YOURPLUGIN_FUNCTIONS_AVAILABLE:
     helios_lib.createYourPlugin.errcheck = _check_error
     helios_lib.yourPluginMethod.errcheck = _check_error
     helios_lib.yourPluginGetArray.errcheck = _check_error
+    
+    # CRITICAL: Add errcheck to ALL functions that can fail
+    # Missing errcheck callbacks result in silent failures and cryptic ctypes errors
 
 # Wrapper functions
 def createYourPlugin(context) -> ctypes.POINTER(UYourPlugin):
@@ -497,7 +500,142 @@ if not _YOURPLUGIN_FUNCTIONS_AVAILABLE:
     yourPluginMethod = mock_yourPluginMethod
 ```
 
-### 4.2 Import in Wrappers Module
+### 4.2 Critical Error Handling Requirements
+
+**ESSENTIAL**: Every ctypes function prototype must have an errcheck callback to automatically translate C++ exceptions to Python exceptions. Missing errcheck callbacks lead to:
+
+- **Silent failures** where errors are ignored
+- **Cryptic ctypes errors** like "Don't know how to convert parameter N"
+- **Poor debugging experience** requiring manual try-catch everywhere
+
+#### Complete errcheck Setup Pattern
+
+```python
+# Step 1: Set up all function prototypes
+try:
+    helios_lib.yourFunction1.argtypes = [...]
+    helios_lib.yourFunction1.restype = ...
+    
+    helios_lib.yourFunction2.argtypes = [...]
+    helios_lib.yourFunction2.restype = ...
+    
+    # Mark functions as available
+    _YOURPLUGIN_FUNCTIONS_AVAILABLE = True
+    
+except AttributeError:
+    _YOURPLUGIN_FUNCTIONS_AVAILABLE = False
+
+# Step 2: Add errcheck to ALL functions (critical!)
+if _YOURPLUGIN_FUNCTIONS_AVAILABLE:
+    helios_lib.yourFunction1.errcheck = _check_error
+    helios_lib.yourFunction2.errcheck = _check_error
+    # Add errcheck for EVERY function - no exceptions!
+```
+
+#### Common errcheck Mistakes
+
+**❌ Wrong - Missing errcheck:**
+```python
+helios_lib.loadPLYWithTransforms.argtypes = [...]
+helios_lib.loadPLYWithTransforms.restype = ...
+# Missing: .errcheck = _check_error
+# Result: Silent failures, cryptic ctypes errors
+```
+
+**✅ Correct - Complete errcheck setup:**
+```python
+helios_lib.loadPLYWithTransforms.argtypes = [...]
+helios_lib.loadPLYWithTransforms.restype = ...
+helios_lib.loadPLYWithTransforms.errcheck = _check_error  # Essential!
+```
+
+#### Error Behavior Without errcheck
+
+When errcheck is missing, users experience:
+
+1. **Silent parameter conversion failures** that show as cryptic messages
+2. **No automatic exception translation** from C++ to Python
+3. **Poor debugging experience** requiring manual error checking
+4. **Inconsistent error handling** across PyHelios functions
+
+#### Function Prototype Setup Failure Modes
+
+**CRITICAL**: Individual function availability can vary within a plugin. Use granular try/except blocks to avoid losing available functions due to missing ones.
+
+**❌ Wrong - Single try/except block:**
+```python
+# This fails if ANY function is missing, losing ALL functions
+try:
+    helios_lib.function1.argtypes = [...]
+    helios_lib.function2.argtypes = [...]  # If this fails...
+    helios_lib.function3.argtypes = [...]  # ...these are lost too
+    _PLUGIN_AVAILABLE = True
+except AttributeError:
+    _PLUGIN_AVAILABLE = False  # All functions marked unavailable
+```
+
+**✅ Correct - Individual try/except blocks:**
+```python
+# Each function is set up independently
+_AVAILABLE_FUNCTIONS = []
+
+try:
+    helios_lib.function1.argtypes = [...]
+    helios_lib.function1.errcheck = _check_error
+    _AVAILABLE_FUNCTIONS.append('function1')
+except AttributeError:
+    pass
+
+try:
+    helios_lib.function2.argtypes = [...]
+    helios_lib.function2.errcheck = _check_error
+    _AVAILABLE_FUNCTIONS.append('function2')
+except AttributeError:
+    pass
+
+# Mark as available if we found any functions
+_PLUGIN_AVAILABLE = len(_AVAILABLE_FUNCTIONS) > 0
+```
+
+#### Verification Commands
+
+Test that error handling works correctly:
+
+```bash
+# Test automatic error translation
+python -c "
+from pyhelios import Context
+context = Context()
+try:
+    # This should raise HeliosRuntimeError automatically
+    context.getPrimitiveInfo(999999)
+except Exception as e:
+    print(f'SUCCESS: {type(e).__name__}: {e}')
+"
+
+# Test file loading error handling  
+python -c "
+from pyhelios import Context
+context = Context()
+try:
+    # This should raise FileNotFoundError or HeliosFileIOError
+    context.loadPLY('nonexistent.ply')
+except Exception as e:
+    print(f'SUCCESS: {type(e).__name__}: {e}')
+"
+
+# Test function prototype setup
+python -c "
+from pyhelios.wrappers.UContextWrapper import helios_lib
+func = helios_lib.loadPLYWithOriginHeightRotationColor
+if func.argtypes is None:
+    print('ERROR: Function prototype not set up')
+else:
+    print('SUCCESS: Function prototype configured')
+"
+```
+
+### 4.3 Import in Wrappers Module
 
 **File**: `pyhelios/wrappers/__init__.py`
 
@@ -1048,7 +1186,7 @@ YourPlugin is included in the following build profiles:
 
 ```bash
 # Using profile
-build_scripts/build_helios --profile research
+build_scripts/build_helios --interactive
 
 # Explicit selection
 build_scripts/build_helios --plugins yourplugin
@@ -1298,8 +1436,15 @@ open docs/generated/html/index.html
 **Requirements**:
 - All C++ interface functions must use try/catch blocks
 - Set appropriate error codes based on exception type
-- Use errcheck callbacks for automatic error checking
+- **CRITICAL**: Use errcheck callbacks for automatic error checking on ALL ctypes functions
 - Never allow C++ exceptions to cross into Python
+
+**Common Failure**: Missing errcheck callbacks on ctypes functions result in:
+- Silent failures and cryptic "Don't know how to convert parameter N" errors
+- Poor debugging experience requiring manual try-catch everywhere
+- Inconsistent error handling across PyHelios
+
+**Solution**: Always add `helios_lib.yourFunction.errcheck = _check_error` for every function prototype.
 
 ### 8.5 Plugin Availability Detection
 

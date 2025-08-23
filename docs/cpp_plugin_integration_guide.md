@@ -309,7 +309,7 @@ PyHelios now uses a simplified, robust error handling system that automatically 
 **C++ Wrapper Exception Handling:**
 ```cpp
 // In your C++ wrapper functions (pyhelios_wrapper.cpp)
-#include "pyhelios_wrapper.h"  // Includes error management infrastructure
+#include "pyhelios_wrapper_common.h"  // Includes error management infrastructure
 
 uint32_t your_new_function(helios::Context* context, float* params, uint32_t param_count) {
     try {
@@ -498,7 +498,7 @@ from pyhelios.exceptions import (
 
 **Error Code Constants (C++ side):**
 ```cpp
-// These are automatically defined in pyhelios_wrapper.h
+// These are automatically defined in pyhelios_wrapper_common.h
 typedef enum {
     PYHELIOS_SUCCESS = 0,
     PYHELIOS_ERROR_INVALID_PARAMETER = 1,     // → HeliosInvalidArgumentError
@@ -731,7 +731,7 @@ python -m pyhelios.plugins info your_plugin
 build_scripts/build_helios --plugins your_plugin
 
 # Your plugin can be included in profiles
-build_scripts/build_helios --profile your_profile
+build_scripts/build_helios --plugins your_plugin1,your_plugin2
 ```
 
 **Testing Integration:**

@@ -104,6 +104,15 @@ helios_lib.loadPLY.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes
 helios_lib.loadPLY.restype = ctypes.POINTER(ctypes.c_uint)
 helios_lib.loadPLY.errcheck = _check_error
 
+# Try to set up basic loadPLY function prototype
+try:
+    helios_lib.loadPLYBasic.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes.c_bool, ctypes.POINTER(ctypes.c_uint)]
+    helios_lib.loadPLYBasic.restype = ctypes.POINTER(ctypes.c_uint)
+    helios_lib.loadPLYBasic.errcheck = _check_error
+    _BASIC_PLY_AVAILABLE = True
+except AttributeError:
+    _BASIC_PLY_AVAILABLE = False
+
 # Try to set up primitive data function prototypes specifically
 try:
     # Primitive data function prototypes - scalar setters
@@ -200,28 +209,47 @@ except AttributeError:
     _PRIMITIVE_DATA_FUNCTIONS_AVAILABLE = False
 
 # Try to set up PLY loading function prototypes separately
+# Note: Some PLY functions may not be available in the native library, so we set them up individually
+
+_PLY_LOADING_FUNCTIONS_AVAILABLE = False
+_AVAILABLE_PLY_FUNCTIONS = []
+
+# Try each PLY function individually
 try:
-    # Note: loadPLY function is defined separately outside this try block
-    # Only define the specific variant functions here
-    
     helios_lib.loadPLYWithOriginHeight.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes.POINTER(ctypes.c_float), ctypes.c_float, ctypes.c_char_p, ctypes.c_bool, ctypes.POINTER(ctypes.c_uint)]
     helios_lib.loadPLYWithOriginHeight.restype = ctypes.POINTER(ctypes.c_uint)
-    
+    helios_lib.loadPLYWithOriginHeight.errcheck = _check_error
+    _AVAILABLE_PLY_FUNCTIONS.append('loadPLYWithOriginHeight')
+except AttributeError:
+    pass
+
+try:
     helios_lib.loadPLYWithOriginHeightRotation.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes.POINTER(ctypes.c_float), ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.c_char_p, ctypes.c_bool, ctypes.POINTER(ctypes.c_uint)]
     helios_lib.loadPLYWithOriginHeightRotation.restype = ctypes.POINTER(ctypes.c_uint)
-    
+    helios_lib.loadPLYWithOriginHeightRotation.errcheck = _check_error
+    _AVAILABLE_PLY_FUNCTIONS.append('loadPLYWithOriginHeightRotation')
+except AttributeError:
+    pass
+
+try:
     helios_lib.loadPLYWithOriginHeightColor.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes.POINTER(ctypes.c_float), ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.c_char_p, ctypes.c_bool, ctypes.POINTER(ctypes.c_uint)]
     helios_lib.loadPLYWithOriginHeightColor.restype = ctypes.POINTER(ctypes.c_uint)
-    
+    helios_lib.loadPLYWithOriginHeightColor.errcheck = _check_error
+    _AVAILABLE_PLY_FUNCTIONS.append('loadPLYWithOriginHeightColor')
+except AttributeError:
+    pass
+
+try:
     helios_lib.loadPLYWithOriginHeightRotationColor.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes.POINTER(ctypes.c_float), ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_char_p, ctypes.c_bool, ctypes.POINTER(ctypes.c_uint)]
     helios_lib.loadPLYWithOriginHeightRotationColor.restype = ctypes.POINTER(ctypes.c_uint)
-    
-    # Mark that PLY loading functions are available
-    _PLY_LOADING_FUNCTIONS_AVAILABLE = True
-
+    helios_lib.loadPLYWithOriginHeightRotationColor.errcheck = _check_error
+    _AVAILABLE_PLY_FUNCTIONS.append('loadPLYWithOriginHeightRotationColor')
 except AttributeError:
-    # PLY loading functions not available in current native library
-    _PLY_LOADING_FUNCTIONS_AVAILABLE = False
+    pass
+
+# Mark PLY functions as available if we found any
+if _AVAILABLE_PLY_FUNCTIONS:
+    _PLY_LOADING_FUNCTIONS_AVAILABLE = True
 
 # Try to set up OBJ and XML loading function prototypes separately  
 try:
@@ -242,6 +270,13 @@ try:
     helios_lib.loadXML.argtypes = [ctypes.POINTER(UContext), ctypes.c_char_p, ctypes.c_bool, ctypes.POINTER(ctypes.c_uint)]
     helios_lib.loadXML.restype = ctypes.POINTER(ctypes.c_uint)
 
+    # Add error checking for OBJ and XML loading functions
+    helios_lib.loadOBJ.errcheck = _check_error
+    helios_lib.loadOBJWithOriginHeightRotationColor.errcheck = _check_error
+    helios_lib.loadOBJWithOriginHeightRotationColorUpaxis.errcheck = _check_error
+    helios_lib.loadOBJWithOriginScaleRotationColorUpaxis.errcheck = _check_error
+    helios_lib.loadXML.errcheck = _check_error
+
     # Mark that OBJ/XML loading functions are available
     _OBJ_XML_LOADING_FUNCTIONS_AVAILABLE = True
 
@@ -249,34 +284,73 @@ except AttributeError:
     # OBJ/XML loading functions not available in current native library
     _OBJ_XML_LOADING_FUNCTIONS_AVAILABLE = False
 
-# For backward compatibility, set this to True if PLY functions are available  
-_FILE_LOADING_FUNCTIONS_AVAILABLE = _PLY_LOADING_FUNCTIONS_AVAILABLE
+# Check if basic file loading functions are available
+_BASIC_FILE_LOADING_AVAILABLE = _BASIC_PLY_AVAILABLE
 
-# Try to set up triangle function prototypes separately
+# For backward compatibility, set this to True if any file loading functions are available  
+_FILE_LOADING_FUNCTIONS_AVAILABLE = _PLY_LOADING_FUNCTIONS_AVAILABLE or _OBJ_XML_LOADING_FUNCTIONS_AVAILABLE or _BASIC_FILE_LOADING_AVAILABLE
+
+# Try to set up triangle function prototypes individually (critical pattern from plugin integration guide)
+_AVAILABLE_TRIANGLE_FUNCTIONS = []
+
+# Basic triangle function
 try:
-    # addTriangle function prototypes
     helios_lib.addTriangle.argtypes = [ctypes.POINTER(UContext), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
     helios_lib.addTriangle.restype = ctypes.c_uint
     helios_lib.addTriangle.errcheck = _check_error
-    
+    _AVAILABLE_TRIANGLE_FUNCTIONS.append('addTriangle')
+except AttributeError:
+    pass
+
+# Triangle with color function
+try:
     helios_lib.addTriangleWithColor.argtypes = [ctypes.POINTER(UContext), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
     helios_lib.addTriangleWithColor.restype = ctypes.c_uint
     helios_lib.addTriangleWithColor.errcheck = _check_error
-    
+    _AVAILABLE_TRIANGLE_FUNCTIONS.append('addTriangleWithColor')
+except AttributeError:
+    pass
+
+# Triangle with RGBA color function
+try:
     helios_lib.addTriangleWithColorRGBA.argtypes = [ctypes.POINTER(UContext), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
     helios_lib.addTriangleWithColorRGBA.restype = ctypes.c_uint
     helios_lib.addTriangleWithColorRGBA.errcheck = _check_error
-    
+    _AVAILABLE_TRIANGLE_FUNCTIONS.append('addTriangleWithColorRGBA')
+except AttributeError:
+    pass
+
+# Triangle with texture function
+try:
     helios_lib.addTriangleWithTexture.argtypes = [ctypes.POINTER(UContext), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_char_p, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
     helios_lib.addTriangleWithTexture.restype = ctypes.c_uint
     helios_lib.addTriangleWithTexture.errcheck = _check_error
-
-    # Mark that triangle functions are available
-    _TRIANGLE_FUNCTIONS_AVAILABLE = True
-
+    _AVAILABLE_TRIANGLE_FUNCTIONS.append('addTriangleWithTexture')
 except AttributeError:
-    # Triangle functions not available in current native library
-    _TRIANGLE_FUNCTIONS_AVAILABLE = False
+    pass
+
+# Multi-texture triangle function (may not be available in all builds)
+try:
+    helios_lib.addTrianglesFromArraysMultiTextured.argtypes = [
+        ctypes.POINTER(UContext),                    # context
+        ctypes.POINTER(ctypes.c_float),             # vertices
+        ctypes.c_uint,                              # vertex_count
+        ctypes.POINTER(ctypes.c_uint),              # faces
+        ctypes.c_uint,                              # face_count
+        ctypes.POINTER(ctypes.c_float),             # uv_coords
+        ctypes.POINTER(ctypes.c_char_p),            # texture_files
+        ctypes.c_uint,                              # texture_count
+        ctypes.POINTER(ctypes.c_uint),              # material_ids
+        ctypes.POINTER(ctypes.c_uint)               # result_count
+    ]
+    helios_lib.addTrianglesFromArraysMultiTextured.restype = ctypes.POINTER(ctypes.c_uint)
+    helios_lib.addTrianglesFromArraysMultiTextured.errcheck = _check_error
+    _AVAILABLE_TRIANGLE_FUNCTIONS.append('addTrianglesFromArraysMultiTextured')
+except AttributeError:
+    pass
+
+# Mark triangle functions as available if we found any basic functions
+_TRIANGLE_FUNCTIONS_AVAILABLE = len(_AVAILABLE_TRIANGLE_FUNCTIONS) > 0
 
 # Compound geometry function prototypes - return arrays of UUIDs
 try:
@@ -426,7 +500,14 @@ def loadPLY(context, filename:str, silent:bool=False):
         raise NotImplementedError("File loading functions not available in current Helios library. These require updated C++ wrapper implementation.")
     size = ctypes.c_uint()
     filename_encoded = filename.encode('utf-8')
-    uuids_ptr = helios_lib.loadPLY(context, filename_encoded, silent, ctypes.byref(size))
+    
+    # Try to use the new loadPLYBasic function if available, otherwise fall back to mock
+    if _BASIC_PLY_AVAILABLE:
+        uuids_ptr = helios_lib.loadPLYBasic(context, filename_encoded, silent, ctypes.byref(size))
+    else:
+        # Fall back for development - this will likely fail but provide better error messages
+        raise RuntimeError("loadPLY basic functionality not available. The native library needs to be rebuilt with the new loadPLY functions. Run: build_scripts/build_helios")
+    
     if uuids_ptr is None:
         return []
     return list(uuids_ptr[:size.value])
@@ -555,8 +636,12 @@ def addTriangleWithColorRGBA(context, vertex0:List[float], vertex1:List[float], 
     return helios_lib.addTriangleWithColorRGBA(context, vertex0_ptr, vertex1_ptr, vertex2_ptr, color_ptr)
 
 def addTriangleWithTexture(context, vertex0:List[float], vertex1:List[float], vertex2:List[float], texture_file:str, uv0:List[float], uv1:List[float], uv2:List[float]):
-    if not _TRIANGLE_FUNCTIONS_AVAILABLE:
-        raise NotImplementedError("Triangle functions not available in current Helios library. These require updated C++ wrapper implementation.")
+    if 'addTriangleWithTexture' not in _AVAILABLE_TRIANGLE_FUNCTIONS:
+        raise NotImplementedError(
+            "addTriangleWithTexture function not available in current Helios library. "
+            f"Available triangle functions: {', '.join(_AVAILABLE_TRIANGLE_FUNCTIONS)}. "
+            "Rebuild PyHelios with updated C++ wrapper: build_scripts/build_helios"
+        )
     vertex0_ptr = (ctypes.c_float * len(vertex0))(*vertex0)
     vertex1_ptr = (ctypes.c_float * len(vertex1))(*vertex1)
     vertex2_ptr = (ctypes.c_float * len(vertex2))(*vertex2)
@@ -565,6 +650,84 @@ def addTriangleWithTexture(context, vertex0:List[float], vertex1:List[float], ve
     uv1_ptr = (ctypes.c_float * len(uv1))(*uv1)
     uv2_ptr = (ctypes.c_float * len(uv2))(*uv2)
     return helios_lib.addTriangleWithTexture(context, vertex0_ptr, vertex1_ptr, vertex2_ptr, texture_file_encoded, uv0_ptr, uv1_ptr, uv2_ptr)
+
+def addTrianglesFromArraysMultiTextured(context, vertices, faces, 
+                                       uv_coords, texture_files: List[str], 
+                                       material_ids) -> List[int]:
+    """
+    Add textured triangles with multiple textures using material IDs.
+    
+    Args:
+        context: Helios context
+        vertices: NumPy array of shape (N, 3) containing vertex coordinates
+        faces: NumPy array of shape (M, 3) containing triangle vertex indices  
+        uv_coords: NumPy array of shape (N, 2) containing UV texture coordinates
+        texture_files: List of texture file paths
+        material_ids: NumPy array of shape (M,) containing material ID for each face
+        
+    Returns:
+        List of UUIDs for the added textured triangles
+    """
+    if not _TRIANGLE_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError("Triangle functions not available in current Helios library. These require updated C++ wrapper implementation.")
+    
+    # Import numpy here to avoid circular imports
+    import numpy as np
+    
+    # Validate input arrays
+    if vertices.ndim != 2 or vertices.shape[1] != 3:
+        raise ValueError(f"Vertices array must have shape (N, 3), got {vertices.shape}")
+    if faces.ndim != 2 or faces.shape[1] != 3:
+        raise ValueError(f"Faces array must have shape (M, 3), got {faces.shape}")
+    if uv_coords.ndim != 2 or uv_coords.shape[1] != 2:
+        raise ValueError(f"UV coordinates array must have shape (N, 2), got {uv_coords.shape}")
+    if material_ids.ndim != 1 or material_ids.shape[0] != faces.shape[0]:
+        raise ValueError(f"Material IDs array must have shape (M,) where M={faces.shape[0]}, got {material_ids.shape}")
+    
+    # Check array consistency
+    if uv_coords.shape[0] != vertices.shape[0]:
+        raise ValueError(f"UV coordinates count ({uv_coords.shape[0]}) must match vertices count ({vertices.shape[0]})")
+    
+    # Validate material IDs
+    max_material_id = np.max(material_ids)
+    if max_material_id >= len(texture_files):
+        raise ValueError(f"Material ID {max_material_id} exceeds texture count {len(texture_files)}")
+    
+    # Convert arrays to appropriate data types and flatten for C interface
+    vertices_flat = vertices.astype(np.float32).flatten()
+    faces_flat = faces.astype(np.uint32).flatten()
+    uv_coords_flat = uv_coords.astype(np.float32).flatten()
+    material_ids_array = material_ids.astype(np.uint32)
+    
+    vertex_count = vertices.shape[0]
+    face_count = faces.shape[0]
+    texture_count = len(texture_files)
+    
+    # Convert Python arrays to ctypes arrays
+    vertices_ptr = (ctypes.c_float * len(vertices_flat))(*vertices_flat)
+    faces_ptr = (ctypes.c_uint * len(faces_flat))(*faces_flat)
+    uv_coords_ptr = (ctypes.c_float * len(uv_coords_flat))(*uv_coords_flat)
+    material_ids_ptr = (ctypes.c_uint * len(material_ids_array))(*material_ids_array)
+    
+    # Encode texture file strings
+    texture_files_encoded = [f.encode('utf-8') for f in texture_files]
+    texture_files_ptr = (ctypes.c_char_p * len(texture_files_encoded))(*texture_files_encoded)
+    
+    # Result count parameter
+    result_count = ctypes.c_uint()
+    
+    # Call C++ function
+    uuids_ptr = helios_lib.addTrianglesFromArraysMultiTextured(
+        context, vertices_ptr, vertex_count, faces_ptr, face_count,
+        uv_coords_ptr, texture_files_ptr, texture_count, material_ids_ptr,
+        ctypes.byref(result_count)
+    )
+    
+    # Convert result to Python list
+    if uuids_ptr and result_count.value > 0:
+        return list(uuids_ptr[:result_count.value])
+    else:
+        return []
 
 # Python wrappers for compound geometry functions
 def addTile(context, center: List[float], size: List[float], rotation: List[float], subdiv: List[int]) -> List[int]:

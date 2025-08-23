@@ -38,20 +38,23 @@ PyHelios uses a sophisticated plugin architecture with **21 available plugins** 
 Use predefined profiles for common use cases:
 
 ```bash
-# Minimal build (core functionality only)
-build_scripts/build_helios --profile minimal
+# Default build (core functionality with visualization)
+build_scripts/build_helios
 
-# Standard build (recommended for most users)
-build_scripts/build_helios --profile standard
+# Specific plugin selection
+build_scripts/build_helios --plugins weberpenntree,canopygenerator,visualizer
 
-# GPU-accelerated build (requires CUDA)
-build_scripts/build_helios --profile gpu-accelerated
+# Build with all plugins (includes GPU features if CUDA available)
+build_scripts/build_helios
 
-# Full research suite (comprehensive plugin set)
-build_scripts/build_helios --profile research
+# Or build specific plugins
+build_scripts/build_helios --plugins radiation
 
-# Production-ready features (reliable, well-tested plugins)
-build_scripts/build_helios --profile production
+# Interactive selection (guided setup)
+build_scripts/build_helios --interactive
+
+# Exclude specific categories
+build_scripts/build_helios --nogpu --novis
 ```
 
 ### Profile Contents
@@ -79,14 +82,17 @@ context = Context()
 available_plugins = context.get_available_plugins()
 print(f"Available plugins: {available_plugins}")
 
-# Check specific plugin availability
-if context.is_plugin_available('radiation'):
+# Check plugin availability
+from pyhelios.plugins import get_plugin_registry, print_plugin_status
+
+registry = get_plugin_registry()
+if registry.is_plugin_available('radiation'):
     print("GPU radiation modeling available")
 else:
-    print("Radiation plugin not available - build with --profile gpu-accelerated to enable")
+    print("Radiation plugin not available - build with CUDA support enabled")
 
 # Get detailed plugin status
-context.print_plugin_status()
+print_plugin_status()
 ```
 
 ## Plugin-Aware Usage
@@ -143,7 +149,7 @@ build_scripts/build_helios --plugins weberpenntree,canopygenerator,visualizer,en
 build_scripts/build_helios --interactive
 
 # Exclude problematic plugins
-build_scripts/build_helios --profile standard --exclude radiation
+build_scripts/build_helios --exclude radiation
 ```
 
 ### Configuration File Support
@@ -272,7 +278,8 @@ with Context() as context:
 **Plugin Not Found:**
 ```python
 # Check if plugin is built
-context.print_plugin_status()
+from pyhelios.plugins import print_plugin_status
+print_plugin_status()
 
 # Rebuild with plugin included
 # build_scripts/build_helios --plugins plugin_name
@@ -302,7 +309,7 @@ HeliosPluginNotAvailableError: The 'radiation' plugin is not available.
 
 To enable GPU-accelerated radiation modeling:
 1. Install CUDA Toolkit 11.0+
-2. Rebuild PyHelios: build_scripts/build_helios --profile gpu-accelerated
+2. Rebuild PyHelios with CUDA: build_scripts/build_helios
 3. Ensure NVIDIA GPU with compute capability 3.5+
 
 Alternative: Use CPU-based radiation approximations with the 'energybalance' plugin.

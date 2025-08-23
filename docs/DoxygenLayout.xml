@@ -11,13 +11,12 @@
       <tab type="user" visible="yes" url="@ref QuickStart" title="Quick Start"/>
       <tab type="user" visible="yes" url="@ref CrossPlatform" title="Cross-Platform Usage"/>
       <tab type="user" visible="yes" url="@ref PluginSystem" title="Plugin System"/>
-      <tab type="user" visible="yes" url="@ref MockMode" title="Development Mode"/>
     </tab>
     
     <!-- User's Guide Section -->
-    <tab type="usergroup" visible="yes" url="@ref UserGuide" title="User's Guide" intro="">
-      <tab type="user" visible="yes" url="@ref Overview" title="Introduction"/>
-      <tab type="user" visible="yes" url="@ref API" title="User/API Guide"/>
+    <tab type="usergroup" visible="yes" url="@ref UserGuide" title="User Guide" intro="">
+      <tab type="user" visible="yes" url="@ref Overview" title="Core Concepts"/>
+      <tab type="user" visible="yes" url="@ref API" title="API Reference"/>
       <tab type="user" visible="yes" url="@ref IO" title="File I/O"/>
     </tab>
     

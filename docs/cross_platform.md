@@ -30,7 +30,7 @@ pip install -e .  # Uses pre-built libraries
 **Building from Source:**
 ```bash
 # Requires Visual Studio 2019+ or Build Tools
-build_scripts/build_helios --profile standard
+build_scripts/build_helios
 ```
 
 **GPU Support:**
@@ -51,7 +51,7 @@ xcode-select --install
 
 git clone --recursive https://github.com/PlantSimulationLab/PyHelios.git
 cd PyHelios/
-build_scripts/build_helios --profile standard
+build_scripts/build_helios
 pip install -e .
 ```
 
@@ -88,7 +88,7 @@ sudo apt-get install build-essential cmake python3-dev
 
 git clone --recursive https://github.com/PlantSimulationLab/PyHelios.git
 cd PyHelios/
-build_scripts/build_helios --profile standard
+build_scripts/build_helios
 pip install -e .
 ```
 

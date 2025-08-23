@@ -17,34 +17,34 @@ The radiation plugin requires:
 
 ```python
 from pyhelios import Context, RadiationModel, RadiationModelError
-from pyhelios import DataTypes
+from pyhelios.types import *
 
 # Create context with geometry
 context = Context()
 patch_uuid = context.addPatch(
-    center=DataTypes.vec3(0, 0, 0),
-    size=DataTypes.vec2(2, 2),
-    color=DataTypes.RGBcolor(0.3, 0.7, 0.2)
+    center=vec3(0, 0, 0),
+    size=vec2(2, 2),
+    color=RGBcolor(0.3, 0.7, 0.2)
 )
 
 # Use RadiationModel with context manager (recommended)
 with RadiationModel(context) as radiation:
     # Add radiation band
-    radiation.add_radiation_band("PAR")
+    radiation.addRadiationBand("PAR")
     
     # Add radiation source
-    source_id = radiation.add_collimated_radiation_source()
-    radiation.set_source_flux(source_id, "PAR", 1000.0)
+    source_id = radiation.addCollimatedRadiationSource()
+    radiation.setSourceFlux(source_id, "PAR", 1000.0)
     
     # Configure ray counts
-    radiation.set_direct_ray_count("PAR", 100)
-    radiation.set_diffuse_ray_count("PAR", 300)
+    radiation.setDirectRayCount("PAR", 100)
+    radiation.setDiffuseRayCount("PAR", 300)
     
     # Run simulation
-    radiation.run_band("PAR")
+    radiation.runBand("PAR")
     
     # Get results
-    results = radiation.get_total_absorbed_flux()
+    results = radiation.getTotalAbsorbedFlux()
     print(f"Total absorbed flux: {sum(results)} W")
 ```
 
@@ -54,15 +54,15 @@ with RadiationModel(context) as radiation:
 
 ```python
 # Add radiation bands (verified methods)
-radiation.add_radiation_band("PAR")
-radiation.add_radiation_band("NIR")
-radiation.add_radiation_band("SW")
+radiation.addRadiationBand("PAR")
+radiation.addRadiationBand("NIR")
+radiation.addRadiationBand("SW")
 
 # Add band with wavelength bounds
-radiation.add_radiation_band_with_wavelengths("custom", 400.0, 700.0)
+radiation.addRadiationBand("custom", wavelength_min=400.0, wavelength_max=700.0)
 
 # Copy existing band
-radiation.copy_radiation_band("PAR", "PAR_copy")
+radiation.copyRadiationBand("PAR", "PAR_copy")
 ```
 
 ### Common Radiation Bands
@@ -78,7 +78,7 @@ bands = {
 }
 
 for band, description in bands.items():
-    radiation.add_radiation_band(band)
+    radiation.addRadiationBand(band)
     print(f"Added {band}: {description}")
 ```
 
@@ -88,35 +88,35 @@ for band, description in bands.items():
 
 ```python
 # Default collimated source (verified methods)
-source_id = radiation.add_collimated_radiation_source()
+source_id = radiation.addCollimatedRadiationSource()
 
 # Source with specific direction vector
-source_id = radiation.add_collimated_radiation_source(
+source_id = radiation.addCollimatedRadiationSource(
     direction=(0.3, 0.3, -0.9)  # Sun angle
 )
 
 # Set source flux
-radiation.set_source_flux(source_id, "PAR", 1200.0)  # W/m²
+radiation.setSourceFlux(source_id, "PAR", 1200.0)  # W/m²
 ```
 
 ### Spherical Sources
 
 ```python
 # Spherical radiation source
-source_id = radiation.add_sphere_radiation_source(
+source_id = radiation.addSphereRadiationSource(
     position=(0, 0, 10),  # x, y, z position
     radius=0.5            # Source radius
 )
 
 # Set flux for spherical source
-radiation.set_source_flux(source_id, "PAR", 800.0)
+radiation.setSourceFlux(source_id, "PAR", 800.0)
 ```
 
 ### Sun Sources
 
 ```python
 # Realistic sun modeling
-sun_id = radiation.add_sun_sphere_radiation_source(
+sun_id = radiation.addSunSphereRadiationSource(
     radius=0.5,           # Sun disc radius
     zenith=45.0,          # Sun zenith angle (degrees)
     azimuth=180.0,        # Sun azimuth angle (degrees)
@@ -126,7 +126,7 @@ sun_id = radiation.add_sun_sphere_radiation_source(
 )
 
 # Set solar flux
-radiation.set_source_flux(sun_id, "PAR", 1200.0)
+radiation.setSourceFlux(sun_id, "PAR", 1200.0)
 ```
 
 ## Flux Configuration
@@ -135,18 +135,18 @@ radiation.set_source_flux(sun_id, "PAR", 1200.0)
 
 ```python
 # Single source flux
-radiation.set_source_flux(source_id, "PAR", 1000.0)
+radiation.setSourceFlux(source_id, "PAR", 1000.0)
 
 # Multiple sources with same flux
 source_ids = [source1, source2, source3]
-radiation.set_source_flux_multiple(source_ids, "PAR", 800.0)
+radiation.setSourceFluxMultiple(source_ids, "PAR", 800.0)
 
 # Get current source flux
-current_flux = radiation.get_source_flux(source_id, "PAR")
+current_flux = radiation.getSourceFlux(source_id, "PAR")
 print(f"Source flux: {current_flux} W/m²")
 
 # Diffuse radiation flux
-radiation.set_diffuse_radiation_flux("PAR", 200.0)
+radiation.setDiffuseRadiationFlux("PAR", 200.0)
 ```
 
 ## Ray Configuration
@@ -155,12 +155,12 @@ radiation.set_diffuse_radiation_flux("PAR", 200.0)
 
 ```python
 # Configure ray counts for accuracy vs. performance
-radiation.set_direct_ray_count("PAR", 1000)    # Direct rays
-radiation.set_diffuse_ray_count("PAR", 3000)   # Diffuse rays
+radiation.setDirectRayCount("PAR", 1000)    # Direct rays
+radiation.setDiffuseRayCount("PAR", 3000)   # Diffuse rays
 
 # Higher ray counts for better accuracy
-radiation.set_direct_ray_count("PAR", 5000)
-radiation.set_diffuse_ray_count("PAR", 10000)
+radiation.setDirectRayCount("PAR", 5000)
+radiation.setDiffuseRayCount("PAR", 10000)
 ```
 
 ### Ray Count Guidelines
@@ -176,8 +176,8 @@ ray_configs = {
 
 # Apply configuration
 config = ray_configs["standard"]
-radiation.set_direct_ray_count("PAR", config["direct"])
-radiation.set_diffuse_ray_count("PAR", config["diffuse"])
+radiation.setDirectRayCount("PAR", config["direct"])
+radiation.setDiffuseRayCount("PAR", config["diffuse"])
 ```
 
 ## Advanced Configuration
@@ -186,18 +186,18 @@ radiation.set_diffuse_ray_count("PAR", config["diffuse"])
 
 ```python
 # Set scattering depth (number of bounces)
-radiation.set_scattering_depth("PAR", 3)
+radiation.setScatteringDepth("PAR", 3)
 
 # Set minimum scatter energy threshold
-radiation.set_min_scatter_energy("PAR", 0.01)
+radiation.setMinScatterEnergy("PAR", 0.01)
 ```
 
 ### Emission Control
 
 ```python
 # Enable/disable emission for thermal radiation
-radiation.enable_emission("thermal")
-radiation.disable_emission("PAR")  # PAR typically doesn't emit
+radiation.enableEmission("thermal")
+radiation.disableEmission("PAR")  # PAR typically doesn't emit
 ```
 
 ## Simulation Execution
@@ -206,20 +206,20 @@ radiation.disable_emission("PAR")  # PAR typically doesn't emit
 
 ```python
 # Update all geometry before simulation
-radiation.update_geometry()
+radiation.updateGeometry()
 
 # Update specific geometry UUIDs
-radiation.update_geometry([patch_uuid, triangle_uuid])
+radiation.updateGeometry([patch_uuid, triangle_uuid])
 ```
 
 ### Running Simulations
 
 ```python
 # Run single band
-radiation.run_band("PAR")
+radiation.runBand("PAR")
 
 # Run multiple bands
-radiation.run_bands(["PAR", "NIR", "SW"])
+radiation.runBand(["PAR", "NIR", "SW"])
 ```
 
 ## Results and Analysis
@@ -228,7 +228,7 @@ radiation.run_bands(["PAR", "NIR", "SW"])
 
 ```python
 # Get total absorbed flux for all primitives
-results = radiation.get_total_absorbed_flux()
+results = radiation.getTotalAbsorbedFlux()
 total_absorption = sum(results)
 print(f"Total absorbed flux: {total_absorption:.2f} W")
 
@@ -246,7 +246,7 @@ for i, uuid in enumerate(all_uuids):
 
 ```python
 # Calculate radiation statistics
-radiation_data = radiation.get_total_absorbed_flux()
+radiation_data = radiation.getTotalAbsorbedFlux()
 
 import statistics
 mean_flux = statistics.mean(radiation_data)
@@ -264,16 +264,17 @@ print(f"  Std Dev: {std_flux:.2f} W")
 ## Complete Workflow Example
 
 ```python
-from pyhelios import Context, WeberPennTree, WPTType, RadiationModel, DataTypes
+from pyhelios import Context, WeberPennTree, WPTType, RadiationModel
+from pyhelios.types import *
 
 # Create scene
 context = Context()
 
 # Add ground plane
 ground_uuid = context.addPatch(
-    center=DataTypes.vec3(0, 0, 0),
-    size=DataTypes.vec2(10, 10),
-    color=DataTypes.RGBcolor(0.3, 0.2, 0.1)
+    center=vec3(0, 0, 0),
+    size=vec2(10, 10),
+    color=RGBcolor(0.3, 0.2, 0.1)
 )
 
 # Generate tree
@@ -284,30 +285,30 @@ tree_id = wpt.buildTree(WPTType.LEMON)
 try:
     with RadiationModel(context) as radiation:
         # Configure radiation
-        radiation.add_radiation_band("PAR")
+        radiation.addRadiationBand("PAR")
         
         # Add sun
-        sun_id = radiation.add_sun_sphere_radiation_source(
+        sun_id = radiation.addSunSphereRadiationSource(
             radius=0.5,
             zenith=30.0,    # Morning sun
             azimuth=135.0   # Southeast
         )
-        radiation.set_source_flux(sun_id, "PAR", 1200.0)
+        radiation.setSourceFlux(sun_id, "PAR", 1200.0)
         
         # Add diffuse sky radiation
-        radiation.set_diffuse_radiation_flux("PAR", 200.0)
+        radiation.setDiffuseRadiationFlux("PAR", 200.0)
         
         # Configure simulation quality
-        radiation.set_direct_ray_count("PAR", 2000)
-        radiation.set_diffuse_ray_count("PAR", 6000)
-        radiation.set_scattering_depth("PAR", 2)
+        radiation.setDirectRayCount("PAR", 2000)
+        radiation.setDiffuseRayCount("PAR", 6000)
+        radiation.setScatteringDepth("PAR", 2)
         
         # Run simulation
-        radiation.update_geometry()
-        radiation.run_band("PAR")
+        radiation.updateGeometry()
+        radiation.runBand("PAR")
         
         # Analyze results
-        results = radiation.get_total_absorbed_flux()
+        results = radiation.getTotalAbsorbedFlux()
         
         # Get leaf-specific results
         leaf_uuids = wpt.getLeafUUIDs(tree_id)
@@ -326,42 +327,11 @@ except RadiationModelError as e:
     print(f"Radiation simulation failed: {e}")
 ```
 
-## Integration with Other Components
-
-### With WeberPennTree
-
-```python
-# Generate tree and analyze radiation interception
-tree_id = wpt.buildTree(WPTType.OLIVE)
-
-# Run radiation
-radiation.run_band("PAR")
-results = radiation.get_total_absorbed_flux()
-
-# Calculate tree radiation budget
-leaf_uuids = wpt.getLeafUUIDs(tree_id)
-branch_uuids = wpt.getBranchUUIDs(tree_id)
-
-total_leaf_interception = 0
-total_branch_interception = 0
-
-all_uuids = context.getAllUUIDs()
-for i, uuid in enumerate(all_uuids):
-    if i < len(results):
-        if uuid in leaf_uuids:
-            total_leaf_interception += results[i]
-        elif uuid in branch_uuids:
-            total_branch_interception += results[i]
-
-print(f"Leaf interception: {total_leaf_interception:.2f} W")
-print(f"Branch interception: {total_branch_interception:.2f} W")
-```
-
 ### Data Storage
 
 ```python
 # Store radiation results as primitive data
-results = radiation.get_total_absorbed_flux()
+results = radiation.getTotalAbsorbedFlux()
 all_uuids = context.getAllUUIDs()
 
 for i, uuid in enumerate(all_uuids):
@@ -401,35 +371,6 @@ except HeliosGPUInitializationError as e:
     print(f"GPU initialization failed: {e}")
 ```
 
-## Performance Optimization
-
-```python
-# Optimize for different scenarios
-scenarios = {
-    "interactive": {
-        "direct_rays": 100,
-        "diffuse_rays": 300,
-        "scattering_depth": 1
-    },
-    "production": {
-        "direct_rays": 2000,
-        "diffuse_rays": 6000, 
-        "scattering_depth": 2
-    },
-    "research": {
-        "direct_rays": 10000,
-        "diffuse_rays": 30000,
-        "scattering_depth": 3
-    }
-}
-
-# Apply scenario
-scenario = scenarios["production"]
-radiation.set_direct_ray_count("PAR", scenario["direct_rays"])
-radiation.set_diffuse_ray_count("PAR", scenario["diffuse_rays"])
-radiation.set_scattering_depth("PAR", scenario["scattering_depth"])
-```
-
 ## Build Requirements
 
 ```bash
@@ -437,7 +378,7 @@ radiation.set_scattering_depth("PAR", scenario["scattering_depth"])
 build_scripts/build_helios --plugins radiation
 
 # Or use GPU profile
-build_scripts/build_helios --profile gpu-accelerated
+build_scripts/build_helios --plugins radiation
 
 # Check if radiation is available
 python -c "from pyhelios.plugins import get_plugin_registry; print(get_plugin_registry().is_plugin_available('radiation'))"
