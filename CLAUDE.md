@@ -96,8 +96,6 @@ python -m pyhelios.plugins info radiation
 # Validate plugin configuration
 python -m pyhelios.plugins validate --plugins radiation,visualizer
 
-# List all available profiles
-python -m pyhelios.plugins profiles
 ```
 
 #### Configuration File Support
@@ -106,7 +104,9 @@ Create `pyhelios_config.yaml` to specify default plugin selection:
 
 ```yaml
 plugins:
-  profile: "standard"
+  explicit_plugins:
+    - weberpenntree
+    - visualizer
   excluded_plugins:
     - radiation  # Exclude if no GPU available
 
@@ -179,20 +179,6 @@ PyHelios uses a sophisticated plugin-based architecture supporting **21 availabl
 **Visualization and Tools:**
 - **visualizer**: OpenGL-based 3D visualization and rendering
 - **projectbuilder**: GUI project builder with ImGui interface
-
-#### Plugin Selection Profiles
-
-The system includes predefined profiles for common use cases:
-
-- **minimal**: Core functionality only (weberpenntree, canopygenerator, solarposition)
-- **standard**: Standard features with visualization (adds visualizer, energybalance, photosynthesis)
-- **gpu-accelerated**: High-performance GPU features (adds radiation for ray tracing)
-- **research**: Comprehensive research suite (includes most plugins for academic use)
-- **production**: Production-ready features (reliable, well-tested plugins)
-- **visualization**: Focus on rendering and visualization capabilities
-- **sensing**: Remote sensing and LiDAR simulation capabilities  
-- **physics**: Comprehensive physics modeling and simulation
-- **development**: Minimal set for PyHelios development and testing
 
 ### Cross-Platform Library Loading
 
@@ -448,6 +434,16 @@ pytest tests/test_context.py -v
 - Tests provide clear output showing passed/skipped/failed counts  
 - Zero warnings and errors in final test execution
 
+**CRITICAL: Mandatory Full Verification Protocol**
+For ANY changes to C++ interface files (native/src/*, native/include/*, pyhelios_build/*), ctypes wrappers, or core functionality, you MUST complete this verification sequence:
+
+1. **Full Native Rebuild**: Run `build_scripts/build_helios --clean` to rebuild from scratch
+2. **Complete Test Suite**: Run `pytest` (not individual tests) to verify ALL tests pass
+3. **Zero Tolerance**: Any failing tests must be fixed before declaring success
+4. **No Shortcuts**: Never skip the full test suite even if "individual tests pass"
+
+This protocol is NON-NEGOTIABLE and must be completed regardless of time constraints or apparent simplicity of changes.
+
 **GitHub CI/CD Integration:**
 - Comprehensive CI/CD workflows test PyHelios across all platforms
 - Quick tests (`test-quick.yml`) for fast development feedback
@@ -468,6 +464,16 @@ pytest tests/test_context.py -v
 - **Cross-platform testing**: Run `pytest` on any platform - tests automatically adapt to available libraries
 - **Mock mode development**: Develop and test PyHelios functionality without requiring native library compilation
 - **Test categories**: Use `pytest -m cross_platform` for platform-independent tests, `pytest -m native_only` for native library tests
+
+**MANDATORY: Final Verification Checklist**
+Before declaring ANY task complete involving C++/Python interface changes:
+□ Built native libraries from scratch using `build_scripts/build_helios --clean`
+□ Ran complete `pytest` suite (not selective tests)
+□ All tests pass with zero failures
+□ No regressions introduced in any module
+□ Changes committed to git if task involves file modifications
+
+Failure to complete this checklist constitutes incomplete task execution.
 
 **Architecture and Integration:**
 - **UUID-based tracking**: All geometric operations return UUIDs for object tracking
@@ -512,7 +518,7 @@ PyHelios has successfully integrated 3 major Helios C++ plugins (radiation, visu
 
 **ALWAYS follow the 8-phase integration process:**
 
-1. **Plugin Metadata Registration** - Add to `pyhelios/config/plugin_metadata.py` and relevant profiles
+1. **Plugin Metadata Registration** - Add to `pyhelios/config/plugin_metadata.py`
 2. **Build System Integration** - CMake and flexible plugin selection system
 3. **C++ Interface Implementation** - Add wrapper functions to `pyhelios_build/pyhelios_interface.cpp`
 4. **ctypes Wrapper Creation** - Python-to-C++ interface in `pyhelios/wrappers/`
@@ -541,6 +547,9 @@ Many plugins require runtime assets that must be copied to specific locations wh
 - Map parameters semantically, not just positionally
 - Test different parameter combinations
 
+**Git Control**:
+- Be sure to add any files to git control that will be needed in the repository.
+
 #### Documentation Requirements
 
 For plugin integration tasks, ALWAYS:
@@ -554,7 +563,7 @@ For plugin integration tasks, ALWAYS:
 All plugin integrations MUST include:
 - **Cross-platform tests** (`@pytest.mark.cross_platform`) that work with mock mode
 - **Native-only tests** (`@pytest.mark.native_only`) that require actual plugin functionality
-- **Plugin metadata tests** to verify registration and profiles
+- **Plugin metadata tests** to verify registration
 - **Error handling tests** to verify proper exception translation
 - **Asset management tests** to verify runtime dependencies are available
 

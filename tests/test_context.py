@@ -1142,7 +1142,7 @@ end_header
                 # Test invalid parameter combinations
                 origin = vec3(0, 0, 0)
                 height = 1.0
-                rotation = SphericalCoord(0, 0, 0)
+                rotation = SphericalCoord(1, 0, 0)
                 color = RGBcolor(1, 0, 0)
                 
                 # Test with only origin (should fail - both origin and height required)
@@ -1903,10 +1903,10 @@ class TestCompoundGeometry:
         nodes = [vec3(0, 0, 0), vec3(1, 0, 0)]
         
         # Invalid radius
-        with pytest.raises(ValueError, match="All radii must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addTube(nodes, 0.0, 6)
         
-        with pytest.raises(ValueError, match="All radii must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addTube(nodes, -0.1, 6)
         
         # Invalid ndivs
@@ -1914,11 +1914,11 @@ class TestCompoundGeometry:
             basic_context.addTube(nodes, 0.1, 2)
         
         # Insufficient nodes
-        with pytest.raises(ValueError, match="Tube requires at least 2 nodes"):
+        with pytest.raises(ValueError, match="must contain at least 2 nodes"):
             basic_context.addTube([vec3(0, 0, 0)], 0.1, 6)
         
         # Mismatched radii count
-        with pytest.raises(ValueError, match="Number of radii.*must match.*number of nodes"):
+        with pytest.raises(ValueError, match="must have same length as nodes"):
             basic_context.addTube(nodes, [0.1], 6)  # 2 nodes but 1 radius
         
         # Mismatched colors count

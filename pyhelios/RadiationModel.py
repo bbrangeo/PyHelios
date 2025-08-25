@@ -13,6 +13,16 @@ import os
 
 from .plugins.registry import get_plugin_registry, require_plugin, graceful_plugin_fallback
 from .wrappers import URadiationModelWrapper as radiation_wrapper
+from .validation.plugins import (
+    validate_wavelength_range, validate_flux_value, validate_ray_count,
+    validate_direction_vector, validate_band_label, validate_source_id, validate_source_id_list
+)
+from .validation.plugin_decorators import (
+    validate_radiation_band_params, validate_collimated_source_params, validate_sphere_source_params,
+    validate_sun_sphere_params, validate_source_flux_multiple_params, validate_get_source_flux_params,
+    validate_update_geometry_params, validate_run_band_params, validate_scattering_depth_params,
+    validate_min_scatter_energy_params
+)
 from .Context import Context
 
 logger = logging.getLogger(__name__)
@@ -111,8 +121,8 @@ class RadiationModel:
                 "To enable radiation modeling:\n"
                 "1. Build PyHelios with radiation plugin:\n"
                 "   build_scripts/build_helios --plugins radiation\n"
-                "2. Or use a profile that includes radiation:\n"
-                "   build_scripts/build_helios --profile gpu-accelerated\n"
+                "2. Or build with multiple plugins:\n"
+                "   build_scripts/build_helios --plugins radiation,visualizer,weberpenntree\n"
                 f"\nCurrently available plugins: {available_plugins}"
             )
             
@@ -179,7 +189,10 @@ class RadiationModel:
             wavelength_min: Optional minimum wavelength (μm)
             wavelength_max: Optional maximum wavelength (μm)
         """
+        # Validate inputs
+        validate_band_label(band_label, "band_label", "addRadiationBand")
         if wavelength_min is not None and wavelength_max is not None:
+            validate_wavelength_range(wavelength_min, wavelength_max, "wavelength_min", "wavelength_max", "addRadiationBand")
             radiation_wrapper.addRadiationBandWithWavelengths(self.radiation_model, band_label, wavelength_min, wavelength_max)
             logger.debug(f"Added radiation band {band_label}: {wavelength_min}-{wavelength_max} μm")
         else:
@@ -187,6 +200,7 @@ class RadiationModel:
             logger.debug(f"Added radiation band: {band_label}")
     
     @require_plugin('radiation', 'copy radiation band')
+    @validate_radiation_band_params
     def copyRadiationBand(self, old_label: str, new_label: str):
         """
         Copy existing radiation band to new label.
@@ -199,6 +213,7 @@ class RadiationModel:
         logger.debug(f"Copied radiation band {old_label} to {new_label}")
     
     @require_plugin('radiation', 'add radiation source')
+    @validate_collimated_source_params
     def addCollimatedRadiationSource(self, direction=None) -> int:
         """
         Add collimated radiation source.
@@ -240,6 +255,7 @@ class RadiationModel:
         return source_id
     
     @require_plugin('radiation', 'add spherical radiation source')
+    @validate_sphere_source_params
     def addSphereRadiationSource(self, position, radius: float) -> int:
         """
         Add spherical radiation source.
@@ -263,6 +279,7 @@ class RadiationModel:
         return source_id
     
     @require_plugin('radiation', 'add sun radiation source')
+    @validate_sun_sphere_params
     def addSunSphereRadiationSource(self, radius: float, zenith: float, azimuth: float,
                                     position_scaling: float = 1.0, angular_width: float = 0.53,
                                     flux_scaling: float = 1.0) -> int:
@@ -289,44 +306,53 @@ class RadiationModel:
     @require_plugin('radiation', 'set ray count')
     def setDirectRayCount(self, band_label: str, ray_count: int):
         """Set direct ray count for radiation band."""
+        validate_band_label(band_label, "band_label", "setDirectRayCount")
+        validate_ray_count(ray_count, "ray_count", "setDirectRayCount")
         radiation_wrapper.setDirectRayCount(self.radiation_model, band_label, ray_count)
     
     @require_plugin('radiation', 'set ray count')
     def setDiffuseRayCount(self, band_label: str, ray_count: int):
         """Set diffuse ray count for radiation band."""
+        validate_band_label(band_label, "band_label", "setDiffuseRayCount")
+        validate_ray_count(ray_count, "ray_count", "setDiffuseRayCount")
         radiation_wrapper.setDiffuseRayCount(self.radiation_model, band_label, ray_count)
     
     @require_plugin('radiation', 'set radiation flux')
     def setDiffuseRadiationFlux(self, label: str, flux: float):
         """Set diffuse radiation flux for band."""
+        validate_band_label(label, "label", "setDiffuseRadiationFlux")
+        validate_flux_value(flux, "flux", "setDiffuseRadiationFlux")
         radiation_wrapper.setDiffuseRadiationFlux(self.radiation_model, label, flux)
     
     @require_plugin('radiation', 'set source flux')
     def setSourceFlux(self, source_id, label: str, flux: float):
         """Set source flux for single source or multiple sources."""
+        validate_band_label(label, "label", "setSourceFlux")
+        validate_flux_value(flux, "flux", "setSourceFlux")
+        
         if isinstance(source_id, (list, tuple)):
-            # Multiple sources - validate each source ID
-            for sid in source_id:
-                if not isinstance(sid, int):
-                    raise TypeError(f"Source IDs must be integers, got {type(sid).__name__}")
+            # Multiple sources
+            validate_source_id_list(list(source_id), "source_id", "setSourceFlux")
             radiation_wrapper.setSourceFluxMultiple(self.radiation_model, source_id, label, flux)
         else:
-            # Single source - validate source ID type
-            if not isinstance(source_id, int):
-                raise TypeError(f"Source ID must be an integer, got {type(source_id).__name__}")
+            # Single source
+            validate_source_id(source_id, "source_id", "setSourceFlux")
             radiation_wrapper.setSourceFlux(self.radiation_model, source_id, label, flux)
     
     @require_plugin('radiation', 'set source flux')
+    @validate_source_flux_multiple_params
     def setSourceFluxMultiple(self, source_ids: List[int], label: str, flux: float):
         """Set source flux for multiple sources."""
         radiation_wrapper.setSourceFluxMultiple(self.radiation_model, source_ids, label, flux)
     
     @require_plugin('radiation', 'get source flux')
+    @validate_get_source_flux_params
     def getSourceFlux(self, source_id: int, label: str) -> float:
         """Get source flux for band."""
         return radiation_wrapper.getSourceFlux(self.radiation_model, source_id, label)
     
     @require_plugin('radiation', 'update geometry')
+    @validate_update_geometry_params
     def updateGeometry(self, uuids: Optional[List[int]] = None):
         """
         Update geometry in radiation model.
@@ -342,6 +368,7 @@ class RadiationModel:
             logger.debug(f"Updated {len(uuids)} geometry UUIDs in radiation model")
     
     @require_plugin('radiation', 'run radiation simulation')
+    @validate_run_band_params
     def runBand(self, band_label):
         """Run radiation simulation for single band or multiple bands."""
         if isinstance(band_label, (list, tuple)):
@@ -359,6 +386,7 @@ class RadiationModel:
             logger.info(f"Completed radiation simulation for band: {band_label}")
     
     @require_plugin('radiation', 'run radiation simulation')
+    @validate_run_band_params
     def runBandMultiple(self, labels: List[str]):
         """Run radiation simulation for multiple bands."""
         radiation_wrapper.runBandMultiple(self.radiation_model, labels)
@@ -373,11 +401,13 @@ class RadiationModel:
     
     # Configuration methods
     @require_plugin('radiation', 'configure radiation simulation')
+    @validate_scattering_depth_params
     def setScatteringDepth(self, label: str, depth: int):
         """Set scattering depth for radiation band."""
         radiation_wrapper.setScatteringDepth(self.radiation_model, label, depth)
     
     @require_plugin('radiation', 'configure radiation simulation')
+    @validate_min_scatter_energy_params
     def setMinScatterEnergy(self, label: str, energy: float):
         """Set minimum scatter energy for radiation band."""
         radiation_wrapper.setMinScatterEnergy(self.radiation_model, label, energy)
@@ -385,11 +415,13 @@ class RadiationModel:
     @require_plugin('radiation', 'configure radiation emission')
     def disableEmission(self, label: str):
         """Disable emission for radiation band."""
+        validate_band_label(label, "label", "disableEmission")
         radiation_wrapper.disableEmission(self.radiation_model, label)
     
     @require_plugin('radiation', 'configure radiation emission')
     def enableEmission(self, label: str):
         """Enable emission for radiation band."""
+        validate_band_label(label, "label", "enableEmission")
         radiation_wrapper.enableEmission(self.radiation_model, label)
     
     def getPluginInfo(self) -> dict:

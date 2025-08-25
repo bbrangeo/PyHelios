@@ -34,7 +34,14 @@ endif()
 
 #-------- PYHELIOS INTERFACE ---------#
 # Create PyHelios interface library after Helios setup
-add_library(pyhelios_interface STATIC ../native/src/pyhelios_wrapper.cpp)
+add_library(pyhelios_interface STATIC 
+    ../native/src/pyhelios_wrapper_common.cpp
+    ../native/src/pyhelios_wrapper_context.cpp
+    ../native/src/pyhelios_wrapper_visualizer.cpp
+    ../native/src/pyhelios_wrapper_weberpenntree.cpp
+    ../native/src/pyhelios_wrapper_radiation.cpp
+    ../native/src/pyhelios_wrapper_energybalance.cpp
+)
 
 # Add include directories for plugin headers
 target_include_directories(pyhelios_interface PRIVATE
@@ -61,6 +68,12 @@ if("radiation" IN_LIST PLUGINS)
     target_include_directories(pyhelios_interface PRIVATE
         ${BASE_DIRECTORY}/plugins/radiation/include
         ${BASE_DIRECTORY}/plugins/radiation/lib/json
+    )
+endif()
+
+if("energybalance" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_interface PRIVATE
+        ${BASE_DIRECTORY}/plugins/energybalance/include
     )
 endif()
 
@@ -93,7 +106,14 @@ set_target_properties(pyhelios_interface PROPERTIES
 
 #-------- PYHELIOS SHARED LIBRARY ---------#
 # Create the PyHelios shared library for Python ctypes interface
-add_library(pyhelios_shared SHARED ../native/src/pyhelios_wrapper.cpp)
+add_library(pyhelios_shared SHARED 
+    ../native/src/pyhelios_wrapper_common.cpp
+    ../native/src/pyhelios_wrapper_context.cpp
+    ../native/src/pyhelios_wrapper_visualizer.cpp
+    ../native/src/pyhelios_wrapper_weberpenntree.cpp
+    ../native/src/pyhelios_wrapper_radiation.cpp
+    ../native/src/pyhelios_wrapper_energybalance.cpp
+)
 
 # Set C++ standard to match Helios core requirements
 set_target_properties(pyhelios_shared PROPERTIES
@@ -128,6 +148,12 @@ if("radiation" IN_LIST PLUGINS)
     target_include_directories(pyhelios_shared PRIVATE
         ${BASE_DIRECTORY}/plugins/radiation/include
         ${BASE_DIRECTORY}/plugins/radiation/lib/json
+    )
+endif()
+
+if("energybalance" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_shared PRIVATE
+        ${BASE_DIRECTORY}/plugins/energybalance/include
     )
 endif()
 

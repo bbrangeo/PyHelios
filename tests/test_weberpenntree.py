@@ -180,7 +180,7 @@ class TestTreeParameterSettings:
     
     def test_setTrunkSegmentResolution(self, weber_penn_tree):
         """Test setting trunk segment resolution."""
-        for resolution in [1, 3, 5, 10]:
+        for resolution in [3, 5, 10]:
             weber_penn_tree.setTrunkSegmentResolution(resolution)
             
             tree_id = weber_penn_tree.buildTree(WPTType.LEMON)
@@ -190,7 +190,7 @@ class TestTreeParameterSettings:
     
     def test_setBranchSegmentResolution(self, weber_penn_tree):
         """Test setting branch segment resolution."""
-        for resolution in [1, 2, 5]:
+        for resolution in [3, 5, 10]:
             weber_penn_tree.setBranchSegmentResolution(resolution)
             
             # Set recursion level to ensure branches

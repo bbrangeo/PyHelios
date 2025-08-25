@@ -22,6 +22,10 @@
 
 #include <stddef.h>  // For size_t
 
+#ifdef __cplusplus
+#include <string>    // For std::string in setError function
+#endif
+
 // Error code enumeration for robust error handling
 typedef enum {
     PYHELIOS_SUCCESS = 0,                         // No error
@@ -60,7 +64,17 @@ PYHELIOS_API const char* getLastErrorMessage();
  */
 PYHELIOS_API void clearError();
 
+//=============================================================================
+// Internal Helper Functions (for use by other wrapper modules)
+//=============================================================================
+
 #ifdef __cplusplus
+/**
+ * @brief Internal helper function to set error state
+ * @param error_code Error code from PyHeliosErrorCode enum
+ * @param message Error message string
+ */
+void setError(int error_code, const std::string& message);
 }
 #endif
 

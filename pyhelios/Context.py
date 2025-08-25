@@ -9,6 +9,10 @@ from .wrappers import UContextWrapper as context_wrapper
 from .wrappers.DataTypes import vec2, vec3, vec4, int2, int3, int4, SphericalCoord, RGBcolor, PrimitiveType
 from .plugins.loader import LibraryLoadError, validate_library, get_library_info
 from .plugins.registry import get_plugin_registry
+from .validation.geometry import (
+    validate_patch_params, validate_triangle_params, validate_sphere_params,
+    validate_tube_params, validate_box_params
+)
 
 
 @dataclass 
@@ -216,6 +220,7 @@ class Context:
         self._check_context_available()
         return context_wrapper.isGeometryDirty(self.context)
 
+    @validate_patch_params
     def addPatch(self, center: vec3 = vec3(0, 0, 0), size: vec2 = vec2(1, 1), rotation: Optional[SphericalCoord] = None, color: Optional[RGBcolor] = None) -> int:
         self._check_context_available()
         rotation = rotation or SphericalCoord(1, 0, 0)  # radius=1, elevation=0, azimuth=0 (no effective rotation)
@@ -224,6 +229,7 @@ class Context:
         rotation_list = [rotation.radius, rotation.elevation, rotation.azimuth]
         return context_wrapper.addPatchWithCenterSizeRotationAndColor(self.context, center.to_list(), size.to_list(), rotation_list, color.to_list())
         
+    @validate_triangle_params
     def addTriangle(self, vertex0: vec3, vertex1: vec3, vertex2: vec3, color: Optional[RGBcolor] = None) -> int:
         """Add a triangle primitive to the context
         
@@ -448,6 +454,7 @@ class Context:
                 rotation_list, subdiv.to_list()
             )
 
+    @validate_sphere_params
     def addSphere(self, center: vec3 = vec3(0, 0, 0), radius: float = 1.0, 
                   ndivs: int = 10, color: Optional[RGBcolor] = None) -> List[int]:
         """
@@ -493,6 +500,7 @@ class Context:
                 self.context, ndivs, center.to_list(), radius
             )
 
+    @validate_tube_params
     def addTube(self, nodes: List[vec3], radii: Union[float, List[float]], 
                 ndivs: int = 6, colors: Optional[Union[RGBcolor, List[RGBcolor]]] = None) -> List[int]:
         """
@@ -565,6 +573,7 @@ class Context:
         
         return context_wrapper.addTubeWithColor(self.context, ndivs, nodes_flat, radii_list, colors_flat)
 
+    @validate_box_params
     def addBox(self, center: vec3 = vec3(0, 0, 0), size: vec3 = vec3(1, 1, 1), 
                subdiv: int3 = int3(1, 1, 1), color: Optional[RGBcolor] = None) -> List[int]:
         """

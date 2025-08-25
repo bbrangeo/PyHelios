@@ -263,17 +263,17 @@ class TestSphereCreation:
     def test_addSphere_parameter_validation(self, basic_context):
         """Test parameter validation for addSphere."""
         # Test invalid radius
-        with pytest.raises(ValueError, match="radius must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addSphere(radius=0)
         
-        with pytest.raises(ValueError, match="radius must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addSphere(radius=-1.5)
         
         # Test invalid divisions
-        with pytest.raises(ValueError, match="divisions must be at least 3"):
+        with pytest.raises(ValueError, match="must be >= 3"):
             basic_context.addSphere(ndivs=2)
         
-        with pytest.raises(ValueError, match="divisions must be at least 3"):
+        with pytest.raises(ValueError, match="must be >= 3"):
             basic_context.addSphere(ndivs=0)
 
 
@@ -392,7 +392,7 @@ class TestTubeCreation:
         # Test mismatched radii count
         nodes = [vec3(0, 0, 0), vec3(1, 0, 0), vec3(2, 0, 0)]
         radii = [0.1, 0.2]  # Too few radii
-        with pytest.raises(ValueError, match="Number of radii.*must match number of nodes"):
+        with pytest.raises(ValueError, match="must have same length as nodes"):
             basic_context.addTube(nodes, radii)
         
         # Test mismatched colors count
@@ -401,10 +401,10 @@ class TestTubeCreation:
             basic_context.addTube(nodes, 0.5, colors=colors)
         
         # Test invalid radii (negative/zero)
-        with pytest.raises(ValueError, match="All radii must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addTube([vec3(0, 0, 0), vec3(1, 0, 0)], [0.5, 0])
         
-        with pytest.raises(ValueError, match="All radii must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addTube([vec3(0, 0, 0), vec3(1, 0, 0)], [-0.1, 0.5])
 
 
@@ -473,10 +473,10 @@ class TestBoxCreation:
     def test_addBox_parameter_validation(self, basic_context):
         """Test parameter validation for addBox."""
         # Test invalid size values
-        with pytest.raises(ValueError, match="All box dimensions must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addBox(size=vec3(0, 1, 1))
         
-        with pytest.raises(ValueError, match="All box dimensions must be positive"):
+        with pytest.raises(ValueError, match="must be positive"):
             basic_context.addBox(size=vec3(1, -1, 1))
         
         # Test invalid subdivision values

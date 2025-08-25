@@ -53,7 +53,7 @@ else:
 
 setup(
     name='pyhelios',
-    version='0.1.0',
+    use_scm_version=True,
     description='Cross-platform Python bindings for Helios 3D plant simulation',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
@@ -87,6 +87,9 @@ setup(
     install_requires=[
         'numpy>=1.19.0',  # Core dependency for PyHelios data structures
         'pyyaml>=5.0.0',  # Configuration file parsing for plugin system
+    ],
+    setup_requires=[
+        'setuptools-scm',
     ],
     extras_require={
         'dev': read_dev_requirements(),

@@ -77,7 +77,7 @@ class TestBasicWorkflows:
             # Configure tree parameters
             wpt.setBranchRecursionLevel(3)
             wpt.setTrunkSegmentResolution(4)
-            wpt.setBranchSegmentResolution(2)
+            wpt.setBranchSegmentResolution(3)
             wpt.setLeafSubdivisions(2, 2)
             
             # Generate different tree types
@@ -280,7 +280,7 @@ class TestPerformanceIntegration:
             # Configure for moderate complexity
             wpt.setBranchRecursionLevel(3)
             wpt.setTrunkSegmentResolution(3)
-            wpt.setBranchSegmentResolution(2)
+            wpt.setBranchSegmentResolution(3)
             wpt.setLeafSubdivisions(2, 2)
             
             def generate_trees():

@@ -155,7 +155,7 @@ def sample_patch_parameters():
         'center': DataTypes.vec3(2, 3, 4),
         'size': DataTypes.vec2(1, 1),
         'color': DataTypes.RGBcolor(0.25, 0.25, 0.25),
-        'rotation': DataTypes.SphericalCoord(0, 0, 0)
+        'rotation': DataTypes.SphericalCoord(1, 0, 0)
     }
 
 

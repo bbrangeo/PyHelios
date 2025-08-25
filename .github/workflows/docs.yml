@@ -54,6 +54,14 @@ jobs:
         doxygen --version
         doxypypy --help
         
+    - name: Sync version to Doxygen config
+      run: |
+        # Get version from setuptools-scm and update Doxyfile
+        export PYHELIOS_DEV_MODE=1
+        VERSION=$(python -c "from pyhelios._version import __version__; print(__version__)")
+        echo "Updating Doxygen PROJECT_NUMBER to: $VERSION"
+        sed -i "s/^PROJECT_NUMBER.*$/PROJECT_NUMBER         = $VERSION/" docs/Doxyfile.python
+        
     - name: Build documentation
       run: |
         # Create output directory
@@ -117,6 +125,14 @@ jobs:
         pip install doxypypy
         pip install -r requirements.txt
         pip install -e .
+        
+    - name: Sync version to Doxygen config (preview)
+      run: |
+        # Get version from setuptools-scm and update Doxyfile
+        export PYHELIOS_DEV_MODE=1
+        VERSION=$(python -c "from pyhelios._version import __version__; print(__version__)")
+        echo "Updating Doxygen PROJECT_NUMBER to: $VERSION"
+        sed -i "s/^PROJECT_NUMBER.*$/PROJECT_NUMBER         = $VERSION/" docs/Doxyfile.python
         
     - name: Build documentation (preview)
       run: |

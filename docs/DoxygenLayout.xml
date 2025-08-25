@@ -23,10 +23,14 @@
     <!-- Plugin Documentation Section -->
     <tab type="usergroup" visible="yes" url="@ref Plugins" title="Plugins" intro="">
       <!-- Currently Implemented Plugins (Alphabetized) -->
+      <tab type="user" visible="yes" url="@ref EnergyBalanceDoc" title="Energy Balance Model"/>
       <tab type="user" visible="yes" url="@ref RadiationDoc" title="Radiation Model"/>
       <tab type="user" visible="yes" url="@ref VisualizerDoc" title="Visualizer"/>
       <tab type="user" visible="yes" url="@ref WeberPennTreeDoc" title="Weber-Penn Tree"/>
     </tab>
+    
+    <!-- Changelog -->
+    <tab type="user" visible="yes" url="md_docs_2CHANGELOG.html" title="Changelog"/>
     
     <!-- API Reference - Temporarily disabled due to indentation issues -->
     <tab type="classes" visible="no" title="Classes"/>

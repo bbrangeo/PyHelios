@@ -51,19 +51,23 @@ class TestVec2:
         (1, 1),
         (-1, -1),
         (3.14159, 2.71828),
-        (float('inf'), float('-inf')),
     ])
     def test_vec2_various_values(self, x, y):
-        """Test Vec2 with various values."""
+        """Test Vec2 with various valid values."""
         v = DataTypes.vec2(x, y)
-        if math.isfinite(x):
-            assert v.x == pytest.approx(x, rel=1e-6)
-        else:
-            assert v.x == x
-        if math.isfinite(y):
-            assert v.y == pytest.approx(y, rel=1e-6)
-        else:
-            assert v.y == y
+        assert v.x == pytest.approx(x, rel=1e-6)
+        assert v.y == pytest.approx(y, rel=1e-6)
+
+    @pytest.mark.parametrize("x,y", [
+        (float('inf'), 0),
+        (0, float('-inf')),
+        (float('nan'), 0),
+        (0, float('nan')),
+    ])
+    def test_vec2_invalid_values(self, x, y):
+        """Test Vec2 validation rejects invalid values."""
+        with pytest.raises(ValueError, match="must be a finite number"):
+            DataTypes.vec2(x, y)
 
 
 class TestVec3:
@@ -325,13 +329,20 @@ class TestDataTypeInteroperability:
         assert v.y == pytest.approx(1e-10)
         assert v.z == pytest.approx(1e-10)
     
-    def test_color_clamping_behavior(self):
-        """Test behavior with out-of-range color values."""
-        # Note: This tests current behavior, not necessarily desired behavior
-        c = DataTypes.RGBcolor(-0.5, 1.5, 0.5)
-        # The values should be stored as-is (no automatic clamping)
-        assert c.r == -0.5
-        assert c.g == 1.5
+    def test_color_validation_behavior(self):
+        """Test that out-of-range color values are rejected."""
+        # Test negative values
+        with pytest.raises(ValueError, match="outside valid range"):
+            DataTypes.RGBcolor(-0.5, 0.5, 0.5)
+        
+        # Test values > 1
+        with pytest.raises(ValueError, match="outside valid range"):
+            DataTypes.RGBcolor(0.5, 1.5, 0.5)
+        
+        # Test boundary values (should work)
+        c = DataTypes.RGBcolor(0.0, 1.0, 0.5)
+        assert c.r == 0.0
+        assert c.g == 1.0
         assert c.b == 0.5
     
     @pytest.mark.unit

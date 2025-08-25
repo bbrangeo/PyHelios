@@ -1,4 +1,5 @@
 import ctypes
+import math
 from typing import Any, List
 from enum import IntEnum
 
@@ -25,6 +26,12 @@ class int2(ctypes.Structure):
         return f'int2({self.x}, {self.y})'
     
     def __init__(self, x:int=0, y:int=0):
+        # Validate integer inputs
+        if not isinstance(x, int):
+            raise ValueError(f"int2.x must be an integer, got {type(x).__name__}: {x}")
+        if not isinstance(y, int):
+            raise ValueError(f"int2.y must be an integer, got {type(y).__name__}: {y}")
+        
         self.x = x
         self.y = y
 
@@ -47,6 +54,14 @@ class int3(ctypes.Structure):
         return f'int3({self.x}, {self.y}, {self.z})'
     
     def __init__(self, x:int=0, y:int=0, z:int=0):
+        # Validate integer inputs
+        if not isinstance(x, int):
+            raise ValueError(f"int3.x must be an integer, got {type(x).__name__}: {x}")
+        if not isinstance(y, int):
+            raise ValueError(f"int3.y must be an integer, got {type(y).__name__}: {y}")
+        if not isinstance(z, int):
+            raise ValueError(f"int3.z must be an integer, got {type(z).__name__}: {z}")
+        
         self.x = x
         self.y = y
         self.z = z
@@ -71,6 +86,16 @@ class int4(ctypes.Structure):
         return f'int4({self.x}, {self.y}, {self.z}, {self.w})'
     
     def __init__(self, x:int=0, y:int=0, z:int=0, w:int=0):
+        # Validate integer inputs
+        if not isinstance(x, int):
+            raise ValueError(f"int4.x must be an integer, got {type(x).__name__}: {x}")
+        if not isinstance(y, int):
+            raise ValueError(f"int4.y must be an integer, got {type(y).__name__}: {y}")
+        if not isinstance(z, int):
+            raise ValueError(f"int4.z must be an integer, got {type(z).__name__}: {z}")
+        if not isinstance(w, int):
+            raise ValueError(f"int4.w must be an integer, got {type(w).__name__}: {w}")
+        
         self.x = x
         self.y = y
         self.z = z
@@ -97,8 +122,16 @@ class vec2(ctypes.Structure):
         return f'vec2({self.x}, {self.y})'
     
     def __init__(self, x:float=0, y:float=0):
-        self.x = x
-        self.y = y
+        # Validate finite numeric inputs
+        if not self._is_finite_numeric(x):
+            raise ValueError(f"vec2.x must be a finite number, got {type(x).__name__}: {x}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        if not self._is_finite_numeric(y):
+            raise ValueError(f"vec2.y must be a finite number, got {type(y).__name__}: {y}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        
+        self.x = float(x)
+        self.y = float(y)
 
     def from_list(self, input_list:List[float]):
         self.x = input_list[0]
@@ -106,6 +139,15 @@ class vec2(ctypes.Structure):
 
     def to_list(self) -> List[float]:
         return [self.x, self.y]
+    
+    @staticmethod
+    def _is_finite_numeric(value) -> bool:
+        """Check if value is a finite number (not NaN or inf)."""
+        try:
+            float_value = float(value)
+            return math.isfinite(float_value)
+        except (ValueError, TypeError, OverflowError):
+            return False
     
 class vec3(ctypes.Structure):
     _fields_ = [('x', ctypes.c_float), ('y', ctypes.c_float), ('z', ctypes.c_float)]
@@ -117,9 +159,20 @@ class vec3(ctypes.Structure):
         return f'vec3({self.x}, {self.y}, {self.z})'
     
     def __init__(self, x:float=0, y:float=0, z:float=0):
-        self.x = x
-        self.y = y
-        self.z = z
+        # Validate finite numeric inputs
+        if not self._is_finite_numeric(x):
+            raise ValueError(f"vec3.x must be a finite number, got {type(x).__name__}: {x}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        if not self._is_finite_numeric(y):
+            raise ValueError(f"vec3.y must be a finite number, got {type(y).__name__}: {y}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        if not self._is_finite_numeric(z):
+            raise ValueError(f"vec3.z must be a finite number, got {type(z).__name__}: {z}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        
+        self.x = float(x)
+        self.y = float(y)
+        self.z = float(z)
 
     def from_list(self, input_list:List[float]):
         self.x = input_list[0]
@@ -132,6 +185,15 @@ class vec3(ctypes.Structure):
     def to_tuple(self) -> tuple:
         return (self.x, self.y, self.z)
     
+    @staticmethod
+    def _is_finite_numeric(value) -> bool:
+        """Check if value is a finite number (not NaN or inf)."""
+        try:
+            float_value = float(value)
+            return math.isfinite(float_value)
+        except (ValueError, TypeError, OverflowError):
+            return False
+    
     
 class vec4(ctypes.Structure):
     _fields_ = [('x', ctypes.c_float), ('y', ctypes.c_float), ('z', ctypes.c_float), ('w', ctypes.c_float)]
@@ -143,10 +205,24 @@ class vec4(ctypes.Structure):
         return f'vec4({self.x}, {self.y}, {self.z}, {self.w})'
     
     def __init__(self, x:float=0, y:float=0, z:float=0, w:float=0):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.w = w
+        # Validate finite numeric inputs
+        if not self._is_finite_numeric(x):
+            raise ValueError(f"vec4.x must be a finite number, got {type(x).__name__}: {x}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        if not self._is_finite_numeric(y):
+            raise ValueError(f"vec4.y must be a finite number, got {type(y).__name__}: {y}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        if not self._is_finite_numeric(z):
+            raise ValueError(f"vec4.z must be a finite number, got {type(z).__name__}: {z}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        if not self._is_finite_numeric(w):
+            raise ValueError(f"vec4.w must be a finite number, got {type(w).__name__}: {w}. "
+                           f"Vector components must be finite (not NaN or infinity).")
+        
+        self.x = float(x)
+        self.y = float(y)
+        self.z = float(z)
+        self.w = float(w)
 
     def from_list(self, input_list:List[float]):
         self.x = input_list[0]
@@ -156,6 +232,15 @@ class vec4(ctypes.Structure):
 
     def to_list(self) -> List[float]:
         return [self.x, self.y, self.z, self.w]
+    
+    @staticmethod
+    def _is_finite_numeric(value) -> bool:
+        """Check if value is a finite number (not NaN or inf)."""
+        try:
+            float_value = float(value)
+            return math.isfinite(float_value)
+        except (ValueError, TypeError, OverflowError):
+            return False
     
     
     
@@ -169,9 +254,14 @@ class RGBcolor(ctypes.Structure):
         return f'RGBcolor({self.r}, {self.g}, {self.b})'
     
     def __init__(self, r:float=0, g:float=0, b:float=0):
-        self.r = r
-        self.g = g
-        self.b = b
+        # Validate color components are finite and in range [0,1]
+        self._validate_color_component(r, 'r')
+        self._validate_color_component(g, 'g')
+        self._validate_color_component(b, 'b')
+        
+        self.r = float(r)
+        self.g = float(g)
+        self.b = float(b)
 
     def from_list(self, input_list:List[float]):
         self.r = input_list[0]
@@ -180,6 +270,26 @@ class RGBcolor(ctypes.Structure):
 
     def to_list(self) -> List[float]:
         return [self.r, self.g, self.b]
+    
+    @staticmethod
+    def _is_finite_numeric(value) -> bool:
+        """Check if value is a finite number (not NaN or inf)."""
+        try:
+            float_value = float(value)
+            return math.isfinite(float_value)
+        except (ValueError, TypeError, OverflowError):
+            return False
+    
+    def _validate_color_component(self, value, component_name):
+        """Validate a color component is finite and in range [0,1]."""
+        if not self._is_finite_numeric(value):
+            raise ValueError(f"RGBcolor.{component_name} must be a finite number, "
+                           f"got {type(value).__name__}: {value}. "
+                           f"Color components must be finite values between 0 and 1.")
+        
+        if not (0.0 <= value <= 1.0):
+            raise ValueError(f"RGBcolor.{component_name}={value} is outside valid range [0,1]. "
+                           f"Color components must be normalized values between 0 and 1.")
 
     
     
@@ -194,16 +304,45 @@ class RGBAcolor(ctypes.Structure):
         return f'RGBAcolor({self.r}, {self.g}, {self.b}, {self.a})'
     
     def __init__(self, r:float=0, g:float=0, b:float=0, a:float=0):
-        self.r = r
-        self.g = g
-        self.b = b
-        self.a = a
+        # Validate color components are finite and in range [0,1]
+        self._validate_color_component(r, 'r')
+        self._validate_color_component(g, 'g')
+        self._validate_color_component(b, 'b')
+        self._validate_color_component(a, 'a')
+        
+        self.r = float(r)
+        self.g = float(g)
+        self.b = float(b)
+        self.a = float(a)
 
     def from_list(self, input_list:List[float]):
         self.r = input_list[0]
         self.g = input_list[1]
         self.b = input_list[2]
         self.a = input_list[3]
+    
+    def to_list(self) -> List[float]:
+        return [self.r, self.g, self.b, self.a]
+    
+    @staticmethod
+    def _is_finite_numeric(value) -> bool:
+        """Check if value is a finite number (not NaN or inf)."""
+        try:
+            float_value = float(value)
+            return math.isfinite(float_value)
+        except (ValueError, TypeError, OverflowError):
+            return False
+    
+    def _validate_color_component(self, value, component_name):
+        """Validate a color component is finite and in range [0,1]."""
+        if not self._is_finite_numeric(value):
+            raise ValueError(f"RGBAcolor.{component_name} must be a finite number, "
+                           f"got {type(value).__name__}: {value}. "
+                           f"Color components must be finite values between 0 and 1.")
+        
+        if not (0.0 <= value <= 1.0):
+            raise ValueError(f"RGBAcolor.{component_name}={value} is outside valid range [0,1]. "
+                           f"Color components must be normalized values between 0 and 1.")
     
     
     
@@ -232,11 +371,26 @@ class SphericalCoord(ctypes.Structure):
             
         Note: zenith is automatically computed as (π/2 - elevation) to match C++ behavior
         """
-        import math
-        self.radius = radius
-        self.elevation = elevation
+        # Validate inputs
+        if not self._is_finite_numeric(radius) or radius <= 0:
+            raise ValueError(f"SphericalCoord.radius must be a positive finite number, "
+                           f"got {type(radius).__name__}: {radius}. "
+                           f"Radius must be greater than 0.")
+        
+        if not self._is_finite_numeric(elevation):
+            raise ValueError(f"SphericalCoord.elevation must be a finite number, "
+                           f"got {type(elevation).__name__}: {elevation}. "
+                           f"Elevation angle must be finite (not NaN or infinity).")
+        
+        if not self._is_finite_numeric(azimuth):
+            raise ValueError(f"SphericalCoord.azimuth must be a finite number, "
+                           f"got {type(azimuth).__name__}: {azimuth}. "
+                           f"Azimuth angle must be finite (not NaN or infinity).")
+        
+        self.radius = float(radius)
+        self.elevation = float(elevation)
         self.zenith = 0.5 * math.pi - elevation  # zenith = π/2 - elevation (matches C++)
-        self.azimuth = azimuth
+        self.azimuth = float(azimuth)
 
     def from_list(self, input_list:List[float]):
         self.radius = input_list[0]
@@ -246,6 +400,15 @@ class SphericalCoord(ctypes.Structure):
 
     def to_list(self) -> List[float]:
         return [self.radius, self.elevation, self.zenith, self.azimuth]
+    
+    @staticmethod
+    def _is_finite_numeric(value) -> bool:
+        """Check if value is a finite number (not NaN or inf)."""
+        try:
+            float_value = float(value)
+            return math.isfinite(float_value)
+        except (ValueError, TypeError, OverflowError):
+            return False
     
 
 # Factory functions to match C++ API
