@@ -766,6 +766,58 @@ PYHELIOS_API void colorPrimitiveByDataPseudocolor(helios::Context* context, unsi
  */
 PYHELIOS_API void colorPrimitiveByDataPseudocolorWithRange(helios::Context* context, unsigned int* uuids, size_t num_uuids, const char* primitive_data, const char* colormap, unsigned int ncolors, float data_min, float data_max);
 
+/**
+ * @brief Set the simulation time using hour and minute
+ * @param context Pointer to the Context
+ * @param hour Hour (0-23)
+ * @param minute Minute (0-59)
+ */
+PYHELIOS_API void setTime_HourMinute(helios::Context* context, int hour, int minute);
+
+/**
+ * @brief Set the simulation time using hour, minute, and second
+ * @param context Pointer to the Context
+ * @param hour Hour (0-23)
+ * @param minute Minute (0-59)
+ * @param second Second (0-59)
+ */
+PYHELIOS_API void setTime_HourMinuteSecond(helios::Context* context, int hour, int minute, int second);
+
+/**
+ * @brief Set the simulation date using day, month, and year
+ * @param context Pointer to the Context
+ * @param day Day (1-31)
+ * @param month Month (1-12)
+ * @param year Year (1900-3000)
+ */
+PYHELIOS_API void setDate_DayMonthYear(helios::Context* context, int day, int month, int year);
+
+/**
+ * @brief Set the simulation date using Julian day and year
+ * @param context Pointer to the Context
+ * @param julian_day Julian day (1-366)
+ * @param year Year (1900-3000)
+ */
+PYHELIOS_API void setDate_JulianDay(helios::Context* context, int julian_day, int year);
+
+/**
+ * @brief Get the current simulation time
+ * @param context Pointer to the Context
+ * @param hour Output parameter for hour
+ * @param minute Output parameter for minute
+ * @param second Output parameter for second
+ */
+PYHELIOS_API void getTime(helios::Context* context, int* hour, int* minute, int* second);
+
+/**
+ * @brief Get the current simulation date
+ * @param context Pointer to the Context
+ * @param day Output parameter for day
+ * @param month Output parameter for month
+ * @param year Output parameter for year
+ */
+PYHELIOS_API void getDate(helios::Context* context, int* day, int* month, int* year);
+
 #ifdef __cplusplus
 }
 #endif

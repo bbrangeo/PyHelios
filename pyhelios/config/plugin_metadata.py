@@ -175,8 +175,8 @@ PLUGIN_METADATA: Dict[str, PluginMetadata] = {
         plugin_dependencies=[],
         platforms=["windows", "linux", "macos"],
         gpu_required=False,
-        optional=False,
-        test_symbols=["calculateSolarPosition", "setSolarParameters"]
+        optional=True,
+        test_symbols=["createSolarPosition", "getSunElevation", "getSolarFlux"]
     ),
     
     "syntheticannotation": PluginMetadata(

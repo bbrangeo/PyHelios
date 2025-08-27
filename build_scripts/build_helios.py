@@ -1406,12 +1406,13 @@ def get_default_plugins() -> List[str]:
     - weberpenntree: Procedural tree generation
     - radiation: OptiX-accelerated ray tracing (GPU optional)
     - energybalance: GPU-accelerated thermal modeling and energy balance
+    - solarposition: Solar position calculations and sun angle modeling
     
     Returns:
         List of default plugins
     """
     # Return the plugins that are actually integrated into PyHelios
-    integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance"]
+    integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance", "solarposition"]
     
     # Filter by platform compatibility
     default_plugins = []

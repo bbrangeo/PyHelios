@@ -1249,6 +1249,93 @@ class Context:
             context_wrapper.colorPrimitiveByDataPseudocolor(
                 self.context, uuids, primitive_data, colormap, ncolors)
     
+    # Context time/date methods for solar position integration
+    def setTime(self, hour: int, minute: int = 0, second: int = 0):
+        """
+        Set the simulation time.
+        
+        Args:
+            hour: Hour (0-23)
+            minute: Minute (0-59), defaults to 0
+            second: Second (0-59), defaults to 0
+            
+        Raises:
+            ValueError: If time values are out of range
+            NotImplementedError: If time/date functions not available in current library build
+            
+        Example:
+            >>> context.setTime(14, 30)  # Set to 2:30 PM
+            >>> context.setTime(9, 15, 30)  # Set to 9:15:30 AM
+        """
+        context_wrapper.setTime(self.context, hour, minute, second)
+    
+    def setDate(self, year: int, month: int, day: int):
+        """
+        Set the simulation date.
+        
+        Args:
+            year: Year (1900-3000)
+            month: Month (1-12)
+            day: Day (1-31)
+            
+        Raises:
+            ValueError: If date values are out of range
+            NotImplementedError: If time/date functions not available in current library build
+            
+        Example:
+            >>> context.setDate(2023, 6, 21)  # Set to June 21, 2023
+        """
+        context_wrapper.setDate(self.context, year, month, day)
+    
+    def setDateJulian(self, julian_day: int, year: int):
+        """
+        Set the simulation date using Julian day number.
+        
+        Args:
+            julian_day: Julian day (1-366)
+            year: Year (1900-3000)
+            
+        Raises:
+            ValueError: If values are out of range
+            NotImplementedError: If time/date functions not available in current library build
+            
+        Example:
+            >>> context.setDateJulian(172, 2023)  # Set to day 172 of 2023 (June 21)
+        """
+        context_wrapper.setDateJulian(self.context, julian_day, year)
+    
+    def getTime(self):
+        """
+        Get the current simulation time.
+        
+        Returns:
+            Tuple of (hour, minute, second) as integers
+            
+        Raises:
+            NotImplementedError: If time/date functions not available in current library build
+            
+        Example:
+            >>> hour, minute, second = context.getTime()
+            >>> print(f"Current time: {hour:02d}:{minute:02d}:{second:02d}")
+        """
+        return context_wrapper.getTime(self.context)
+    
+    def getDate(self):
+        """
+        Get the current simulation date.
+        
+        Returns:
+            Tuple of (year, month, day) as integers
+            
+        Raises:
+            NotImplementedError: If time/date functions not available in current library build
+            
+        Example:
+            >>> year, month, day = context.getDate()
+            >>> print(f"Current date: {year}-{month:02d}-{day:02d}")
+        """
+        return context_wrapper.getDate(self.context)
+    
     # Plugin-related methods
     def get_available_plugins(self) -> List[str]:
         """

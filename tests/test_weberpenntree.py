@@ -331,8 +331,8 @@ class TestWPTTypeEnum:
 class TestWeberPennTreeEdgeCases:
     """Test WeberPennTree edge cases and error conditions."""
     
-    def test_wpt_without_dll(self):
-        """Test WeberPennTree behavior when DLL is not available."""
+    def test_wpt_without_native_plugin(self):
+        """Test WeberPennTree behavior when native plugin is not available."""
         # Check if we're in an environment where WPT functions are available
         from pyhelios.wrappers.UWeberPennTreeWrapper import _WPT_FUNCTIONS_AVAILABLE
         
@@ -351,8 +351,9 @@ class TestWeberPennTreeEdgeCases:
     @pytest.mark.slow
     def test_wpt_memory_cleanup(self, basic_context):
         """Test that WeberPennTree properly cleans up memory."""
-        if not PlatformHelper.is_dll_available():
-            pytest.skip("Requires DLL for memory testing")
+        from pyhelios.WeberPennTree import is_weberpenntree_available
+        if not is_weberpenntree_available():
+            pytest.skip("Requires WeberPennTree plugin for memory testing")
         
         # Create and destroy multiple WeberPennTree instances
         for i in range(5):

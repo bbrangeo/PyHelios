@@ -13,3 +13,4 @@ from . import URadiationModelWrapper
 from . import UVisualizerWrapper
 from . import UWeberPennTreeWrapper
 from . import UEnergyBalanceWrapper
+from . import USolarPositionWrapper

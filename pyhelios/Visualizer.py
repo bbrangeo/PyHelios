@@ -7,11 +7,13 @@ capabilities with graceful plugin handling and informative error messages.
 
 import logging
 import os
+import ctypes
 from pathlib import Path
 from contextlib import contextmanager
 from typing import List, Optional, Union
 
 from .plugins.registry import get_plugin_registry
+from .plugins import helios_lib
 from .wrappers import UVisualizerWrapper as visualizer_wrapper
 from .wrappers.DataTypes import vec3, RGBcolor, SphericalCoord
 from .Context import Context
@@ -82,6 +84,14 @@ class Visualizer:
     LIGHTING_NONE = 0
     LIGHTING_PHONG = 1
     LIGHTING_PHONG_SHADOWED = 2
+    
+    # Colormap constants (matching C++ enum values)
+    COLORMAP_HOT = 0
+    COLORMAP_COOL = 1
+    COLORMAP_RAINBOW = 2
+    COLORMAP_LAVA = 3
+    COLORMAP_PARULA = 4
+    COLORMAP_GRAY = 5
     
     def __init__(self, width: int, height: int, antialiasing_samples: int = 1, headless: bool = False):
         """
@@ -536,6 +546,976 @@ class Visualizer:
             raise
         except Exception as e:
             raise VisualizerError(f"Failed to color primitives by data '{data_name}': {e}")
+
+    # Camera Control Methods
+
+    def setCameraFieldOfView(self, angle_FOV: float) -> None:
+        """
+        Set camera field of view angle.
+        
+        Args:
+            angle_FOV: Field of view angle in degrees
+            
+        Raises:
+            ValueError: If angle is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(angle_FOV, (int, float)):
+            raise ValueError("Field of view angle must be numeric")
+        if angle_FOV <= 0 or angle_FOV >= 180:
+            raise ValueError("Field of view angle must be between 0 and 180 degrees")
+        
+        try:
+            helios_lib.setCameraFieldOfView(self.visualizer, ctypes.c_float(angle_FOV))
+        except Exception as e:
+            raise VisualizerError(f"Failed to set camera field of view: {e}")
+
+    def getCameraPosition(self) -> tuple[vec3, vec3]:
+        """
+        Get current camera position and look-at point.
+        
+        Returns:
+            Tuple of (camera_position, look_at_point) as vec3 objects
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            # Prepare output arrays
+            camera_pos = (ctypes.c_float * 3)()
+            look_at = (ctypes.c_float * 3)()
+            
+            helios_lib.getCameraPosition(self.visualizer, camera_pos, look_at)
+            
+            return (vec3(camera_pos[0], camera_pos[1], camera_pos[2]),
+                    vec3(look_at[0], look_at[1], look_at[2]))
+        except Exception as e:
+            raise VisualizerError(f"Failed to get camera position: {e}")
+
+    def getBackgroundColor(self) -> RGBcolor:
+        """
+        Get current background color.
+        
+        Returns:
+            Background color as RGBcolor object
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            # Prepare output array
+            color = (ctypes.c_float * 3)()
+            
+            helios_lib.getBackgroundColor(self.visualizer, color)
+            
+            return RGBcolor(color[0], color[1], color[2])
+        except Exception as e:
+            raise VisualizerError(f"Failed to get background color: {e}")
+
+    # Lighting Control Methods
+
+    def setLightIntensityFactor(self, intensity_factor: float) -> None:
+        """
+        Set light intensity scaling factor.
+        
+        Args:
+            intensity_factor: Light intensity scaling factor (typically 0.1 to 10.0)
+            
+        Raises:
+            ValueError: If intensity factor is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(intensity_factor, (int, float)):
+            raise ValueError("Light intensity factor must be numeric")
+        if intensity_factor <= 0:
+            raise ValueError("Light intensity factor must be positive")
+        
+        try:
+            helios_lib.setLightIntensityFactor(self.visualizer, ctypes.c_float(intensity_factor))
+        except Exception as e:
+            raise VisualizerError(f"Failed to set light intensity factor: {e}")
+
+    # Window and Display Methods
+
+    def getWindowSize(self) -> tuple[int, int]:
+        """
+        Get window size in pixels.
+        
+        Returns:
+            Tuple of (width, height) in pixels
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            width = ctypes.c_uint()
+            height = ctypes.c_uint()
+            
+            helios_lib.getWindowSize(self.visualizer, ctypes.byref(width), ctypes.byref(height))
+            
+            return (width.value, height.value)
+        except Exception as e:
+            raise VisualizerError(f"Failed to get window size: {e}")
+
+    def getFramebufferSize(self) -> tuple[int, int]:
+        """
+        Get framebuffer size in pixels.
+        
+        Returns:
+            Tuple of (width, height) in pixels
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            width = ctypes.c_uint()
+            height = ctypes.c_uint()
+            
+            helios_lib.getFramebufferSize(self.visualizer, ctypes.byref(width), ctypes.byref(height))
+            
+            return (width.value, height.value)
+        except Exception as e:
+            raise VisualizerError(f"Failed to get framebuffer size: {e}")
+
+    def printWindowDefault(self) -> None:
+        """
+        Print window with default filename.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.printWindowDefault(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to print window: {e}")
+
+    def displayImageFromPixels(self, pixel_data: List[int], width: int, height: int) -> None:
+        """
+        Display image from RGBA pixel data.
+        
+        Args:
+            pixel_data: RGBA pixel data as list of integers (0-255)
+            width: Image width in pixels
+            height: Image height in pixels
+            
+        Raises:
+            ValueError: If parameters are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(pixel_data, (list, tuple)):
+            raise ValueError("Pixel data must be a list or tuple")
+        if not isinstance(width, int) or width <= 0:
+            raise ValueError("Width must be a positive integer")
+        if not isinstance(height, int) or height <= 0:
+            raise ValueError("Height must be a positive integer")
+        
+        expected_size = width * height * 4  # RGBA format
+        if len(pixel_data) != expected_size:
+            raise ValueError(f"Pixel data size mismatch: expected {expected_size}, got {len(pixel_data)}")
+        
+        try:
+            # Convert to ctypes array
+            pixel_array = (ctypes.c_ubyte * len(pixel_data))(*pixel_data)
+            helios_lib.displayImageFromPixels(self.visualizer, pixel_array, width, height)
+        except Exception as e:
+            raise VisualizerError(f"Failed to display image from pixels: {e}")
+
+    def displayImageFromFile(self, filename: str) -> None:
+        """
+        Display image from file.
+        
+        Args:
+            filename: Path to image file
+            
+        Raises:
+            ValueError: If filename is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(filename, str) or not filename.strip():
+            raise ValueError("Filename must be a non-empty string")
+        
+        try:
+            helios_lib.displayImageFromFile(self.visualizer, filename.encode('utf-8'))
+        except Exception as e:
+            raise VisualizerError(f"Failed to display image from file '{filename}': {e}")
+
+    # Window Data Access Methods
+
+    def getWindowPixelsRGB(self, buffer: List[int]) -> None:
+        """
+        Get RGB pixel data from current window.
+        
+        Args:
+            buffer: Pre-allocated buffer to store pixel data
+            
+        Raises:
+            ValueError: If buffer is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(buffer, list):
+            raise ValueError("Buffer must be a list")
+        
+        try:
+            # Convert buffer to ctypes array
+            buffer_array = (ctypes.c_uint * len(buffer))(*buffer)
+            helios_lib.getWindowPixelsRGB(self.visualizer, buffer_array)
+            
+            # Copy results back to Python list
+            for i in range(len(buffer)):
+                buffer[i] = buffer_array[i]
+        except Exception as e:
+            raise VisualizerError(f"Failed to get window pixels: {e}")
+
+    def getDepthMap(self) -> tuple[List[float], int, int]:
+        """
+        Get depth map from current window.
+        
+        Returns:
+            Tuple of (depth_pixels, width, height)
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            depth_ptr = ctypes.POINTER(ctypes.c_float)()
+            width = ctypes.c_uint()
+            height = ctypes.c_uint()
+            buffer_size = ctypes.c_uint()
+            
+            helios_lib.getDepthMap(self.visualizer, ctypes.byref(depth_ptr), 
+                                   ctypes.byref(width), ctypes.byref(height), 
+                                   ctypes.byref(buffer_size))
+            
+            # Convert to Python list
+            if depth_ptr and buffer_size.value > 0:
+                depth_data = [depth_ptr[i] for i in range(buffer_size.value)]
+                return (depth_data, width.value, height.value)
+            else:
+                return ([], 0, 0)
+        except Exception as e:
+            raise VisualizerError(f"Failed to get depth map: {e}")
+
+    def plotDepthMap(self) -> None:
+        """
+        Plot depth map visualization.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.plotDepthMap(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to plot depth map: {e}")
+
+    # Geometry Management Methods
+
+    def clearGeometry(self) -> None:
+        """
+        Clear all geometry from visualizer.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.clearGeometry(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to clear geometry: {e}")
+
+    def clearContextGeometry(self) -> None:
+        """
+        Clear context geometry from visualizer.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.clearContextGeometry(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to clear context geometry: {e}")
+
+    def deleteGeometry(self, geometry_id: int) -> None:
+        """
+        Delete specific geometry by ID.
+        
+        Args:
+            geometry_id: ID of geometry to delete
+            
+        Raises:
+            ValueError: If geometry ID is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(geometry_id, int) or geometry_id < 0:
+            raise ValueError("Geometry ID must be a non-negative integer")
+        
+        try:
+            helios_lib.deleteGeometry(self.visualizer, geometry_id)
+        except Exception as e:
+            raise VisualizerError(f"Failed to delete geometry {geometry_id}: {e}")
+
+    def updateContextPrimitiveColors(self) -> None:
+        """
+        Update context primitive colors.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.updateContextPrimitiveColors(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to update context primitive colors: {e}")
+
+    # Coordinate Axes and Grid Methods
+
+    def addCoordinateAxes(self) -> None:
+        """
+        Add coordinate axes at origin with unit length.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.addCoordinateAxes(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to add coordinate axes: {e}")
+
+    def addCoordinateAxesCustom(self, origin: vec3, length: vec3, sign: str = "both") -> None:
+        """
+        Add coordinate axes with custom properties.
+        
+        Args:
+            origin: Axes origin position
+            length: Axes length in each direction
+            sign: Axis direction ("both" or "positive")
+            
+        Raises:
+            ValueError: If parameters are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(origin, vec3):
+            raise ValueError("Origin must be a vec3")
+        if not isinstance(length, vec3):
+            raise ValueError("Length must be a vec3")
+        if not isinstance(sign, str) or sign not in ["both", "positive"]:
+            raise ValueError("Sign must be 'both' or 'positive'")
+        
+        try:
+            origin_array = (ctypes.c_float * 3)(origin.x, origin.y, origin.z)
+            length_array = (ctypes.c_float * 3)(length.x, length.y, length.z)
+            helios_lib.addCoordinateAxesCustom(self.visualizer, origin_array, length_array, sign.encode('utf-8'))
+        except Exception as e:
+            raise VisualizerError(f"Failed to add custom coordinate axes: {e}")
+
+    def disableCoordinateAxes(self) -> None:
+        """
+        Remove coordinate axes.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.disableCoordinateAxes(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to disable coordinate axes: {e}")
+
+    def addGridWireFrame(self, center: vec3, size: vec3, subdivisions: List[int]) -> None:
+        """
+        Add grid wireframe.
+        
+        Args:
+            center: Grid center position
+            size: Grid size in each direction
+            subdivisions: Grid subdivisions [x, y, z]
+            
+        Raises:
+            ValueError: If parameters are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(center, vec3):
+            raise ValueError("Center must be a vec3")
+        if not isinstance(size, vec3):
+            raise ValueError("Size must be a vec3")
+        if not isinstance(subdivisions, (list, tuple)) or len(subdivisions) != 3:
+            raise ValueError("Subdivisions must be a list of 3 integers")
+        if not all(isinstance(s, int) and s > 0 for s in subdivisions):
+            raise ValueError("All subdivisions must be positive integers")
+        
+        try:
+            center_array = (ctypes.c_float * 3)(center.x, center.y, center.z)
+            size_array = (ctypes.c_float * 3)(size.x, size.y, size.z)
+            subdiv_array = (ctypes.c_int * 3)(*subdivisions)
+            helios_lib.addGridWireFrame(self.visualizer, center_array, size_array, subdiv_array)
+        except Exception as e:
+            raise VisualizerError(f"Failed to add grid wireframe: {e}")
+
+    # Colorbar Control Methods
+
+    def enableColorbar(self) -> None:
+        """
+        Enable colorbar.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.enableColorbar(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to enable colorbar: {e}")
+
+    def disableColorbar(self) -> None:
+        """
+        Disable colorbar.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.disableColorbar(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to disable colorbar: {e}")
+
+    def setColorbarPosition(self, position: vec3) -> None:
+        """
+        Set colorbar position.
+        
+        Args:
+            position: Colorbar position
+            
+        Raises:
+            ValueError: If position is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(position, vec3):
+            raise ValueError("Position must be a vec3")
+        
+        try:
+            pos_array = (ctypes.c_float * 3)(position.x, position.y, position.z)
+            helios_lib.setColorbarPosition(self.visualizer, pos_array)
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar position: {e}")
+
+    def setColorbarSize(self, width: float, height: float) -> None:
+        """
+        Set colorbar size.
+        
+        Args:
+            width: Colorbar width
+            height: Colorbar height
+            
+        Raises:
+            ValueError: If size is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(width, (int, float)) or width <= 0:
+            raise ValueError("Width must be a positive number")
+        if not isinstance(height, (int, float)) or height <= 0:
+            raise ValueError("Height must be a positive number")
+        
+        try:
+            size_array = (ctypes.c_float * 2)(float(width), float(height))
+            helios_lib.setColorbarSize(self.visualizer, size_array)
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar size: {e}")
+
+    def setColorbarRange(self, min_val: float, max_val: float) -> None:
+        """
+        Set colorbar range.
+        
+        Args:
+            min_val: Minimum value
+            max_val: Maximum value
+            
+        Raises:
+            ValueError: If range is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(min_val, (int, float)):
+            raise ValueError("Minimum value must be numeric")
+        if not isinstance(max_val, (int, float)):
+            raise ValueError("Maximum value must be numeric")
+        if min_val >= max_val:
+            raise ValueError("Minimum value must be less than maximum value")
+        
+        try:
+            helios_lib.setColorbarRange(self.visualizer, float(min_val), float(max_val))
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar range: {e}")
+
+    def setColorbarTicks(self, ticks: List[float]) -> None:
+        """
+        Set colorbar tick marks.
+        
+        Args:
+            ticks: List of tick values
+            
+        Raises:
+            ValueError: If ticks are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(ticks, (list, tuple)):
+            raise ValueError("Ticks must be a list or tuple")
+        if not all(isinstance(t, (int, float)) for t in ticks):
+            raise ValueError("All tick values must be numeric")
+        
+        try:
+            if ticks:
+                ticks_array = (ctypes.c_float * len(ticks))(*ticks)
+                helios_lib.setColorbarTicks(self.visualizer, ticks_array, len(ticks))
+            else:
+                helios_lib.setColorbarTicks(self.visualizer, None, 0)
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar ticks: {e}")
+
+    def setColorbarTitle(self, title: str) -> None:
+        """
+        Set colorbar title.
+        
+        Args:
+            title: Colorbar title
+            
+        Raises:
+            ValueError: If title is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(title, str):
+            raise ValueError("Title must be a string")
+        
+        try:
+            helios_lib.setColorbarTitle(self.visualizer, title.encode('utf-8'))
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar title: {e}")
+
+    def setColorbarFontColor(self, color: RGBcolor) -> None:
+        """
+        Set colorbar font color.
+        
+        Args:
+            color: Font color
+            
+        Raises:
+            ValueError: If color is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(color, RGBcolor):
+            raise ValueError("Color must be an RGBcolor")
+        
+        try:
+            color_array = (ctypes.c_float * 3)(color.r, color.g, color.b)
+            helios_lib.setColorbarFontColor(self.visualizer, color_array)
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar font color: {e}")
+
+    def setColorbarFontSize(self, font_size: int) -> None:
+        """
+        Set colorbar font size.
+        
+        Args:
+            font_size: Font size
+            
+        Raises:
+            ValueError: If font size is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(font_size, int) or font_size <= 0:
+            raise ValueError("Font size must be a positive integer")
+        
+        try:
+            helios_lib.setColorbarFontSize(self.visualizer, font_size)
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colorbar font size: {e}")
+
+    # Colormap Methods
+
+    def setColormap(self, colormap: Union[int, str]) -> None:
+        """
+        Set predefined colormap.
+        
+        Args:
+            colormap: Colormap ID (0-5) or name ("HOT", "COOL", "RAINBOW", "LAVA", "PARULA", "GRAY")
+            
+        Raises:
+            ValueError: If colormap is invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        colormap_map = {
+            "HOT": 0, "COOL": 1, "RAINBOW": 2, 
+            "LAVA": 3, "PARULA": 4, "GRAY": 5
+        }
+        
+        if isinstance(colormap, str):
+            if colormap.upper() not in colormap_map:
+                raise ValueError(f"Unknown colormap name: {colormap}")
+            colormap_id = colormap_map[colormap.upper()]
+        elif isinstance(colormap, int):
+            if colormap < 0 or colormap > 5:
+                raise ValueError("Colormap ID must be 0-5")
+            colormap_id = colormap
+        else:
+            raise ValueError("Colormap must be integer ID or string name")
+        
+        try:
+            helios_lib.setColormap(self.visualizer, colormap_id)
+        except Exception as e:
+            raise VisualizerError(f"Failed to set colormap: {e}")
+
+    def setCustomColormap(self, colors: List[RGBcolor], divisions: List[float]) -> None:
+        """
+        Set custom colormap.
+        
+        Args:
+            colors: List of RGB colors
+            divisions: List of division points (same length as colors)
+            
+        Raises:
+            ValueError: If parameters are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(colors, (list, tuple)) or not colors:
+            raise ValueError("Colors must be a non-empty list")
+        if not isinstance(divisions, (list, tuple)) or not divisions:
+            raise ValueError("Divisions must be a non-empty list")
+        if len(colors) != len(divisions):
+            raise ValueError("Colors and divisions must have the same length")
+        
+        if not all(isinstance(c, RGBcolor) for c in colors):
+            raise ValueError("All colors must be RGBcolor objects")
+        if not all(isinstance(d, (int, float)) for d in divisions):
+            raise ValueError("All divisions must be numeric")
+        
+        try:
+            # Flatten colors to RGB array
+            color_array = (ctypes.c_float * (len(colors) * 3))()
+            for i, color in enumerate(colors):
+                color_array[i*3] = color.r
+                color_array[i*3+1] = color.g
+                color_array[i*3+2] = color.b
+            
+            divisions_array = (ctypes.c_float * len(divisions))(*divisions)
+            
+            helios_lib.setCustomColormap(self.visualizer, color_array, divisions_array, len(colors))
+        except Exception as e:
+            raise VisualizerError(f"Failed to set custom colormap: {e}")
+
+    # Advanced Coloring Methods
+
+    def colorContextPrimitivesByObjectData(self, data_name: str, obj_ids: Optional[List[int]] = None) -> None:
+        """
+        Color context primitives by object data.
+        
+        Args:
+            data_name: Name of object data to use for coloring
+            obj_ids: Optional list of object IDs to color (None for all)
+            
+        Raises:
+            ValueError: If parameters are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        if not isinstance(data_name, str) or not data_name.strip():
+            raise ValueError("Data name must be a non-empty string")
+        
+        try:
+            if obj_ids is None:
+                helios_lib.colorContextPrimitivesByObjectData(self.visualizer, data_name.encode('utf-8'))
+            else:
+                if not isinstance(obj_ids, (list, tuple)):
+                    raise ValueError("Object IDs must be a list or tuple")
+                if not all(isinstance(oid, int) and oid >= 0 for oid in obj_ids):
+                    raise ValueError("All object IDs must be non-negative integers")
+                
+                if obj_ids:
+                    obj_ids_array = (ctypes.c_uint * len(obj_ids))(*obj_ids)
+                    helios_lib.colorContextPrimitivesByObjectDataIDs(self.visualizer, data_name.encode('utf-8'), obj_ids_array, len(obj_ids))
+                else:
+                    helios_lib.colorContextPrimitivesByObjectDataIDs(self.visualizer, data_name.encode('utf-8'), None, 0)
+        except Exception as e:
+            raise VisualizerError(f"Failed to color primitives by object data '{data_name}': {e}")
+
+    def colorContextPrimitivesRandomly(self, uuids: Optional[List[int]] = None) -> None:
+        """
+        Color context primitives randomly.
+        
+        Args:
+            uuids: Optional list of primitive UUIDs to color (None for all)
+            
+        Raises:
+            ValueError: If UUIDs are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            if uuids is None:
+                helios_lib.colorContextPrimitivesRandomly(self.visualizer, None, 0)
+            else:
+                if not isinstance(uuids, (list, tuple)):
+                    raise ValueError("UUIDs must be a list or tuple")
+                if not all(isinstance(uuid, int) and uuid >= 0 for uuid in uuids):
+                    raise ValueError("All UUIDs must be non-negative integers")
+                
+                if uuids:
+                    uuid_array = (ctypes.c_uint * len(uuids))(*uuids)
+                    helios_lib.colorContextPrimitivesRandomly(self.visualizer, uuid_array, len(uuids))
+                else:
+                    helios_lib.colorContextPrimitivesRandomly(self.visualizer, None, 0)
+        except Exception as e:
+            raise VisualizerError(f"Failed to color primitives randomly: {e}")
+
+    def colorContextObjectsRandomly(self, obj_ids: Optional[List[int]] = None) -> None:
+        """
+        Color context objects randomly.
+        
+        Args:
+            obj_ids: Optional list of object IDs to color (None for all)
+            
+        Raises:
+            ValueError: If object IDs are invalid
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            if obj_ids is None:
+                helios_lib.colorContextObjectsRandomly(self.visualizer, None, 0)
+            else:
+                if not isinstance(obj_ids, (list, tuple)):
+                    raise ValueError("Object IDs must be a list or tuple")
+                if not all(isinstance(oid, int) and oid >= 0 for oid in obj_ids):
+                    raise ValueError("All object IDs must be non-negative integers")
+                
+                if obj_ids:
+                    obj_ids_array = (ctypes.c_uint * len(obj_ids))(*obj_ids)
+                    helios_lib.colorContextObjectsRandomly(self.visualizer, obj_ids_array, len(obj_ids))
+                else:
+                    helios_lib.colorContextObjectsRandomly(self.visualizer, None, 0)
+        except Exception as e:
+            raise VisualizerError(f"Failed to color objects randomly: {e}")
+
+    def clearColor(self) -> None:
+        """
+        Clear primitive colors from previous coloring operations.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.clearColor(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to clear colors: {e}")
+
+    # Watermark Control Methods
+
+    def hideWatermark(self) -> None:
+        """
+        Hide Helios logo watermark.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.hideWatermark(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to hide watermark: {e}")
+
+    def showWatermark(self) -> None:
+        """
+        Show Helios logo watermark.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.showWatermark(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to show watermark: {e}")
+
+    def updateWatermark(self) -> None:
+        """
+        Update watermark geometry to match current window size.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.updateWatermark(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to update watermark: {e}")
+
+    # Performance and Utility Methods
+
+    def enableMessages(self) -> None:
+        """
+        Enable standard output from visualizer plugin.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.enableMessages(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to enable messages: {e}")
+
+    def disableMessages(self) -> None:
+        """
+        Disable standard output from visualizer plugin.
+        
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.disableMessages(self.visualizer)
+        except Exception as e:
+            raise VisualizerError(f"Failed to disable messages: {e}")
+
+    def plotOnce(self, get_keystrokes: bool = True) -> None:
+        """
+        Run one rendering loop.
+        
+        Args:
+            get_keystrokes: Whether to process keystrokes
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.plotOnce(self.visualizer, get_keystrokes)
+        except Exception as e:
+            raise VisualizerError(f"Failed to run plot once: {e}")
+
+    def plotUpdateWithVisibility(self, hide_window: bool = False) -> None:
+        """
+        Update visualization with window visibility control.
+        
+        Args:
+            hide_window: Whether to hide the window during update
+            
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        
+        try:
+            helios_lib.plotUpdateWithVisibility(self.visualizer, hide_window)
+        except Exception as e:
+            raise VisualizerError(f"Failed to update plot with visibility control: {e}")
     
     def __del__(self):
         """Destructor to ensure proper cleanup."""

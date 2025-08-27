@@ -477,7 +477,7 @@ def detect_available_plugins() -> List[str]:
             'parameteroptimization': ['createParameterOptimization'],
             'projectbuilder': ['createProjectBuilder'],
             'collisiondetection': ['createCollisionDetection'],
-            'solarposition': ['calculateSolarPosition', 'getSolarElevation']
+            'solarposition': ['createSolarPosition', 'getSunElevation']
         }
         
         for plugin_name, function_names in plugin_checks.items():

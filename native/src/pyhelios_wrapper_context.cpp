@@ -2172,5 +2172,174 @@ extern "C" {
         }
     }
 
+    // Context time/date management functions for solar position integration
+    void setTime_HourMinute(helios::Context* context, int hour, int minute) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (hour < 0 || hour > 23) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Hour must be between 0 and 23");
+                return;
+            }
+            if (minute < 0 || minute > 59) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Minute must be between 0 and 59");
+                return;
+            }
+            
+            context->setTime(minute, hour);
+            
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setTime_HourMinute): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setTime_HourMinute): Unknown error");
+        }
+    }
+    
+    void setTime_HourMinuteSecond(helios::Context* context, int hour, int minute, int second) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (hour < 0 || hour > 23) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Hour must be between 0 and 23");
+                return;
+            }
+            if (minute < 0 || minute > 59) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Minute must be between 0 and 59");
+                return;
+            }
+            if (second < 0 || second > 59) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Second must be between 0 and 59");
+                return;
+            }
+            
+            context->setTime(second, minute, hour);
+            
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setTime_HourMinuteSecond): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setTime_HourMinuteSecond): Unknown error");
+        }
+    }
+    
+    void setDate_DayMonthYear(helios::Context* context, int day, int month, int year) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (day < 1 || day > 31) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Day must be between 1 and 31");
+                return;
+            }
+            if (month < 1 || month > 12) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Month must be between 1 and 12");
+                return;
+            }
+            if (year < 1900 || year > 3000) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Year must be between 1900 and 3000");
+                return;
+            }
+            
+            context->setDate(day, month, year);
+            
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setDate_DayMonthYear): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setDate_DayMonthYear): Unknown error");
+        }
+    }
+    
+    void setDate_JulianDay(helios::Context* context, int julian_day, int year) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (julian_day < 1 || julian_day > 366) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Julian day must be between 1 and 366");
+                return;
+            }
+            if (year < 1900 || year > 3000) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Year must be between 1900 and 3000");
+                return;
+            }
+            
+            context->setDate(julian_day, year);
+            
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setDate_JulianDay): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setDate_JulianDay): Unknown error");
+        }
+    }
+    
+    void getTime(helios::Context* context, int* hour, int* minute, int* second) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!hour || !minute || !second) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Output parameters cannot be null");
+                return;
+            }
+            
+            helios::Time time = context->getTime();
+            *hour = time.hour;
+            *minute = time.minute;
+            *second = time.second;
+            
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getTime): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getTime): Unknown error");
+        }
+    }
+    
+    void getDate(helios::Context* context, int* day, int* month, int* year) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!day || !month || !year) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Output parameters cannot be null");
+                return;
+            }
+            
+            helios::Date date = context->getDate();
+            *day = date.day;
+            *month = date.month;
+            *year = date.year;
+            
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getDate): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getDate): Unknown error");
+        }
+    }
+
 
 } //extern "C"

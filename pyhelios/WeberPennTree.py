@@ -23,6 +23,28 @@ from .validation.plugin_decorators import (
     validate_branch_segment_params, validate_leaf_subdivisions_params
 )
 
+
+def is_weberpenntree_available():
+    """
+    Check if WeberPennTree plugin is available for use.
+    
+    Returns:
+        bool: True if WeberPennTree can be used, False otherwise
+    """
+    try:
+        # Check plugin registry
+        plugin_registry = get_plugin_registry()
+        if not plugin_registry.is_plugin_available('weberpenntree'):
+            return False
+        
+        # Check if wrapper functions are available
+        if not wpt_wrapper._WPT_FUNCTIONS_AVAILABLE:
+            return False
+            
+        return True
+    except Exception:
+        return False
+
 from .Context import Context
 
 @contextmanager
@@ -93,7 +115,12 @@ class WeberPennTree:
         self.context = context
         self._plugin_registry = get_plugin_registry()
         
-        # Check if weberpenntree plugin is available
+        # Check if weberpenntree functions are available at the wrapper level first
+        from .wrappers.UWeberPennTreeWrapper import _WPT_FUNCTIONS_AVAILABLE
+        if not _WPT_FUNCTIONS_AVAILABLE:
+            raise NotImplementedError("WeberPennTree functions not available in current Helios library.")
+        
+        # Check if weberpenntree plugin is available in registry
         if not self._plugin_registry.is_plugin_available('weberpenntree'):
             print("Warning: WeberPennTree plugin not detected in current build")
             print("Tree generation functionality may be limited or unavailable")

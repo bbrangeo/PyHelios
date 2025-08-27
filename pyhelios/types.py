@@ -18,6 +18,9 @@ from .wrappers.DataTypes import (
     # Coordinate types
     SphericalCoord,
     
+    # Time and Date types
+    Time, Date,
+    
     # Primitive type enumeration
     PrimitiveType,
     
@@ -25,7 +28,8 @@ from .wrappers.DataTypes import (
     make_int2, make_int3, make_int4,
     make_vec2, make_vec3, make_vec4,
     make_RGBcolor, make_RGBAcolor,
-    make_SphericalCoord
+    make_SphericalCoord,
+    make_Time, make_Date
 )
 
 # Export all for star imports
@@ -40,6 +44,9 @@ __all__ = [
     # Coordinate types
     'SphericalCoord',
     
+    # Time and Date types
+    'Time', 'Date',
+    
     # Primitive type enumeration
     'PrimitiveType',
     
@@ -47,5 +54,6 @@ __all__ = [
     'make_int2', 'make_int3', 'make_int4',
     'make_vec2', 'make_vec3', 'make_vec4',
     'make_RGBcolor', 'make_RGBAcolor',
-    'make_SphericalCoord'
+    'make_SphericalCoord',
+    'make_Time', 'make_Date'
 ]

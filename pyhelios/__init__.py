@@ -37,6 +37,13 @@ except (AttributeError, ImportError):
     # Visualizer functions not available in current library
     Visualizer = None
     VisualizerError = None
+
+try:
+    from .SolarPosition import SolarPosition, SolarPositionError
+except (AttributeError, ImportError):
+    # SolarPosition functions not available in current library
+    SolarPosition = None
+    SolarPositionError = None
 from .wrappers import DataTypes as DataTypes
 from . import dev_utils
 from .exceptions import (

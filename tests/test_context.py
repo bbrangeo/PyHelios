@@ -69,7 +69,7 @@ class TestContextCreation:
         assert basic_context is not None
         assert hasattr(basic_context, 'context')
     
-    def test_context_manager(self, check_dll):
+    def test_context_manager(self, check_native_library):
         """Test Context as context manager."""
         with Context() as ctx:
             assert ctx is not None
@@ -298,11 +298,11 @@ class TestContextMocking:
 class TestContextEdgeCases:
     """Test Context edge cases and error conditions."""
     
-    def test_context_without_dll(self):
-        """Test Context behavior when DLL is not available."""
+    def test_context_without_native_library(self):
+        """Test Context behavior when native library is not available."""
         # Skip this test if native libraries are actually available
-        if PlatformHelper.is_dll_available():
-            pytest.skip("Native libraries are available - cannot test DLL unavailable scenario")
+        if PlatformHelper.is_native_library_available():
+            pytest.skip("Native libraries are available - cannot test native library unavailable scenario")
         
         # In PyHelios, Context creation should succeed even without native libraries (mock mode)
         # Operations on the context should raise RuntimeError indicating mock mode
@@ -322,8 +322,8 @@ class TestContextEdgeCases:
     
     def test_large_number_of_primitives(self, basic_context):
         """Test performance with many primitives."""
-        if not PlatformHelper.is_dll_available():
-            pytest.skip("Requires DLL for performance testing")
+        if not PlatformHelper.is_native_library_available():
+            pytest.skip("Requires native library for performance testing")
         
         # Add many patches
         num_patches = 1000
@@ -345,8 +345,8 @@ class TestContextEdgeCases:
         """Test that Context properly cleans up memory."""
         # This test verifies that multiple Context creations/destructions
         # don't lead to memory leaks
-        if not PlatformHelper.is_dll_available():
-            pytest.skip("Requires DLL for memory testing")
+        if not PlatformHelper.is_native_library_available():
+            pytest.skip("Requires native library for memory testing")
         
         for i in range(10):
             with Context() as ctx:
@@ -2074,3 +2074,154 @@ class TestCompoundGeometryMockMode:
             
             with pytest.raises(NotImplementedError, match="not available"):
                 context.addBox(vec3(0, 0, 0), vec3(1, 1, 1))
+
+
+@pytest.mark.native_only
+class TestContextTimeDate:
+    """Test Context time/date functionality for solar position integration"""
+    
+    def test_context_time_methods(self):
+        """Test Context time setting and getting methods"""
+        with Context() as context:
+            # Test setting time with hour and minute
+            context.setTime(14, 30)
+            hour, minute, second = context.getTime()
+            assert hour == 14
+            assert minute == 30
+            assert second == 0  # Should default to 0
+            
+            # Test setting time with hour, minute, and second
+            context.setTime(9, 15, 45)
+            hour, minute, second = context.getTime()
+            assert hour == 9
+            assert minute == 15
+            assert second == 45
+    
+    def test_context_date_methods(self):
+        """Test Context date setting and getting methods"""
+        with Context() as context:
+            # Test setting date
+            context.setDate(2023, 6, 21)
+            year, month, day = context.getDate()
+            assert year == 2023
+            assert month == 6
+            assert day == 21
+            
+            # Test setting date with different values
+            context.setDate(2024, 12, 25)
+            year, month, day = context.getDate()
+            assert year == 2024
+            assert month == 12
+            assert day == 25
+    
+    def test_context_julian_date(self):
+        """Test Context Julian date setting"""
+        with Context() as context:
+            # Test setting Julian date (day 172 of 2023 should be around June 21)
+            context.setDateJulian(172, 2023)
+            year, month, day = context.getDate()
+            assert year == 2023
+            # Should be in June (exact day depends on Helios implementation)
+            assert 5 <= month <= 7  # Should be around June
+    
+    def test_time_parameter_validation(self):
+        """Test time parameter validation"""
+        with Context() as context:
+            # Test invalid hour
+            with pytest.raises((ValueError, Exception)):
+                context.setTime(25, 0)
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setTime(-1, 0)
+            
+            # Test invalid minute
+            with pytest.raises((ValueError, Exception)):
+                context.setTime(12, 60)
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setTime(12, -1)
+            
+            # Test invalid second
+            with pytest.raises((ValueError, Exception)):
+                context.setTime(12, 30, 60)
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setTime(12, 30, -1)
+    
+    def test_date_parameter_validation(self):
+        """Test date parameter validation"""
+        with Context() as context:
+            # Test invalid year
+            with pytest.raises((ValueError, Exception)):
+                context.setDate(1800, 6, 21)  # Too early
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setDate(3500, 6, 21)  # Too late
+            
+            # Test invalid month
+            with pytest.raises((ValueError, Exception)):
+                context.setDate(2023, 0, 21)  # Month 0
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setDate(2023, 13, 21)  # Month 13
+            
+            # Test invalid day
+            with pytest.raises((ValueError, Exception)):
+                context.setDate(2023, 6, 0)  # Day 0
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setDate(2023, 6, 32)  # Day 32
+    
+    def test_julian_date_validation(self):
+        """Test Julian date parameter validation"""
+        with Context() as context:
+            # Test invalid Julian day
+            with pytest.raises((ValueError, Exception)):
+                context.setDateJulian(0, 2023)  # Day 0
+            
+            with pytest.raises((ValueError, Exception)):
+                context.setDateJulian(367, 2023)  # Day 367
+            
+            # Test invalid year for Julian date
+            with pytest.raises((ValueError, Exception)):
+                context.setDateJulian(172, 1800)  # Too early
+
+
+@pytest.mark.cross_platform
+class TestContextTimeDateMockMode:
+    """Test Context time/date methods in mock mode for cross-platform compatibility"""
+    
+    def test_time_date_methods_mock_behavior(self):
+        """Test that time/date methods behave appropriately in mock mode"""
+        from pyhelios.wrappers import UContextWrapper
+        
+        # Test if time/date functions are available
+        if not hasattr(UContextWrapper, '_TIME_DATE_FUNCTIONS_AVAILABLE'):
+            pytest.skip("Time/date functions not implemented in this version")
+        
+        # Force time/date functions to be unavailable by patching the availability flag
+        with patch.object(UContextWrapper, '_TIME_DATE_FUNCTIONS_AVAILABLE', False):
+            context = Context()
+            
+            # In mock mode, methods should exist but raise informative errors
+            assert hasattr(context, 'setTime')
+            assert hasattr(context, 'setDate')
+            assert hasattr(context, 'setDateJulian')
+            assert hasattr(context, 'getTime')
+            assert hasattr(context, 'getDate')
+            
+            # Methods should raise NotImplementedError when functions are not available
+            with pytest.raises(NotImplementedError, match="not available"):
+                context.setTime(12, 0)
+            
+            with pytest.raises(NotImplementedError, match="not available"):
+                context.setDate(2023, 6, 21)
+            
+            with pytest.raises(NotImplementedError, match="not available"):
+                context.setDateJulian(172, 2023)
+            
+            with pytest.raises(NotImplementedError, match="not available"):
+                context.getTime()
+            
+            with pytest.raises(NotImplementedError, match="not available"):
+                context.getDate()

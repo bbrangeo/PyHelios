@@ -160,7 +160,14 @@ class PlatformHelper:
     
     @staticmethod
     def is_dll_available() -> bool:
-        """Check if native Helios library is available (legacy alias)."""
+        """Check if native Helios library is available (deprecated: use is_native_library_available)."""
+        import warnings
+        warnings.warn(
+            "is_dll_available() is deprecated and uses Windows-centric terminology. "
+            "Use is_native_library_available() instead for cross-platform clarity.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return PlatformHelper.is_native_library_available()
     
     @staticmethod

@@ -86,7 +86,14 @@ def check_native_library():
 
 @pytest.fixture(scope="session")
 def check_dll():
-    """Session-scoped fixture to check native library availability (legacy alias)."""
+    """Session-scoped fixture to check native library availability (deprecated: use check_native_library)."""
+    import warnings
+    warnings.warn(
+        "check_dll fixture is deprecated and uses Windows-centric terminology. "
+        "Use check_native_library fixture instead for cross-platform clarity.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     if not is_native_library_available():
         pytest.skip("Native Helios library not available - skipping tests requiring native functionality")
 
@@ -101,7 +108,7 @@ def basic_context(check_native_library):
 
 @pytest.fixture
 def mock_context():
-    """Fixture providing a mocked Context for testing without DLL dependency."""
+    """Fixture providing a mocked Context for testing without native library dependency."""
     mock_ctx = Mock(spec=Context)
     mock_ctx.getPrimitiveCount.return_value = 0
     mock_ctx.getAllUUIDs.return_value = []
@@ -123,7 +130,7 @@ def weber_penn_tree(basic_context):
 
 @pytest.fixture
 def mock_weber_penn_tree():
-    """Fixture providing a mocked WeberPennTree for testing without DLL dependency."""
+    """Fixture providing a mocked WeberPennTree for testing without native library dependency."""
     mock_wpt = Mock(spec=WeberPennTree)
     mock_wpt.buildTree.return_value = 1
     mock_wpt.getTrunkUUIDs.return_value = [1, 2, 3]
@@ -319,7 +326,6 @@ def pytest_runtest_setup(item):
             all_available, missing_info = _check_plugin_availability(required_plugins)
             if not all_available:
                 pytest.skip(f"Skipping test - {missing_info['reason']}")
-    
     
     # Platform-specific skips
     if "windows_only" in item.keywords and not is_windows():

@@ -1277,3 +1277,98 @@ def colorPrimitiveByDataPseudocolorWithRange(context, uuids: List[int], primitiv
     helios_lib.colorPrimitiveByDataPseudocolorWithRange(context, uuid_array, len(uuids), primitive_data_encoded, colormap_encoded, ncolors, max_val, min_val)
 
 
+# Try to set up Context time/date function prototypes
+try:
+    # Context time/date functions
+    helios_lib.setTime_HourMinute.argtypes = [ctypes.POINTER(UContext), ctypes.c_int, ctypes.c_int]
+    helios_lib.setTime_HourMinute.restype = None
+    
+    helios_lib.setTime_HourMinuteSecond.argtypes = [ctypes.POINTER(UContext), ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    helios_lib.setTime_HourMinuteSecond.restype = None
+    
+    helios_lib.setDate_DayMonthYear.argtypes = [ctypes.POINTER(UContext), ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    helios_lib.setDate_DayMonthYear.restype = None
+    
+    helios_lib.setDate_JulianDay.argtypes = [ctypes.POINTER(UContext), ctypes.c_int, ctypes.c_int]
+    helios_lib.setDate_JulianDay.restype = None
+    
+    helios_lib.getTime.argtypes = [ctypes.POINTER(UContext), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    helios_lib.getTime.restype = None
+    
+    helios_lib.getDate.argtypes = [ctypes.POINTER(UContext), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    helios_lib.getDate.restype = None
+    
+    # Mark that time/date functions are available
+    _TIME_DATE_FUNCTIONS_AVAILABLE = True
+
+except AttributeError:
+    # Time/date functions not available in current native library
+    _TIME_DATE_FUNCTIONS_AVAILABLE = False
+
+# Error checking callback for time/date functions
+def _check_error_time_date(result, func, args):
+    """Automatic error checking for time/date functions"""
+    check_helios_error(helios_lib.getLastErrorCode, helios_lib.getLastErrorMessage)
+    return result
+
+# Set up automatic error checking for time/date functions
+if _TIME_DATE_FUNCTIONS_AVAILABLE:
+    helios_lib.setTime_HourMinute.errcheck = _check_error_time_date
+    helios_lib.setTime_HourMinuteSecond.errcheck = _check_error_time_date
+    helios_lib.setDate_DayMonthYear.errcheck = _check_error_time_date
+    helios_lib.setDate_JulianDay.errcheck = _check_error_time_date
+    helios_lib.getTime.errcheck = _check_error_time_date
+    helios_lib.getDate.errcheck = _check_error_time_date
+
+# Context time/date wrapper functions
+def setTime(context, hour: int, minute: int = 0, second: int = 0):
+    """Set the simulation time"""
+    if not _TIME_DATE_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError("Context time/date functions not available in current Helios library. Rebuild PyHelios with updated C++ wrapper implementation.")
+    
+    if second == 0:
+        helios_lib.setTime_HourMinute(context, hour, minute)
+    else:
+        helios_lib.setTime_HourMinuteSecond(context, hour, minute, second)
+
+def setDate(context, year: int, month: int, day: int):
+    """Set the simulation date"""
+    if not _TIME_DATE_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError("Context time/date functions not available in current Helios library. Rebuild PyHelios with updated C++ wrapper implementation.")
+    
+    helios_lib.setDate_DayMonthYear(context, day, month, year)
+
+def setDateJulian(context, julian_day: int, year: int):
+    """Set the simulation date using Julian day"""
+    if not _TIME_DATE_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError("Context time/date functions not available in current Helios library. Rebuild PyHelios with updated C++ wrapper implementation.")
+    
+    helios_lib.setDate_JulianDay(context, julian_day, year)
+
+def getTime(context):
+    """Get the current simulation time as a tuple (hour, minute, second)"""
+    if not _TIME_DATE_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError("Context time/date functions not available in current Helios library. Rebuild PyHelios with updated C++ wrapper implementation.")
+    
+    hour = ctypes.c_int()
+    minute = ctypes.c_int()
+    second = ctypes.c_int()
+    
+    helios_lib.getTime(context, ctypes.byref(hour), ctypes.byref(minute), ctypes.byref(second))
+    
+    return (hour.value, minute.value, second.value)
+
+def getDate(context):
+    """Get the current simulation date as a tuple (year, month, day)"""
+    if not _TIME_DATE_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError("Context time/date functions not available in current Helios library. Rebuild PyHelios with updated C++ wrapper implementation.")
+    
+    day = ctypes.c_int()
+    month = ctypes.c_int()
+    year = ctypes.c_int()
+    
+    helios_lib.getDate(context, ctypes.byref(day), ctypes.byref(month), ctypes.byref(year))
+    
+    return (year.value, month.value, day.value)
+
+

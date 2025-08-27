@@ -34,14 +34,35 @@ endif()
 
 #-------- PYHELIOS INTERFACE ---------#
 # Create PyHelios interface library after Helios setup
-add_library(pyhelios_interface STATIC 
+
+# Start with core wrapper sources
+set(PYHELIOS_WRAPPER_SOURCES
     ../native/src/pyhelios_wrapper_common.cpp
     ../native/src/pyhelios_wrapper_context.cpp
-    ../native/src/pyhelios_wrapper_visualizer.cpp
-    ../native/src/pyhelios_wrapper_weberpenntree.cpp
-    ../native/src/pyhelios_wrapper_radiation.cpp
-    ../native/src/pyhelios_wrapper_energybalance.cpp
 )
+
+# Add plugin-specific wrapper sources based on selected plugins
+if("visualizer" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_visualizer.cpp)
+endif()
+
+if("weberpenntree" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_weberpenntree.cpp)
+endif()
+
+if("radiation" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_radiation.cpp)
+endif()
+
+if("energybalance" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_energybalance.cpp)
+endif()
+
+if("solarposition" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_solarposition.cpp)
+endif()
+
+add_library(pyhelios_interface STATIC ${PYHELIOS_WRAPPER_SOURCES})
 
 # Add include directories for plugin headers
 target_include_directories(pyhelios_interface PRIVATE
@@ -77,6 +98,12 @@ if("energybalance" IN_LIST PLUGINS)
     )
 endif()
 
+if("solarposition" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_interface PRIVATE
+        ${BASE_DIRECTORY}/plugins/solarposition/include
+    )
+endif()
+
 # Add platform-specific OptiX include directories for radiation plugin
 if("radiation" IN_LIST PLUGINS)
     if(WIN32)
@@ -106,14 +133,7 @@ set_target_properties(pyhelios_interface PROPERTIES
 
 #-------- PYHELIOS SHARED LIBRARY ---------#
 # Create the PyHelios shared library for Python ctypes interface
-add_library(pyhelios_shared SHARED 
-    ../native/src/pyhelios_wrapper_common.cpp
-    ../native/src/pyhelios_wrapper_context.cpp
-    ../native/src/pyhelios_wrapper_visualizer.cpp
-    ../native/src/pyhelios_wrapper_weberpenntree.cpp
-    ../native/src/pyhelios_wrapper_radiation.cpp
-    ../native/src/pyhelios_wrapper_energybalance.cpp
-)
+add_library(pyhelios_shared SHARED ${PYHELIOS_WRAPPER_SOURCES})
 
 # Set C++ standard to match Helios core requirements
 set_target_properties(pyhelios_shared PROPERTIES
@@ -154,6 +174,12 @@ endif()
 if("energybalance" IN_LIST PLUGINS)
     target_include_directories(pyhelios_shared PRIVATE
         ${BASE_DIRECTORY}/plugins/energybalance/include
+    )
+endif()
+
+if("solarposition" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_shared PRIVATE
+        ${BASE_DIRECTORY}/plugins/solarposition/include
     )
 endif()
 

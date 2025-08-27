@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pyhelios import Context, Visualizer, DataTypes
 from pyhelios.Visualizer import VisualizerError
 from pyhelios.validation.exceptions import ValidationError
-from pyhelios.wrappers.DataTypes import vec3, RGBcolor, SphericalCoord
+from pyhelios.wrappers.DataTypes import vec3, RGBcolor, SphericalCoord, vec2, int3
 
 
 def is_headless_environment():
@@ -633,6 +633,92 @@ class TestVisualizerDataColoringMock:
         # Error should mention rebuilding or graphics issues
         assert any(keyword in error_msg for keyword in 
                   ['rebuild', 'build', 'enable', 'visualizer', 'opengl', 'graphics', 'initialize', 'create'])
+
+
+@pytest.mark.native_only
+@pytest.mark.skipif(is_headless_environment(), reason="Skipping visualizer tests in headless environment")
+class TestVisualizerNewMethodsNative:
+    """Test newly implemented methods with native library"""
+    
+    def test_camera_field_of_view(self):
+        """Test camera field of view methods"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Test field of view
+            visualizer.setCameraFieldOfView(45.0)
+            visualizer.setCameraFieldOfView(90.0)
+            
+            # Test field of view validation
+            with pytest.raises(ValueError, match="between 0 and 180"):
+                visualizer.setCameraFieldOfView(0.0)
+            
+            with pytest.raises(ValueError, match="between 0 and 180"):
+                visualizer.setCameraFieldOfView(180.0)
+            
+            with pytest.raises(ValueError, match="must be numeric"):
+                visualizer.setCameraFieldOfView("invalid")
+    
+    def test_camera_position_methods(self):
+        """Test camera position retrieval methods"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Test getting camera position
+            position, look_at = visualizer.getCameraPosition()
+            assert isinstance(position, vec3)
+            assert isinstance(look_at, vec3)
+            
+            # Test getting background color
+            bg_color = visualizer.getBackgroundColor()
+            assert isinstance(bg_color, RGBcolor)
+    
+    def test_window_size_methods(self):
+        """Test window size retrieval methods"""
+        with Visualizer(640, 480, headless=True) as visualizer:
+            # Test window size
+            width, height = visualizer.getWindowSize()
+            assert isinstance(width, int)
+            assert isinstance(height, int)
+            assert width > 0
+            assert height > 0
+            
+            # Test framebuffer size
+            fb_width, fb_height = visualizer.getFramebufferSize()
+            assert isinstance(fb_width, int)
+            assert isinstance(fb_height, int)
+            assert fb_width > 0
+            assert fb_height > 0
+    
+    def test_colorbar_methods_basic(self):
+        """Test basic colorbar control methods"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Test enabling/disabling colorbar
+            visualizer.enableColorbar()
+            visualizer.disableColorbar()
+            
+            # Test colorbar range
+            visualizer.setColorbarRange(0.0, 100.0)
+            
+            with pytest.raises(ValueError, match="must be numeric"):
+                visualizer.setColorbarRange("0", 100.0)
+            
+            with pytest.raises(ValueError, match="Minimum value must be less than maximum value"):
+                visualizer.setColorbarRange(100.0, 50.0)
+            
+            # Test colorbar title
+            visualizer.setColorbarTitle("Temperature (°C)")
+            
+            with pytest.raises(ValueError, match="must be a string"):
+                visualizer.setColorbarTitle(123)
+    
+    def test_colormap_methods_basic(self):
+        """Test basic colormap methods"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Test predefined colormaps
+            visualizer.setColormap(Visualizer.COLORMAP_HOT)
+            visualizer.setColormap(Visualizer.COLORMAP_COOL)
+            visualizer.setColormap(Visualizer.COLORMAP_RAINBOW)
+            
+            # Test colormap validation
+            with pytest.raises(ValueError, match="Colormap ID must be 0-5"):
+                visualizer.setColormap(99)
 
 
 if __name__ == "__main__":

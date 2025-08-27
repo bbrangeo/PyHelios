@@ -73,6 +73,10 @@ class TestBasicWorkflows:
     
     def test_tree_generation_workflow(self, basic_context):
         """Test complete tree generation workflow."""
+        from pyhelios.WeberPennTree import is_weberpenntree_available
+        if not is_weberpenntree_available():
+            pytest.skip("Requires WeberPennTree plugin")
+        
         with WeberPennTree(basic_context) as wpt:
             # Configure tree parameters
             wpt.setBranchRecursionLevel(3)
@@ -125,6 +129,10 @@ class TestBasicWorkflows:
     
     def test_mixed_geometry_workflow(self, basic_context):
         """Test workflow combining patches and trees."""
+        from pyhelios.WeberPennTree import is_weberpenntree_available
+        if not is_weberpenntree_available():
+            pytest.skip("Requires WeberPennTree plugin")
+        
         # First add some patches
         patch_uuids = []
         for i in range(3):
@@ -271,8 +279,9 @@ class TestPerformanceIntegration:
     
     def test_tree_generation_performance(self, basic_context):
         """Test performance of tree generation."""
-        if not PlatformHelper.is_dll_available():
-            pytest.skip("Requires DLL for performance testing")
+        from pyhelios.WeberPennTree import is_weberpenntree_available
+        if not is_weberpenntree_available():
+            pytest.skip("Requires WeberPennTree plugin for performance testing")
         
         perf = PerformanceMeasure()
         
@@ -340,6 +349,10 @@ class TestErrorHandlingIntegration:
     
     def test_wpt_recovery_after_errors(self, basic_context):
         """Test that WeberPennTree can recover after errors."""
+        from pyhelios.WeberPennTree import is_weberpenntree_available
+        if not is_weberpenntree_available():
+            pytest.skip("Requires WeberPennTree plugin")
+        
         with WeberPennTree(basic_context) as wpt:
             # Generate valid tree first
             tree_id1 = wpt.buildTree(WPTType.LEMON)
@@ -361,8 +374,9 @@ class TestErrorHandlingIntegration:
     
     def test_resource_cleanup_on_errors(self):
         """Test proper resource cleanup when errors occur."""
-        if not PlatformHelper.is_dll_available():
-            pytest.skip("Requires DLL for resource testing")
+        from pyhelios.WeberPennTree import is_weberpenntree_available
+        if not is_weberpenntree_available():
+            pytest.skip("Requires WeberPennTree plugin for resource testing")
         
         # This test ensures that even if exceptions occur,
         # context managers properly clean up resources

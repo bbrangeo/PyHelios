@@ -1,5 +1,22 @@
 # Changelog
 
+# [v0.0.6] 2025-08-27
+
+🚨++ New Plug-in Integrated ++ 🚨
+- Solar Position plug-in integrated with PyHelios
+
+## Bug Fixes
+- Fixed CMake build system to only compile wrapper sources for selected plugins
+- Fixed plugin registry detection for selective builds (`--plugins visualizer`)
+- Fixed SolarPosition plugin metadata to correctly reflect optional status
+- Fixed WeberPennTree constructor to properly handle unavailable plugin scenarios
+- Updated error messages for plugin availability to match build configurations
+
+## Testing
+- Enhanced cross-platform tests for selective plugin builds
+- Fixed test failures when building with limited plugin sets
+- Improved error handling validation in plugin availability tests
+
 # [v0.0.5] 2025-08-27
 
 - Helios native C++ had several bugs that was causing errors in the last version. Merged in patched version of 1.3.46.

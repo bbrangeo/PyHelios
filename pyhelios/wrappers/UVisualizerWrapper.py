@@ -91,6 +91,146 @@ try:
     helios_lib.colorContextPrimitivesByDataUUIDs.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint32), ctypes.c_uint32]
     helios_lib.colorContextPrimitivesByDataUUIDs.restype = None
 
+    # Camera Control Functions
+    helios_lib.setCameraFieldOfView.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_float]
+    helios_lib.setCameraFieldOfView.restype = None
+
+    helios_lib.getCameraPosition.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
+    helios_lib.getCameraPosition.restype = None
+
+    helios_lib.getBackgroundColor.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float)]
+    helios_lib.getBackgroundColor.restype = None
+
+    # Lighting Control Functions
+    helios_lib.setLightIntensityFactor.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_float]
+    helios_lib.setLightIntensityFactor.restype = None
+
+    # Window and Display Functions
+    helios_lib.getWindowSize.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
+    helios_lib.getWindowSize.restype = None
+
+    helios_lib.getFramebufferSize.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
+    helios_lib.getFramebufferSize.restype = None
+
+    helios_lib.printWindowDefault.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.printWindowDefault.restype = None
+
+    helios_lib.displayImageFromPixels.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_ubyte), ctypes.c_uint, ctypes.c_uint]
+    helios_lib.displayImageFromPixels.restype = None
+
+    helios_lib.displayImageFromFile.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p]
+    helios_lib.displayImageFromFile.restype = None
+
+    # Window Data Access Functions
+    helios_lib.getWindowPixelsRGB.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_uint)]
+    helios_lib.getWindowPixelsRGB.restype = None
+
+    helios_lib.getDepthMap.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.POINTER(ctypes.c_float)), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
+    helios_lib.getDepthMap.restype = None
+
+    helios_lib.plotDepthMap.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.plotDepthMap.restype = None
+
+    # Geometry Management Functions
+    helios_lib.clearGeometry.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.clearGeometry.restype = None
+
+    helios_lib.clearContextGeometry.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.clearContextGeometry.restype = None
+
+    helios_lib.deleteGeometry.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_uint]
+    helios_lib.deleteGeometry.restype = None
+
+    helios_lib.updateContextPrimitiveColors.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.updateContextPrimitiveColors.restype = None
+
+    # Coordinate Axes and Grid Functions
+    helios_lib.addCoordinateAxes.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.addCoordinateAxes.restype = None
+
+    helios_lib.addCoordinateAxesCustom.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_char_p]
+    helios_lib.addCoordinateAxesCustom.restype = None
+
+    helios_lib.disableCoordinateAxes.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.disableCoordinateAxes.restype = None
+
+    helios_lib.addGridWireFrame.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_int)]
+    helios_lib.addGridWireFrame.restype = None
+
+    # Colorbar Control Functions
+    helios_lib.enableColorbar.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.enableColorbar.restype = None
+
+    helios_lib.disableColorbar.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.disableColorbar.restype = None
+
+    helios_lib.setColorbarPosition.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float)]
+    helios_lib.setColorbarPosition.restype = None
+
+    helios_lib.setColorbarSize.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float)]
+    helios_lib.setColorbarSize.restype = None
+
+    helios_lib.setColorbarRange.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_float, ctypes.c_float]
+    helios_lib.setColorbarRange.restype = None
+
+    helios_lib.setColorbarTicks.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float), ctypes.c_uint]
+    helios_lib.setColorbarTicks.restype = None
+
+    helios_lib.setColorbarTitle.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p]
+    helios_lib.setColorbarTitle.restype = None
+
+    helios_lib.setColorbarFontColor.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float)]
+    helios_lib.setColorbarFontColor.restype = None
+
+    helios_lib.setColorbarFontSize.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_uint]
+    helios_lib.setColorbarFontSize.restype = None
+
+    # Colormap Functions
+    helios_lib.setColormap.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_uint]
+    helios_lib.setColormap.restype = None
+
+    helios_lib.setCustomColormap.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_uint]
+    helios_lib.setCustomColormap.restype = None
+
+    # Object/Primitive Coloring Functions
+    helios_lib.colorContextPrimitivesByObjectData.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p]
+    helios_lib.colorContextPrimitivesByObjectData.restype = None
+
+    helios_lib.colorContextPrimitivesByObjectDataIDs.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint), ctypes.c_uint]
+    helios_lib.colorContextPrimitivesByObjectDataIDs.restype = None
+
+    helios_lib.colorContextPrimitivesRandomly.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_uint), ctypes.c_uint]
+    helios_lib.colorContextPrimitivesRandomly.restype = None
+
+    helios_lib.colorContextObjectsRandomly.argtypes = [ctypes.POINTER(UVisualizer), ctypes.POINTER(ctypes.c_uint), ctypes.c_uint]
+    helios_lib.colorContextObjectsRandomly.restype = None
+
+    helios_lib.clearColor.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.clearColor.restype = None
+
+    # Watermark Control Functions
+    helios_lib.hideWatermark.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.hideWatermark.restype = None
+
+    helios_lib.showWatermark.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.showWatermark.restype = None
+
+    helios_lib.updateWatermark.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.updateWatermark.restype = None
+
+    # Performance and Utility Functions
+    helios_lib.enableMessages.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.enableMessages.restype = None
+
+    helios_lib.disableMessages.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.disableMessages.restype = None
+
+    helios_lib.plotOnce.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_bool]
+    helios_lib.plotOnce.restype = None
+
+    helios_lib.plotUpdateWithVisibility.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_bool]
+    helios_lib.plotUpdateWithVisibility.restype = None
+
     # Error management functions availability check
     try:
         helios_lib.getLastError.restype = ctypes.c_int

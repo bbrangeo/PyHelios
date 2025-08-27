@@ -457,4 +457,139 @@ def make_RGBAcolor(r: float, g: float, b: float, a: float) -> RGBAcolor:
     """Make an RGBAcolor from four floats"""
     return RGBAcolor(r, g, b, a)
 
+
+class Time(ctypes.Structure):
+    """Helios Time structure for representing time values."""
+    _fields_ = [('second', ctypes.c_int32), ('minute', ctypes.c_int32), ('hour', ctypes.c_int32)]
+
+    def __repr__(self) -> str:
+        return f'Time({self.hour:02d}:{self.minute:02d}:{self.second:02d})'
+    
+    def __str__(self) -> str:
+        return f'{self.hour:02d}:{self.minute:02d}:{self.second:02d}'
+    
+    def __init__(self, hour: int = 0, minute: int = 0, second: int = 0):
+        """
+        Initialize a Time object.
+        
+        Args:
+            hour: Hour (0-23)
+            minute: Minute (0-59)
+            second: Second (0-59)
+        """
+        # Validate inputs
+        if not isinstance(hour, int):
+            raise ValueError(f"Time.hour must be an integer, got {type(hour).__name__}: {hour}")
+        if not isinstance(minute, int):
+            raise ValueError(f"Time.minute must be an integer, got {type(minute).__name__}: {minute}")
+        if not isinstance(second, int):
+            raise ValueError(f"Time.second must be an integer, got {type(second).__name__}: {second}")
+        
+        if hour < 0 or hour > 23:
+            raise ValueError(f"Time.hour must be between 0 and 23, got: {hour}")
+        if minute < 0 or minute > 59:
+            raise ValueError(f"Time.minute must be between 0 and 59, got: {minute}")
+        if second < 0 or second > 59:
+            raise ValueError(f"Time.second must be between 0 and 59, got: {second}")
+        
+        self.hour = hour
+        self.minute = minute  
+        self.second = second
+
+    def from_list(self, input_list: List[int]):
+        """Initialize from a list [hour, minute, second]"""
+        if len(input_list) < 3:
+            raise ValueError("Time.from_list requires a list with at least 3 elements [hour, minute, second]")
+        self.hour = input_list[0]
+        self.minute = input_list[1]
+        self.second = input_list[2]
+
+    def to_list(self) -> List[int]:
+        """Convert to list [hour, minute, second]"""
+        return [self.hour, self.minute, self.second]
+
+    def __eq__(self, other) -> bool:
+        """Check equality with another Time object"""
+        if not isinstance(other, Time):
+            return False
+        return (self.hour == other.hour and 
+                self.minute == other.minute and 
+                self.second == other.second)
+
+    def __ne__(self, other) -> bool:
+        """Check inequality with another Time object"""
+        return not self.__eq__(other)
+
+
+class Date(ctypes.Structure):
+    """Helios Date structure for representing date values."""
+    _fields_ = [('day', ctypes.c_int32), ('month', ctypes.c_int32), ('year', ctypes.c_int32)]
+
+    def __repr__(self) -> str:
+        return f'Date({self.year}-{self.month:02d}-{self.day:02d})'
+    
+    def __str__(self) -> str:
+        return f'{self.year}-{self.month:02d}-{self.day:02d}'
+    
+    def __init__(self, year: int = 2023, month: int = 1, day: int = 1):
+        """
+        Initialize a Date object.
+        
+        Args:
+            year: Year (1900-3000)
+            month: Month (1-12)
+            day: Day (1-31)
+        """
+        # Validate inputs
+        if not isinstance(year, int):
+            raise ValueError(f"Date.year must be an integer, got {type(year).__name__}: {year}")
+        if not isinstance(month, int):
+            raise ValueError(f"Date.month must be an integer, got {type(month).__name__}: {month}")
+        if not isinstance(day, int):
+            raise ValueError(f"Date.day must be an integer, got {type(day).__name__}: {day}")
+        
+        if year < 1900 or year > 3000:
+            raise ValueError(f"Date.year must be between 1900 and 3000, got: {year}")
+        if month < 1 or month > 12:
+            raise ValueError(f"Date.month must be between 1 and 12, got: {month}")
+        if day < 1 or day > 31:
+            raise ValueError(f"Date.day must be between 1 and 31, got: {day}")
+        
+        self.year = year
+        self.month = month
+        self.day = day
+
+    def from_list(self, input_list: List[int]):
+        """Initialize from a list [year, month, day]"""
+        if len(input_list) < 3:
+            raise ValueError("Date.from_list requires a list with at least 3 elements [year, month, day]")
+        self.year = input_list[0]
+        self.month = input_list[1]
+        self.day = input_list[2]
+
+    def to_list(self) -> List[int]:
+        """Convert to list [year, month, day]"""
+        return [self.year, self.month, self.day]
+
+    def __eq__(self, other) -> bool:
+        """Check equality with another Date object"""
+        if not isinstance(other, Date):
+            return False
+        return (self.year == other.year and 
+                self.month == other.month and 
+                self.day == other.day)
+
+    def __ne__(self, other) -> bool:
+        """Check inequality with another Date object"""
+        return not self.__eq__(other)
+
+
+def make_Time(hour: int, minute: int, second: int) -> Time:
+    """Make a Time from hour, minute, second"""
+    return Time(hour, minute, second)
+
+def make_Date(year: int, month: int, day: int) -> Date:
+    """Make a Date from year, month, day"""
+    return Date(year, month, day)
+
 # Removed duplicate make_SphericalCoord function - keeping only the 2-parameter version above
