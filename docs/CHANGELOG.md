@@ -1,5 +1,12 @@
 # Changelog
 
+# [v0.0.5] 2025-08-27
+
+- Helios native C++ had several bugs that was causing errors in the last version. Merged in patched version of 1.3.46.
+
+## Visualizer
+- Fixed some issues that could cause the visualizer tests to crash in headless mode.
+
 # [v0.0.4] 2025-08-25
 
 🚨++ New Plug-in Integrated ++ 🚨

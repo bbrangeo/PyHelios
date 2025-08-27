@@ -23,9 +23,26 @@ try:
     # Visualizer creation and destruction
     helios_lib.createVisualizer.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
     helios_lib.createVisualizer.restype = ctypes.POINTER(UVisualizer)
+    
+    # Add errcheck to automatically handle errors and nulls
+    def _check_visualizer_creation(result, func, args):
+        if _ERROR_MANAGEMENT_AVAILABLE:
+            check_helios_error(helios_lib.getLastError, helios_lib.getLastErrorMessage)
+        if not result:
+            raise RuntimeError(
+                "Failed to create Visualizer. This may indicate:\n"
+                "1. OpenGL/graphics initialization problems in headless environments\n"
+                "2. Missing graphics drivers or display support\n" 
+                "3. Insufficient system resources for graphics context creation\n"
+                "4. XQuartz or display server configuration issues on macOS/Linux"
+            )
+        return result
+    
+    helios_lib.createVisualizer.errcheck = _check_visualizer_creation
 
     helios_lib.createVisualizerWithAntialiasing.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
     helios_lib.createVisualizerWithAntialiasing.restype = ctypes.POINTER(UVisualizer)
+    helios_lib.createVisualizerWithAntialiasing.errcheck = _check_visualizer_creation
 
     helios_lib.destroyVisualizer.argtypes = [ctypes.POINTER(UVisualizer)]
     helios_lib.destroyVisualizer.restype = None
@@ -118,25 +135,21 @@ def create_visualizer(width: int, height: int, headless: bool = False) -> Option
         )
     
     try:
+        # The errcheck callback will handle error checking and null pointer validation
         visualizer = helios_lib.createVisualizer(
             ctypes.c_uint32(width),
             ctypes.c_uint32(height), 
             ctypes.c_bool(headless)
         )
-        _check_for_helios_error()
-        
-        if not visualizer:
-            raise RuntimeError("Failed to create Visualizer")
+        return visualizer
     except OSError as e:
         # Handle low-level system errors (e.g., graphics context failures)
         raise RuntimeError(
-            f"Visualizer plugin failed to initialize: {e}. "
+            f"Visualizer plugin failed to initialize due to system error: {e}. "
             "This may indicate missing graphics drivers, OpenGL issues, or "
             "incompatible system configuration. Try building with different options "
             "or check system requirements."
         )
-    
-    return visualizer
 
 def create_visualizer_with_antialiasing(width: int, height: int, antialiasing_samples: int, headless: bool = False) -> Optional[ctypes.POINTER(UVisualizer)]:
     """
@@ -161,18 +174,23 @@ def create_visualizer_with_antialiasing(width: int, height: int, antialiasing_sa
             "Rebuild with visualizer plugin enabled."
         )
     
-    visualizer = helios_lib.createVisualizerWithAntialiasing(
-        ctypes.c_uint32(width),
-        ctypes.c_uint32(height),
-        ctypes.c_uint32(antialiasing_samples),
-        ctypes.c_bool(headless)
-    )
-    _check_for_helios_error()
-    
-    if not visualizer:
-        raise RuntimeError("Failed to create Visualizer with antialiasing")
-    
-    return visualizer
+    try:
+        # The errcheck callback will handle error checking and null pointer validation
+        visualizer = helios_lib.createVisualizerWithAntialiasing(
+            ctypes.c_uint32(width),
+            ctypes.c_uint32(height),
+            ctypes.c_uint32(antialiasing_samples),
+            ctypes.c_bool(headless)
+        )
+        return visualizer
+    except OSError as e:
+        # Handle low-level system errors (e.g., graphics context failures)
+        raise RuntimeError(
+            f"Visualizer plugin failed to initialize due to system error: {e}. "
+            "This may indicate missing graphics drivers, OpenGL issues, or "
+            "incompatible system configuration. Try building with different options "
+            "or check system requirements."
+        )
 
 def destroy_visualizer(visualizer: ctypes.POINTER(UVisualizer)) -> None:
     """

@@ -129,7 +129,6 @@ INPUT                  = pyhelios \
                          docs/plugin_system.md \
                          docs/user_guide.md \
                          docs/plugin_integration_guide.md \
-                         docs/cpp_plugin_integration_guide.md \
                          docs/plugin_energybalance.md \
                          docs/plugin_radiation.md \
                          docs/plugin_visualizer.md \
@@ -163,8 +162,7 @@ EXCLUDE                = pyhelios/plugins/__pycache__ \
                          helios-core
 EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */__pycache__/* \
-                         */.* \
-                         */README.md
+                         */.*
 EXCLUDE_SYMBOLS        = 
 EXAMPLE_PATH           = docs/examples
 EXAMPLE_PATTERNS       = *.py

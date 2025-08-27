@@ -36,8 +36,7 @@
     <tab type="classes" visible="no" title="Classes"/>
     <tab type="files" visible="no" title="Files"/>
     
-    <!-- Search functionality -->
-    <tab type="search" visible="yes" title=""/>
+    <!-- Search functionality - search is not supported in navindex -->
   </navindex>
 
   <!-- Class index configuration -->
@@ -219,9 +218,6 @@
       <dirs visible="yes"/>
       <files visible="yes"/>
     </memberdecl>
-    <memberdef>
-      <dirs title=""/>
-      <files title=""/>
-    </memberdef>
+    <detaileddescription title=""/>
   </directory>
 </doxygenlayout>

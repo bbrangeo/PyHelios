@@ -18,13 +18,31 @@ extern "C" {
     //=============================================================================
 
     Visualizer* createVisualizer(unsigned int width, unsigned int height, bool headless) {
-        // Enable window decorations by default (true), headless parameter controls window visibility
-        return new Visualizer(width, height, 4, true, headless); // 4 antialiasing samples, decorations enabled
+        try {
+            clearError();
+            // Enable window decorations by default (true), headless parameter controls window visibility
+            return new Visualizer(width, height, 4, true, headless); // 4 antialiasing samples, decorations enabled
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (createVisualizer): Failed to create visualizer: ") + e.what());
+            return nullptr;
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (createVisualizer): Unknown error creating visualizer. This may indicate OpenGL/graphics initialization problems in headless environments.");
+            return nullptr;
+        }
     }
     
     Visualizer* createVisualizerWithAntialiasing(unsigned int width, unsigned int height, unsigned int samples, bool headless) {
-        // Enable window decorations by default (true), headless parameter controls window visibility  
-        return new Visualizer(width, height, samples, true, headless);
+        try {
+            clearError();
+            // Enable window decorations by default (true), headless parameter controls window visibility  
+            return new Visualizer(width, height, samples, true, headless);
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (createVisualizerWithAntialiasing): Failed to create visualizer: ") + e.what());
+            return nullptr;
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (createVisualizerWithAntialiasing): Unknown error creating visualizer. This may indicate OpenGL/graphics initialization problems in headless environments.");
+            return nullptr;
+        }
     }
     
     void destroyVisualizer(Visualizer* visualizer) {
