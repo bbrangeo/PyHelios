@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from pyhelios import Context, RadiationModel, DataTypes
 from pyhelios.RadiationModel import RadiationModelError
+from pyhelios.validation.exceptions import ValidationError
 
 # RadiationSourceType may not be available if RadiationModel is None
 try:
@@ -58,8 +59,8 @@ class TestRadiationModel:
                 # Add basic radiation band
                 radiation_model.addRadiationBand("SW")
                 
-                # Add band with wavelength bounds
-                radiation_model.addRadiationBand("PAR", 400e-9, 700e-9)
+                # Add band with wavelength bounds (wavelengths in nanometers)
+                radiation_model.addRadiationBand("PAR", 400, 700)
                 
                 # Copy radiation band
                 radiation_model.copyRadiationBand("SW", "SW_copy")
@@ -139,7 +140,7 @@ class TestRadiationModel:
             with RadiationModel(context) as radiation_model:
                 radiation_model.addRadiationBand("SW")
                 
-                with pytest.raises(TypeError):
+                with pytest.raises(ValidationError):
                     radiation_model.setSourceFlux("invalid_source", "SW", 800.0)
     
     def test_scattering_configuration(self):
@@ -204,7 +205,7 @@ class TestRadiationModel:
         """Test simulation with invalid label types"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
-                with pytest.raises(TypeError):
+                with pytest.raises(ValidationError):
                     radiation_model.runBand(123)  # Invalid type
     
     def test_result_access(self):
@@ -346,6 +347,338 @@ class TestRadiationModelMockMode:
             
             # Should provide actionable solutions  
             assert "build_scripts/build_helios" in error_msg
+
+
+@pytest.mark.native_only
+class TestRadiationModelCameraFunctions:
+    """Test new camera and image functions in RadiationModel v1.3.47"""
+    
+    def test_write_camera_image(self):
+        """Test camera image writing functionality"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test basic camera image writing (may return empty string in mock mode)
+                filename = radiation_model.write_camera_image(
+                    camera="test_camera", 
+                    bands=["RGB", "NIR"], 
+                    imagefile_base="test_image",
+                    image_path="./output"
+                )
+                assert isinstance(filename, str)
+    
+    def test_write_camera_image_invalid_params(self):
+        """Test camera image writing with invalid parameters"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test invalid camera type
+                with pytest.raises(TypeError):
+                    radiation_model.write_camera_image(
+                        camera=123,  # Invalid type
+                        bands=["RGB"], 
+                        imagefile_base="test"
+                    )
+                
+                # Test empty bands list
+                with pytest.raises(TypeError):
+                    radiation_model.write_camera_image(
+                        camera="test_camera",
+                        bands=[],  # Empty list
+                        imagefile_base="test"
+                    )
+                
+                # Test invalid flux conversion
+                with pytest.raises(TypeError):
+                    radiation_model.write_camera_image(
+                        camera="test_camera",
+                        bands=["RGB"],
+                        imagefile_base="test",
+                        flux_to_pixel_conversion=0  # Invalid value
+                    )
+    
+    def test_write_norm_camera_image(self):
+        """Test normalized camera image writing"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                filename = radiation_model.write_norm_camera_image(
+                    camera="test_camera",
+                    bands=["R", "G", "B"],
+                    imagefile_base="normalized_test",
+                    frame=0
+                )
+                assert isinstance(filename, str)
+    
+    def test_write_camera_image_data(self):
+        """Test camera image data writing (ASCII format)"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Should not raise exception
+                radiation_model.write_camera_image_data(
+                    camera="test_camera",
+                    band="RGB",
+                    imagefile_base="data_test",
+                    image_path="./output",
+                    frame=-1
+                )
+    
+    def test_write_image_bounding_boxes_single_primitive(self):
+        """Test writing image bounding boxes with single primitive data label"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test single primitive data label
+                radiation_model.write_image_bounding_boxes(
+                    camera_label="test_camera",
+                    primitive_data_labels="tree_species",
+                    object_class_ids=1,
+                    image_file="test_image.jpg"
+                )
+    
+    def test_write_image_bounding_boxes_multiple_primitive(self):
+        """Test writing image bounding boxes with multiple primitive data labels"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test multiple primitive data labels
+                radiation_model.write_image_bounding_boxes(
+                    camera_label="test_camera",
+                    primitive_data_labels=["leaves", "branches", "trunk"],
+                    object_class_ids=[1, 2, 3],
+                    image_file="test_image.jpg",
+                    classes_txt_file="plant_classes.txt"
+                )
+    
+    def test_write_image_bounding_boxes_single_object(self):
+        """Test writing image bounding boxes with single object data label"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test single object data label
+                radiation_model.write_image_bounding_boxes(
+                    camera_label="test_camera",
+                    object_data_labels="tree_id",
+                    object_class_ids=5,
+                    image_file="test_image.jpg"
+                )
+    
+    def test_write_image_bounding_boxes_multiple_object(self):
+        """Test writing image bounding boxes with multiple object data labels"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test multiple object data labels
+                radiation_model.write_image_bounding_boxes(
+                    camera_label="test_camera",
+                    object_data_labels=["tree_1", "tree_2", "tree_3"],
+                    object_class_ids=[10, 11, 12],
+                    image_file="test_image.jpg",
+                    image_path="./annotations"
+                )
+    
+    def test_write_image_bounding_boxes_invalid_params(self):
+        """Test bounding boxes with invalid parameters"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test both primitive and object labels provided (should fail)
+                with pytest.raises(ValueError):
+                    radiation_model.write_image_bounding_boxes(
+                        camera_label="test_camera",
+                        primitive_data_labels="test",
+                        object_data_labels="test2",  # Both provided - invalid
+                        object_class_ids=1,
+                        image_file="test.jpg"
+                    )
+                
+                # Test neither provided (should fail)
+                with pytest.raises(ValueError):
+                    radiation_model.write_image_bounding_boxes(
+                        camera_label="test_camera",
+                        image_file="test.jpg"
+                    )
+                
+                # Test mismatched lengths
+                with pytest.raises(ValueError):
+                    radiation_model.write_image_bounding_boxes(
+                        camera_label="test_camera",
+                        primitive_data_labels=["a", "b"],
+                        object_class_ids=[1],  # Wrong length
+                        image_file="test.jpg"
+                    )
+    
+    def test_write_image_segmentation_masks_single_primitive(self):
+        """Test writing segmentation masks with single primitive data label"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                radiation_model.write_image_segmentation_masks(
+                    camera_label="test_camera",
+                    primitive_data_labels="leaf_type",
+                    object_class_ids=1,
+                    json_filename="segmentation.json",
+                    image_file="test_image.jpg",
+                    append_file=False
+                )
+    
+    def test_write_image_segmentation_masks_multiple_primitive(self):
+        """Test writing segmentation masks with multiple primitive data labels"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                radiation_model.write_image_segmentation_masks(
+                    camera_label="test_camera",
+                    primitive_data_labels=["leaves", "stem", "fruit"],
+                    object_class_ids=[1, 2, 3],
+                    json_filename="multi_segmentation.json",
+                    image_file="test_image.jpg",
+                    append_file=True
+                )
+    
+    def test_write_image_segmentation_masks_object_data(self):
+        """Test writing segmentation masks with object data labels"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Single object data label
+                radiation_model.write_image_segmentation_masks(
+                    camera_label="test_camera",
+                    object_data_labels="plant_id",
+                    object_class_ids=10,
+                    json_filename="object_segmentation.json",
+                    image_file="test_image.jpg"
+                )
+                
+                # Multiple object data labels
+                radiation_model.write_image_segmentation_masks(
+                    camera_label="test_camera",
+                    object_data_labels=["plant_1", "plant_2"],
+                    object_class_ids=[10, 11],
+                    json_filename="multi_object_segmentation.json",
+                    image_file="test_image.jpg",
+                    append_file=True
+                )
+    
+    def test_write_image_segmentation_masks_invalid_params(self):
+        """Test segmentation masks with invalid parameters"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test both primitive and object labels provided (should fail)
+                with pytest.raises(ValueError):
+                    radiation_model.write_image_segmentation_masks(
+                        camera_label="test_camera",
+                        primitive_data_labels="test",
+                        object_data_labels="test2",  # Both provided - invalid
+                        object_class_ids=1,
+                        json_filename="test.json",
+                        image_file="test.jpg"
+                    )
+                
+                # Test invalid append_file type
+                with pytest.raises(TypeError):
+                    radiation_model.write_image_segmentation_masks(
+                        camera_label="test_camera",
+                        primitive_data_labels="test",
+                        object_class_ids=1,
+                        json_filename="test.json",
+                        image_file="test.jpg",
+                        append_file="invalid"  # Should be boolean
+                    )
+    
+    def test_auto_calibrate_camera_image(self):
+        """Test auto-calibration of camera images"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test basic auto-calibration
+                filename = radiation_model.auto_calibrate_camera_image(
+                    camera_label="test_camera",
+                    red_band_label="Red",
+                    green_band_label="Green", 
+                    blue_band_label="Blue",
+                    output_file_path="calibrated_image.jpg"
+                )
+                assert isinstance(filename, str)
+                
+                # Test with quality report and CCM export
+                filename2 = radiation_model.auto_calibrate_camera_image(
+                    camera_label="test_camera",
+                    red_band_label="R",
+                    green_band_label="G",
+                    blue_band_label="B",
+                    output_file_path="calibrated_with_report.jpg",
+                    print_quality_report=True,
+                    algorithm="DIAGONAL_ONLY",
+                    ccm_export_file_path="color_correction_matrix.txt"
+                )
+                assert isinstance(filename2, str)
+    
+    def test_auto_calibrate_camera_image_algorithms(self):
+        """Test auto-calibration with different algorithms"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test all valid algorithms
+                algorithms = ["DIAGONAL_ONLY", "MATRIX_3X3_AUTO", "MATRIX_3X3_FORCE"]
+                
+                for algorithm in algorithms:
+                    filename = radiation_model.auto_calibrate_camera_image(
+                        camera_label="test_camera",
+                        red_band_label="R",
+                        green_band_label="G",
+                        blue_band_label="B",
+                        output_file_path=f"calibrated_{algorithm.lower()}.jpg",
+                        algorithm=algorithm
+                    )
+                    assert isinstance(filename, str)
+    
+    def test_auto_calibrate_camera_image_invalid_params(self):
+        """Test auto-calibration with invalid parameters"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Test invalid algorithm
+                with pytest.raises(ValueError):
+                    radiation_model.auto_calibrate_camera_image(
+                        camera_label="test_camera",
+                        red_band_label="R",
+                        green_band_label="G",
+                        blue_band_label="B",
+                        output_file_path="test.jpg",
+                        algorithm="INVALID_ALGORITHM"
+                    )
+                
+                # Test empty camera label
+                with pytest.raises(TypeError):
+                    radiation_model.auto_calibrate_camera_image(
+                        camera_label="",  # Empty string
+                        red_band_label="R",
+                        green_band_label="G",
+                        blue_band_label="B",
+                        output_file_path="test.jpg"
+                    )
+                
+                # Test invalid print_quality_report type
+                with pytest.raises(TypeError):
+                    radiation_model.auto_calibrate_camera_image(
+                        camera_label="test_camera",
+                        red_band_label="R",
+                        green_band_label="G",
+                        blue_band_label="B",
+                        output_file_path="test.jpg",
+                        print_quality_report="invalid"  # Should be boolean
+                    )
+
+
+@pytest.mark.cross_platform
+class TestRadiationModelCameraFunctionsMock:
+    """Test camera functions work in mock mode (cross-platform)"""
+    
+    def test_camera_functions_in_mock_mode(self):
+        """Test that camera functions handle mock mode gracefully"""
+        # These tests should work even when native libraries are not available
+        # Mock mode should raise appropriate RadiationModelError with helpful messages
+        
+        with Context() as context:
+            try:
+                with RadiationModel(context) as radiation_model:
+                    # If we get here, radiation plugin is available
+                    filename = radiation_model.write_camera_image(
+                        camera="test", bands=["RGB"], imagefile_base="test")
+                    assert isinstance(filename, str)
+                    
+            except (RuntimeError, RadiationModelError) as e:
+                # Expected in mock mode - should have helpful error message
+                error_msg = str(e).lower()
+                assert any(keyword in error_msg for keyword in 
+                          ["radiation", "not available", "plugin", "native library"])
 
 
 if __name__ == "__main__":

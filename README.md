@@ -115,8 +115,29 @@ print(f"Created patch: {patch_uuid}")
 - **Plant modeling**: WeberPennTree procedural generation 
 - **GPU acceleration**: OptiX-powered radiation simulation
 - **3D visualization**: OpenGL-based real-time rendering
-- **Flexible plugins**: Currently 4 plug-ins implemented
+- **Flexible plugins**: Currently 5 plug-ins implemented
 - **Development mode**: Mock mode for development without native libraries
+
+## Updating PyHelios
+
+To update your PyHelios installation with the latest changes:
+
+```bash
+# Update main repository and submodules recursively
+git pull --recurse-submodules
+
+# Alternative: Update main repo first, then submodules
+git pull
+git submodule update --init --recursive
+
+# Rebuild native libraries after updates (recommended)
+./build_scripts/build_helios --clean
+
+# Reinstall PyHelios
+pip install -e .
+```
+
+**Important**: Always use `--recurse-submodules` or manually update submodules when pulling updates, as PyHelios depends on the `helios-core` submodule for C++ functionality.
 
 ## Quick Commands
 

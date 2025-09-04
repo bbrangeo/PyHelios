@@ -1,5 +1,19 @@
 # Changelog
 
+# [v0.0.7] 2025-09-04
+
+- Updated Helios native C++ library to v1.3.47
+
+## Radiation Model
+- Finished radiation model integration with PyHelios
+- Implemented radiation band management, source configuration, and simulation execution
+- Added camera-based radiation modeling with flux data retrieval
+- Enhanced with graceful degradation when radiation plugin unavailable
+
+## Documentation
+- Updated radiation plugin documentation with API reference and usage examples
+- Added troubleshooting guide for OptiX and GPU requirements
+
 # [v0.0.6] 2025-08-27
 
 🚨++ New Plug-in Integrated ++ 🚨

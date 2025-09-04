@@ -46,16 +46,16 @@ def validate_wavelength_range(wavelength_min: float, wavelength_max: float,
             suggestion="Ensure wavelength_min < wavelength_max."
         )
     
-    # Physical reasonableness check (UV to far-IR range)
-    if wavelength_min < 0.1 or wavelength_max > 100:
+    # Physical reasonableness check (UV to far-IR range in nanometers)
+    if wavelength_min < 100 or wavelength_max > 100000:
         raise create_validation_error(
-            f"Wavelength range [{wavelength_min}, {wavelength_max}] μm seems unrealistic",
+            f"Wavelength range [{wavelength_min}, {wavelength_max}] nm seems unrealistic",
             param_name=f"{param_name_min}, {param_name_max}",
             function_name=function_name,
-            expected_type="wavelengths in range 0.1-100 μm",
+            expected_type="wavelengths in range 100-100000 nm",
             actual_value=f"min={wavelength_min}, max={wavelength_max}",
-            suggestion="Typical wavelength range is 0.1-100 μm (UV to far-IR). "
-                      "Check if values are in correct units (micrometers)."
+            suggestion="Typical wavelength range is 100-100000 nm (UV to far-IR). "
+                      "Provide wavelength values in nanometers (e.g., PAR: 400-700 nm)."
         )
 
 

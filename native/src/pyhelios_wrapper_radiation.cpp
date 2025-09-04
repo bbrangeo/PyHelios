@@ -11,6 +11,13 @@
 #include "../include/pyhelios_wrapper_radiation.h"
 #include "RadiationModel.h"
 
+// ColorCorrectionAlgorithm enum for auto-calibration (matching RadiationModel.h)
+enum class ColorCorrectionAlgorithm {
+    DIAGONAL_ONLY = 0,        //!< Simple diagonal scaling (white balance only)
+    MATRIX_3X3_AUTO = 1,      //!< 3x3 matrix with automatic fallback to diagonal if unstable
+    MATRIX_3X3_FORCE = 2      //!< Force 3x3 matrix calculation even if potentially unstable
+};
+
 extern "C" {
     // RadiationModel C interface functions
     
@@ -521,6 +528,430 @@ extern "C" {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::getTotalAbsorbedFlux): Unknown error getting absorbed flux.");
             if (size) *size = 0;
             return nullptr;
+        }
+    }
+
+    //=========================================================================
+    // Camera and Image Functions (v1.3.47)
+    //=========================================================================
+    
+    // Thread-local storage for string returns
+    static thread_local std::string camera_image_filename;
+    
+    const char* writeCameraImage(RadiationModel* radiation_model, const char* camera, 
+                                 const char** bands, size_t band_count,
+                                 const char* imagefile_base, const char* image_path, 
+                                 int frame, float flux_to_pixel_conversion) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return "";
+            }
+            if (!camera || !bands || !imagefile_base) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return "";
+            }
+            
+            // Convert C array to vector
+            std::vector<std::string> band_vector;
+            for (size_t i = 0; i < band_count; i++) {
+                if (bands[i]) {
+                    band_vector.push_back(std::string(bands[i]));
+                }
+            }
+            
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            camera_image_filename = radiation_model->writeCameraImage(
+                std::string(camera), band_vector, std::string(imagefile_base), 
+                path, frame, flux_to_pixel_conversion);
+            
+            return camera_image_filename.c_str();
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeCameraImage): ") + e.what());
+            return "";
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeCameraImage): Unknown error writing camera image.");
+            return "";
+        }
+    }
+    
+    const char* writeNormCameraImage(RadiationModel* radiation_model, const char* camera, 
+                                     const char** bands, size_t band_count,
+                                     const char* imagefile_base, const char* image_path, int frame) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return "";
+            }
+            if (!camera || !bands || !imagefile_base) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return "";
+            }
+            
+            // Convert C array to vector
+            std::vector<std::string> band_vector;
+            for (size_t i = 0; i < band_count; i++) {
+                if (bands[i]) {
+                    band_vector.push_back(std::string(bands[i]));
+                }
+            }
+            
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            camera_image_filename = radiation_model->writeNormCameraImage(
+                std::string(camera), band_vector, std::string(imagefile_base), path, frame);
+            
+            return camera_image_filename.c_str();
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeNormCameraImage): ") + e.what());
+            return "";
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeNormCameraImage): Unknown error writing normalized camera image.");
+            return "";
+        }
+    }
+    
+    void writeCameraImageData(RadiationModel* radiation_model, const char* camera, const char* band,
+                              const char* imagefile_base, const char* image_path, int frame) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera || !band || !imagefile_base) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            radiation_model->writeCameraImageData(std::string(camera), std::string(band), 
+                                                  std::string(imagefile_base), path, frame);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeCameraImageData): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeCameraImageData): Unknown error writing camera image data.");
+        }
+    }
+
+    // Bounding box functions - single primitive data label
+    void writeImageBoundingBoxes(RadiationModel* radiation_model, const char* camera_label,
+                                 const char* primitive_data_label, unsigned int object_class_id,
+                                 const char* image_file, const char* classes_txt_file, const char* image_path) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !primitive_data_label || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            std::string classes_file = classes_txt_file ? std::string(classes_txt_file) : "classes.txt";
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            radiation_model->writeImageBoundingBoxes(std::string(camera_label), std::string(primitive_data_label),
+                                                     object_class_id, std::string(image_file), classes_file, path);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageBoundingBoxes): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageBoundingBoxes): Unknown error writing bounding boxes.");
+        }
+    }
+
+    // Bounding box functions - vector primitive data labels
+    void writeImageBoundingBoxesVector(RadiationModel* radiation_model, const char* camera_label,
+                                       const char** primitive_data_labels, size_t label_count,
+                                       unsigned int* object_class_ids, const char* image_file,
+                                       const char* classes_txt_file, const char* image_path) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !primitive_data_labels || !object_class_ids || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            // Convert C arrays to vectors
+            std::vector<std::string> label_vector;
+            std::vector<unsigned int> class_id_vector;
+            for (size_t i = 0; i < label_count; i++) {
+                if (primitive_data_labels[i]) {
+                    label_vector.push_back(std::string(primitive_data_labels[i]));
+                    class_id_vector.push_back(object_class_ids[i]);
+                }
+            }
+            
+            std::string classes_file = classes_txt_file ? std::string(classes_txt_file) : "classes.txt";
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            radiation_model->writeImageBoundingBoxes(std::string(camera_label), label_vector,
+                                                     class_id_vector, std::string(image_file), classes_file, path);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageBoundingBoxesVector): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageBoundingBoxesVector): Unknown error writing vector bounding boxes.");
+        }
+    }
+
+    // Bounding box functions - single object data label
+    void writeImageBoundingBoxes_ObjectData(RadiationModel* radiation_model, const char* camera_label,
+                                            const char* object_data_label, unsigned int object_class_id,
+                                            const char* image_file, const char* classes_txt_file, const char* image_path) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !object_data_label || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            std::string classes_file = classes_txt_file ? std::string(classes_txt_file) : "classes.txt";
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            radiation_model->writeImageBoundingBoxes_ObjectData(std::string(camera_label), std::string(object_data_label),
+                                                                object_class_id, std::string(image_file), classes_file, path);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageBoundingBoxes_ObjectData): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageBoundingBoxes_ObjectData): Unknown error writing object bounding boxes.");
+        }
+    }
+
+    // Bounding box functions - vector object data labels
+    void writeImageBoundingBoxes_ObjectDataVector(RadiationModel* radiation_model, const char* camera_label,
+                                                  const char** object_data_labels, size_t label_count,
+                                                  unsigned int* object_class_ids, const char* image_file,
+                                                  const char* classes_txt_file, const char* image_path) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !object_data_labels || !object_class_ids || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            // Convert C arrays to vectors
+            std::vector<std::string> label_vector;
+            std::vector<unsigned int> class_id_vector;
+            for (size_t i = 0; i < label_count; i++) {
+                if (object_data_labels[i]) {
+                    label_vector.push_back(std::string(object_data_labels[i]));
+                    class_id_vector.push_back(object_class_ids[i]);
+                }
+            }
+            
+            std::string classes_file = classes_txt_file ? std::string(classes_txt_file) : "classes.txt";
+            std::string path = image_path ? std::string(image_path) : "./";
+            
+            radiation_model->writeImageBoundingBoxes_ObjectData(std::string(camera_label), label_vector,
+                                                                class_id_vector, std::string(image_file), classes_file, path);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageBoundingBoxes_ObjectDataVector): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageBoundingBoxes_ObjectDataVector): Unknown error writing vector object bounding boxes.");
+        }
+    }
+
+    // Segmentation mask functions - single primitive data label
+    void writeImageSegmentationMasks(RadiationModel* radiation_model, const char* camera_label,
+                                     const char* primitive_data_label, unsigned int object_class_id,
+                                     const char* json_filename, const char* image_file, int append_file) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !primitive_data_label || !json_filename || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            bool append = (append_file != 0);
+            
+            radiation_model->writeImageSegmentationMasks(std::string(camera_label), std::string(primitive_data_label),
+                                                         object_class_id, std::string(json_filename), 
+                                                         std::string(image_file), append);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageSegmentationMasks): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageSegmentationMasks): Unknown error writing segmentation masks.");
+        }
+    }
+
+    // Segmentation mask functions - vector primitive data labels
+    void writeImageSegmentationMasksVector(RadiationModel* radiation_model, const char* camera_label,
+                                           const char** primitive_data_labels, size_t label_count,
+                                           unsigned int* object_class_ids, const char* json_filename,
+                                           const char* image_file, int append_file) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !primitive_data_labels || !object_class_ids || !json_filename || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            // Convert C arrays to vectors
+            std::vector<std::string> label_vector;
+            std::vector<unsigned int> class_id_vector;
+            for (size_t i = 0; i < label_count; i++) {
+                if (primitive_data_labels[i]) {
+                    label_vector.push_back(std::string(primitive_data_labels[i]));
+                    class_id_vector.push_back(object_class_ids[i]);
+                }
+            }
+            
+            bool append = (append_file != 0);
+            
+            radiation_model->writeImageSegmentationMasks(std::string(camera_label), label_vector,
+                                                         class_id_vector, std::string(json_filename),
+                                                         std::string(image_file), append);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageSegmentationMasksVector): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageSegmentationMasksVector): Unknown error writing vector segmentation masks.");
+        }
+    }
+
+    // Segmentation mask functions - single object data label
+    void writeImageSegmentationMasks_ObjectData(RadiationModel* radiation_model, const char* camera_label,
+                                                 const char* object_data_label, unsigned int object_class_id,
+                                                 const char* json_filename, const char* image_file, int append_file) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !object_data_label || !json_filename || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            bool append = (append_file != 0);
+            
+            radiation_model->writeImageSegmentationMasks_ObjectData(std::string(camera_label), std::string(object_data_label),
+                                                                    object_class_id, std::string(json_filename),
+                                                                    std::string(image_file), append);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageSegmentationMasks_ObjectData): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageSegmentationMasks_ObjectData): Unknown error writing object segmentation masks.");
+        }
+    }
+
+    // Segmentation mask functions - vector object data labels
+    void writeImageSegmentationMasks_ObjectDataVector(RadiationModel* radiation_model, const char* camera_label,
+                                                       const char** object_data_labels, size_t label_count,
+                                                       unsigned int* object_class_ids, const char* json_filename,
+                                                       const char* image_file, int append_file) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !object_data_labels || !object_class_ids || !json_filename || !image_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            
+            // Convert C arrays to vectors
+            std::vector<std::string> label_vector;
+            std::vector<unsigned int> class_id_vector;
+            for (size_t i = 0; i < label_count; i++) {
+                if (object_data_labels[i]) {
+                    label_vector.push_back(std::string(object_data_labels[i]));
+                    class_id_vector.push_back(object_class_ids[i]);
+                }
+            }
+            
+            bool append = (append_file != 0);
+            
+            radiation_model->writeImageSegmentationMasks_ObjectData(std::string(camera_label), label_vector,
+                                                                    class_id_vector, std::string(json_filename),
+                                                                    std::string(image_file), append);
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::writeImageSegmentationMasks_ObjectDataVector): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::writeImageSegmentationMasks_ObjectDataVector): Unknown error writing vector object segmentation masks.");
+        }
+    }
+
+    // Auto-calibration function
+    const char* autoCalibrateCameraImage(RadiationModel* radiation_model, const char* camera_label,
+                                         const char* red_band_label, const char* green_band_label, const char* blue_band_label,
+                                         const char* output_file_path, int print_quality_report,
+                                         int algorithm, const char* ccm_export_file_path) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return "";
+            }
+            if (!camera_label || !red_band_label || !green_band_label || !blue_band_label || !output_file_path) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return "";
+            }
+            
+            bool print_report = (print_quality_report != 0);
+            
+            // Map integer to ColorCorrectionAlgorithm enum
+            RadiationModel::ColorCorrectionAlgorithm algo;
+            switch (algorithm) {
+                case 0: algo = RadiationModel::ColorCorrectionAlgorithm::DIAGONAL_ONLY; break;
+                case 1: algo = RadiationModel::ColorCorrectionAlgorithm::MATRIX_3X3_AUTO; break;
+                case 2: algo = RadiationModel::ColorCorrectionAlgorithm::MATRIX_3X3_FORCE; break;
+                default: 
+                    setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Invalid ColorCorrectionAlgorithm value");
+                    return "";
+            }
+            
+            std::string ccm_export = ccm_export_file_path ? std::string(ccm_export_file_path) : "";
+            
+            camera_image_filename = radiation_model->autoCalibrateCameraImage(
+                std::string(camera_label), std::string(red_band_label), std::string(green_band_label),
+                std::string(blue_band_label), std::string(output_file_path), print_report, algo, ccm_export);
+            
+            return camera_image_filename.c_str();
+            
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::autoCalibrateCameraImage): ") + e.what());
+            return "";
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::autoCalibrateCameraImage): Unknown error auto-calibrating camera image.");
+            return "";
         }
     }
 

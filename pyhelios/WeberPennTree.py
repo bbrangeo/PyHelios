@@ -159,13 +159,6 @@ class WeberPennTree:
         validate_vec3(origin, "origin", "buildTree")
         validate_positive_value(scale, "scale", "buildTree")
         
-        # Note: The current C++ interface doesn't use the scale parameter
-        # Future versions may implement scaling functionality
-        if scale != 1.0:
-            import warnings
-            warnings.warn("Scale parameter is not currently implemented in the C++ WeberPennTree interface. "
-                         "Trees will be built at default scale.", UserWarning)
-        
         if not self.wpt or not isinstance(self.wpt, ctypes._Pointer):
             raise RuntimeError(
                 f"WeberPennTree is not properly initialized. "
@@ -175,7 +168,11 @@ class WeberPennTree:
         
         # Use working directory context manager during tree building to access assets
         with _weberpenntree_working_directory():
-            return wpt_wrapper.buildTree(self.wpt, wpt_type.value, origin.to_list())
+            # Use scale-aware function if scale is not 1.0, otherwise use regular function
+            if scale != 1.0:
+                return wpt_wrapper.buildTreeWithScale(self.wpt, wpt_type.value, origin.to_list(), scale)
+            else:
+                return wpt_wrapper.buildTree(self.wpt, wpt_type.value, origin.to_list())
     
     @validate_tree_uuid_params
     def getTrunkUUIDs(self, tree_id:int) -> List[int]:

@@ -110,6 +110,73 @@ try:
     helios_lib.getTotalAbsorbedFlux.argtypes = [ctypes.POINTER(URadiationModel), ctypes.POINTER(ctypes.c_size_t)]
     helios_lib.getTotalAbsorbedFlux.restype = ctypes.POINTER(ctypes.c_float)
 
+    # Camera and Image Functions (v1.3.47)
+    helios_lib.writeCameraImage.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p, 
+                                           ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                           ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_float]
+    helios_lib.writeCameraImage.restype = ctypes.c_char_p
+
+    helios_lib.writeNormCameraImage.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p, 
+                                               ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                               ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+    helios_lib.writeNormCameraImage.restype = ctypes.c_char_p
+
+    helios_lib.writeCameraImageData.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p, ctypes.c_char_p,
+                                               ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+    helios_lib.writeCameraImageData.restype = None
+
+    # Bounding box functions
+    helios_lib.writeImageBoundingBoxes.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                  ctypes.c_char_p, ctypes.c_uint, ctypes.c_char_p,
+                                                  ctypes.c_char_p, ctypes.c_char_p]
+    helios_lib.writeImageBoundingBoxes.restype = None
+
+    helios_lib.writeImageBoundingBoxesVector.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                        ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                                        ctypes.POINTER(ctypes.c_uint), ctypes.c_char_p,
+                                                        ctypes.c_char_p, ctypes.c_char_p]
+    helios_lib.writeImageBoundingBoxesVector.restype = None
+
+    helios_lib.writeImageBoundingBoxes_ObjectData.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                             ctypes.c_char_p, ctypes.c_uint, ctypes.c_char_p,
+                                                             ctypes.c_char_p, ctypes.c_char_p]
+    helios_lib.writeImageBoundingBoxes_ObjectData.restype = None
+
+    helios_lib.writeImageBoundingBoxes_ObjectDataVector.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                                   ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                                                   ctypes.POINTER(ctypes.c_uint), ctypes.c_char_p,
+                                                                   ctypes.c_char_p, ctypes.c_char_p]
+    helios_lib.writeImageBoundingBoxes_ObjectDataVector.restype = None
+
+    # Segmentation mask functions
+    helios_lib.writeImageSegmentationMasks.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                       ctypes.c_char_p, ctypes.c_uint, ctypes.c_char_p,
+                                                       ctypes.c_char_p, ctypes.c_int]
+    helios_lib.writeImageSegmentationMasks.restype = None
+
+    helios_lib.writeImageSegmentationMasksVector.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                            ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                                            ctypes.POINTER(ctypes.c_uint), ctypes.c_char_p,
+                                                            ctypes.c_char_p, ctypes.c_int]
+    helios_lib.writeImageSegmentationMasksVector.restype = None
+
+    helios_lib.writeImageSegmentationMasks_ObjectData.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                                 ctypes.c_char_p, ctypes.c_uint, ctypes.c_char_p,
+                                                                 ctypes.c_char_p, ctypes.c_int]
+    helios_lib.writeImageSegmentationMasks_ObjectData.restype = None
+
+    helios_lib.writeImageSegmentationMasks_ObjectDataVector.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                                       ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                                                       ctypes.POINTER(ctypes.c_uint), ctypes.c_char_p,
+                                                                       ctypes.c_char_p, ctypes.c_int]
+    helios_lib.writeImageSegmentationMasks_ObjectDataVector.restype = None
+
+    # Auto-calibration function
+    helios_lib.autoCalibrateCameraImage.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                    ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p,
+                                                    ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p]
+    helios_lib.autoCalibrateCameraImage.restype = ctypes.c_char_p
+
     
     # Mark that RadiationModel functions are available
     _RADIATION_MODEL_FUNCTIONS_AVAILABLE = True
@@ -357,4 +424,265 @@ def getTotalAbsorbedFlux(radiation_model) -> List[float]:
     size = ctypes.c_size_t()
     flux_ptr = helios_lib.getTotalAbsorbedFlux(radiation_model, ctypes.byref(size))
     return list(flux_ptr[:size.value])
+
+#=============================================================================
+# Camera and Image Functions (v1.3.47)
+#=============================================================================
+
+def writeCameraImage(radiation_model, camera: str, bands: List[str], imagefile_base: str, 
+                     image_path: str = "./", frame: int = -1, flux_to_pixel_conversion: float = 1.0) -> str:
+    """Write camera image to file and return output filename"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write camera image.")
+    
+    camera_encoded = camera.encode('utf-8')
+    imagefile_base_encoded = imagefile_base.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    # Convert band list to ctypes array
+    band_array = (ctypes.c_char_p * len(bands))()
+    for i, band in enumerate(bands):
+        band_array[i] = band.encode('utf-8')
+    
+    result = helios_lib.writeCameraImage(radiation_model, camera_encoded, band_array, len(bands),
+                                        imagefile_base_encoded, image_path_encoded, frame, flux_to_pixel_conversion)
+    return result.decode('utf-8') if result else ""
+
+def writeNormCameraImage(radiation_model, camera: str, bands: List[str], imagefile_base: str, 
+                         image_path: str = "./", frame: int = -1) -> str:
+    """Write normalized camera image to file and return output filename"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write normalized camera image.")
+    
+    camera_encoded = camera.encode('utf-8')
+    imagefile_base_encoded = imagefile_base.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    # Convert band list to ctypes array
+    band_array = (ctypes.c_char_p * len(bands))()
+    for i, band in enumerate(bands):
+        band_array[i] = band.encode('utf-8')
+    
+    result = helios_lib.writeNormCameraImage(radiation_model, camera_encoded, band_array, len(bands),
+                                            imagefile_base_encoded, image_path_encoded, frame)
+    return result.decode('utf-8') if result else ""
+
+def writeCameraImageData(radiation_model, camera: str, band: str, imagefile_base: str, 
+                         image_path: str = "./", frame: int = -1):
+    """Write camera image data to file (ASCII format)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write camera image data.")
+    
+    camera_encoded = camera.encode('utf-8')
+    band_encoded = band.encode('utf-8')
+    imagefile_base_encoded = imagefile_base.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    helios_lib.writeCameraImageData(radiation_model, camera_encoded, band_encoded,
+                                   imagefile_base_encoded, image_path_encoded, frame)
+
+# Bounding box functions
+def writeImageBoundingBoxes(radiation_model, camera_label: str, primitive_data_label: str, 
+                           object_class_id: int, image_file: str, classes_txt_file: str = "classes.txt", 
+                           image_path: str = "./"):
+    """Write image bounding boxes (single primitive data label)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write bounding boxes.")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    primitive_encoded = primitive_data_label.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    classes_encoded = classes_txt_file.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    helios_lib.writeImageBoundingBoxes(radiation_model, camera_encoded, primitive_encoded, object_class_id,
+                                      image_file_encoded, classes_encoded, image_path_encoded)
+
+def writeImageBoundingBoxesVector(radiation_model, camera_label: str, primitive_data_labels: List[str], 
+                                  object_class_ids: List[int], image_file: str, 
+                                  classes_txt_file: str = "classes.txt", image_path: str = "./"):
+    """Write image bounding boxes (vector primitive data labels)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write vector bounding boxes.")
+    
+    if len(primitive_data_labels) != len(object_class_ids):
+        raise ValueError("primitive_data_labels and object_class_ids must have the same length")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    classes_encoded = classes_txt_file.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    # Convert lists to ctypes arrays
+    label_array = (ctypes.c_char_p * len(primitive_data_labels))()
+    for i, label in enumerate(primitive_data_labels):
+        label_array[i] = label.encode('utf-8')
+    
+    id_array = (ctypes.c_uint * len(object_class_ids))(*object_class_ids)
+    
+    helios_lib.writeImageBoundingBoxesVector(radiation_model, camera_encoded, label_array, len(primitive_data_labels),
+                                            id_array, image_file_encoded, classes_encoded, image_path_encoded)
+
+def writeImageBoundingBoxes_ObjectData(radiation_model, camera_label: str, object_data_label: str, 
+                                       object_class_id: int, image_file: str, 
+                                       classes_txt_file: str = "classes.txt", image_path: str = "./"):
+    """Write image bounding boxes with object data (single label)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write object bounding boxes.")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    object_encoded = object_data_label.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    classes_encoded = classes_txt_file.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    helios_lib.writeImageBoundingBoxes_ObjectData(radiation_model, camera_encoded, object_encoded, object_class_id,
+                                                 image_file_encoded, classes_encoded, image_path_encoded)
+
+def writeImageBoundingBoxes_ObjectDataVector(radiation_model, camera_label: str, object_data_labels: List[str], 
+                                             object_class_ids: List[int], image_file: str, 
+                                             classes_txt_file: str = "classes.txt", image_path: str = "./"):
+    """Write image bounding boxes with object data (vector labels)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write vector object bounding boxes.")
+    
+    if len(object_data_labels) != len(object_class_ids):
+        raise ValueError("object_data_labels and object_class_ids must have the same length")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    classes_encoded = classes_txt_file.encode('utf-8')
+    image_path_encoded = image_path.encode('utf-8')
+    
+    # Convert lists to ctypes arrays
+    label_array = (ctypes.c_char_p * len(object_data_labels))()
+    for i, label in enumerate(object_data_labels):
+        label_array[i] = label.encode('utf-8')
+    
+    id_array = (ctypes.c_uint * len(object_class_ids))(*object_class_ids)
+    
+    helios_lib.writeImageBoundingBoxes_ObjectDataVector(radiation_model, camera_encoded, label_array, len(object_data_labels),
+                                                       id_array, image_file_encoded, classes_encoded, image_path_encoded)
+
+# Segmentation mask functions
+def writeImageSegmentationMasks(radiation_model, camera_label: str, primitive_data_label: str, 
+                               object_class_id: int, json_filename: str, image_file: str, append_file: bool = False):
+    """Write image segmentation masks (single primitive data label)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write segmentation masks.")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    primitive_encoded = primitive_data_label.encode('utf-8')
+    json_encoded = json_filename.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    
+    helios_lib.writeImageSegmentationMasks(radiation_model, camera_encoded, primitive_encoded, object_class_id,
+                                          json_encoded, image_file_encoded, int(append_file))
+
+def writeImageSegmentationMasksVector(radiation_model, camera_label: str, primitive_data_labels: List[str], 
+                                      object_class_ids: List[int], json_filename: str, image_file: str, 
+                                      append_file: bool = False):
+    """Write image segmentation masks (vector primitive data labels)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write vector segmentation masks.")
+    
+    if len(primitive_data_labels) != len(object_class_ids):
+        raise ValueError("primitive_data_labels and object_class_ids must have the same length")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    json_encoded = json_filename.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    
+    # Convert lists to ctypes arrays
+    label_array = (ctypes.c_char_p * len(primitive_data_labels))()
+    for i, label in enumerate(primitive_data_labels):
+        label_array[i] = label.encode('utf-8')
+    
+    id_array = (ctypes.c_uint * len(object_class_ids))(*object_class_ids)
+    
+    helios_lib.writeImageSegmentationMasksVector(radiation_model, camera_encoded, label_array, len(primitive_data_labels),
+                                                id_array, json_encoded, image_file_encoded, int(append_file))
+
+def writeImageSegmentationMasks_ObjectData(radiation_model, camera_label: str, object_data_label: str, 
+                                           object_class_id: int, json_filename: str, image_file: str, 
+                                           append_file: bool = False):
+    """Write image segmentation masks with object data (single label)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write object segmentation masks.")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    object_encoded = object_data_label.encode('utf-8')
+    json_encoded = json_filename.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    
+    helios_lib.writeImageSegmentationMasks_ObjectData(radiation_model, camera_encoded, object_encoded, object_class_id,
+                                                     json_encoded, image_file_encoded, int(append_file))
+
+def writeImageSegmentationMasks_ObjectDataVector(radiation_model, camera_label: str, object_data_labels: List[str], 
+                                                 object_class_ids: List[int], json_filename: str, image_file: str, 
+                                                 append_file: bool = False):
+    """Write image segmentation masks with object data (vector labels)"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot write vector object segmentation masks.")
+    
+    if len(object_data_labels) != len(object_class_ids):
+        raise ValueError("object_data_labels and object_class_ids must have the same length")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    json_encoded = json_filename.encode('utf-8')
+    image_file_encoded = image_file.encode('utf-8')
+    
+    # Convert lists to ctypes arrays
+    label_array = (ctypes.c_char_p * len(object_data_labels))()
+    for i, label in enumerate(object_data_labels):
+        label_array[i] = label.encode('utf-8')
+    
+    id_array = (ctypes.c_uint * len(object_class_ids))(*object_class_ids)
+    
+    helios_lib.writeImageSegmentationMasks_ObjectDataVector(radiation_model, camera_encoded, label_array, len(object_data_labels),
+                                                           id_array, json_encoded, image_file_encoded, int(append_file))
+
+# Auto-calibration function
+def autoCalibrateCameraImage(radiation_model, camera_label: str, red_band_label: str, green_band_label: str, 
+                            blue_band_label: str, output_file_path: str, print_quality_report: bool = False, 
+                            algorithm: int = 1, ccm_export_file_path: str = "") -> str:
+    """Auto-calibrate camera image with color correction and return output filename"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot auto-calibrate camera image.")
+    
+    camera_encoded = camera_label.encode('utf-8')
+    red_encoded = red_band_label.encode('utf-8')
+    green_encoded = green_band_label.encode('utf-8')
+    blue_encoded = blue_band_label.encode('utf-8')
+    output_encoded = output_file_path.encode('utf-8')
+    ccm_encoded = ccm_export_file_path.encode('utf-8') if ccm_export_file_path else None
+    
+    result = helios_lib.autoCalibrateCameraImage(radiation_model, camera_encoded, red_encoded, green_encoded,
+                                               blue_encoded, output_encoded, int(print_quality_report), 
+                                               algorithm, ccm_encoded)
+    return result.decode('utf-8') if result else ""
 

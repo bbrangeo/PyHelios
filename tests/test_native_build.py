@@ -74,15 +74,24 @@ class TestNativeBuild:
         if hasattr(loader, '_loader_instance'):
             loader._loader_instance = None
         
-        # Clear any cached modules
-        modules_to_clear = [m for m in sys.modules.keys() if m.startswith('pyhelios')]
+        # Clear any cached modules (but preserve validation modules to avoid breaking pytest exception handling)
+        modules_to_clear = [m for m in sys.modules.keys() 
+                           if m.startswith('pyhelios') and not m.startswith('pyhelios.validation')]
         for mod in modules_to_clear:
             if mod in sys.modules:
                 del sys.modules[mod]
         
-        # Now import PyHelios fresh
-        import pyhelios
-        from pyhelios.plugins import get_plugin_info
+        try:
+            # Now import PyHelios fresh
+            import pyhelios
+            from pyhelios.plugins import get_plugin_info
+            
+            # Reset plugin registry to ensure clean state after module reload
+            from pyhelios.plugins.registry import reset_plugin_registry
+            reset_plugin_registry()
+        except ImportError:
+            # If we can't import reset function, we're in a different state
+            pass
         
         # Check if we're in native mode or mock mode
         plugin_info = get_plugin_info()

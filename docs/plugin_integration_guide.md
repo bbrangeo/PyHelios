@@ -28,31 +28,23 @@ PyHelios uses a sophisticated plugin architecture that enables seamless integrat
 ┌─────────────────────────────────────────────────────────────┐
 │                    PyHelios Plugin Architecture             │
 ├─────────────────────────────────────────────────────────────┤
-│  Python High-Level API (YourPlugin.py)                     │
-│  ├── Context managers and error handling                   │
-│  └── User-friendly methods with type hints                 │
+│  Python High-Level API (YourPlugin.py)                      │
+│  ├── Context managers and error handling                    │
+│  └── User-friendly methods with type hints                  │
 ├─────────────────────────────────────────────────────────────┤
-│  ctypes Wrappers (UYourPluginWrapper.py)                   │
-│  ├── Function prototypes and availability detection        │
-│  └── Python-to-C type conversion                           │
+│  ctypes Wrappers (UYourPluginWrapper.py)                    │
+│  ├── Function prototypes and availability detection         │
+│  └── Python-to-C type conversion                            │
 ├─────────────────────────────────────────────────────────────┤
-│  C++ Interface (pyhelios_interface.cpp)                    │
-│  ├── C-compatible wrapper functions                        │
-│  └── Exception handling and parameter validation           │
+│  C++ Interface (pyhelios_interface.cpp)                     │
+│  ├── C-compatible wrapper functions                         │
+│  └── Exception handling and parameter validation            │
 ├─────────────────────────────────────────────────────────────┤
-│  Native Plugin (helios-core/plugins/yourplugin/)          │
-│  ├── C++ plugin implementation                             │
-│  └── Runtime assets (shaders, textures, configs)          │
+│  Native Plugin (helios-core/plugins/yourplugin/)            │
+│  ├── C++ plugin implementation                              │
+│  └── Runtime assets (shaders, textures, configs)            │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### Integration Complexity
-
-Plugin integration complexity varies by type:
-
-- **Simple plugins** (data processing): ~4-6 hours
-- **Moderate plugins** (physics modeling): ~1-2 days  
-- **Complex plugins** (GPU-accelerated, visualization): ~3-5 days
 
 ## Prerequisites
 
@@ -63,20 +55,6 @@ Before starting plugin integration, ensure you have:
 3. **Plugin documentation** from helios-core
 4. **Understanding of plugin dependencies** (CUDA, OpenGL, etc.)
 5. **Test data** or examples for validation
-
-### Required Tools
-
-```bash
-# Development dependencies
-pip install -e .[dev]
-
-# Build tools
-cmake --version  # 3.18+
-# Platform-specific compiler (MSVC, clang, gcc)
-
-# Optional: GPU dependencies
-nvidia-smi  # For CUDA plugins
-```
 
 ## Phase 1: Plugin Metadata Registration
 

@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pyhelios import Context, EnergyBalanceModel, EnergyBalanceModelError, RadiationModel
 from pyhelios.types import vec3, vec2
 from pyhelios.plugins.registry import get_plugin_registry
+from pyhelios.validation.exceptions import ValidationError
 
 
 def setup_radiation_for_energy_balance(context, band="SW"):
@@ -152,17 +153,17 @@ class TestEnergyBalanceFunctionality:
         with Context() as context:
             with EnergyBalanceModel(context) as energy_balance:
                 # Test invalid single band
-                with pytest.raises(ValueError, match="non-empty string"):
+                with pytest.raises(ValidationError, match="Parameter must be a non-empty string"):
                     energy_balance.addRadiationBand("")
                 
-                with pytest.raises(ValueError, match="Band must be a string or list of strings"):
+                with pytest.raises(ValidationError, match="Parameter must be a string or list of strings"):
                     energy_balance.addRadiationBand(None)
                 
                 # Test invalid multiple bands
-                with pytest.raises(ValueError, match="cannot be empty"):
+                with pytest.raises(ValidationError, match="cannot be empty"):
                     energy_balance.addRadiationBand([])
                 
-                with pytest.raises(ValueError, match="non-empty strings"):
+                with pytest.raises(ValidationError, match="must be non-empty strings"):
                     energy_balance.addRadiationBand(["SW", ""])
     
     def test_basic_energy_balance_run(self):
@@ -211,15 +212,15 @@ class TestEnergyBalanceFunctionality:
             with EnergyBalanceModel(context) as energy_balance:
                 energy_balance.addRadiationBand("SW")
                 
-                # Test invalid timestep - should catch ValueError from wrapper
-                with pytest.raises(EnergyBalanceModelError, match="positive"):
+                # Test invalid timestep - should catch ValidationError from wrapper
+                with pytest.raises(ValidationError, match="Parameter must be positive"):
                     energy_balance.run(dt=-1.0)
                 
-                with pytest.raises(EnergyBalanceModelError, match="positive"):
+                with pytest.raises(ValidationError, match="Parameter must be positive"):
                     energy_balance.run(dt=0.0)
                 
                 # Test invalid UUIDs
-                with pytest.raises(EnergyBalanceModelError, match="empty"):
+                with pytest.raises(ValidationError, match="cannot be empty"):
                     energy_balance.run(uuids=[])
     
     def test_air_energy_balance(self):
@@ -259,14 +260,14 @@ class TestEnergyBalanceFunctionality:
                 with pytest.raises(ValueError, match="positive"):
                     energy_balance.enableAirEnergyBalance(canopy_height_m=5.0, reference_height_m=-1.0)
                 
-                # Test partial parameters (should fail) - should catch EnergyBalanceModelError
-                with pytest.raises(EnergyBalanceModelError, match="together"):
+                # Test partial parameters (should fail) - should catch ValidationError
+                with pytest.raises(ValidationError, match="must be provided together"):
                     energy_balance.enableAirEnergyBalance(canopy_height_m=5.0)
                 
                 # Test evaluation parameter validation
                 energy_balance.enableAirEnergyBalance()
                 
-                with pytest.raises(ValueError, match="positive"):
+                with pytest.raises(ValidationError, match="cannot be negative"):
                     energy_balance.evaluateAirEnergyBalance(dt_sec=-1.0, time_advance_sec=100.0)
                 
                 with pytest.raises(ValueError, match="greater than or equal"):
@@ -303,10 +304,10 @@ class TestEnergyBalanceFunctionality:
                 energy_balance.optionalOutputPrimitiveData("boundary_layer_conductance")
                 
                 # Test validation
-                with pytest.raises(ValueError, match="non-empty string"):
+                with pytest.raises(ValidationError, match="cannot be empty or whitespace-only"):
                     energy_balance.optionalOutputPrimitiveData("")
                 
-                with pytest.raises(ValueError, match="non-empty string"):
+                with pytest.raises(ValidationError, match="Parameter must be a string"):
                     energy_balance.optionalOutputPrimitiveData(None)
     
     def test_default_value_reporting(self):
