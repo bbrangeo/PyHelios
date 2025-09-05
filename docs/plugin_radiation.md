@@ -16,7 +16,7 @@ The radiation plugin requires:
 ## Basic Usage
 
 ```python
-from pyhelios import Context, RadiationModel, RadiationModelError
+from pyhelios import Context, RadiationModel
 from pyhelios.types import *
 
 # Create context with geometry
@@ -370,9 +370,7 @@ try:
         # Access band-specific data stored by radiation model
         for band in ["PAR", "NIR", "SW"]:
             print(f"Band {band} results available in primitive data: radiation_flux_{band}")
-        
-except RadiationModelError as e:
-    print(f"Radiation simulation failed: {e}")
+
 ```
 
 ### Data Storage

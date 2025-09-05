@@ -105,7 +105,8 @@ class TestEnergyBalanceInterface:
     @pytest.mark.cross_platform
     def test_error_types_available(self):
         """Test that error types are properly defined"""
-        from pyhelios.exceptions import HeliosError
+        # Import from main module to ensure class identity consistency
+        from pyhelios import HeliosError
         assert issubclass(EnergyBalanceModelError, HeliosError)
 
     @pytest.mark.cross_platform

@@ -6,7 +6,7 @@ import pytest
 import os
 from pyhelios import Context
 from pyhelios.types import vec3, RGBcolor, SphericalCoord
-from pyhelios.exceptions import HeliosError
+from pyhelios import HeliosError
 
 
 @pytest.fixture

@@ -9,7 +9,8 @@ import pytest
 import math
 from pyhelios import Context, SolarPosition, SolarPositionError
 from pyhelios.plugins.registry import get_plugin_registry
-from pyhelios.exceptions import HeliosError
+# Import HeliosError from pyhelios main module to ensure consistency
+from pyhelios import HeliosError
 from pyhelios.wrappers.DataTypes import Time, Date, vec3, SphericalCoord
 
 

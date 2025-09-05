@@ -13,8 +13,7 @@ from typing import List
 # Add pyhelios to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from pyhelios import Context, RadiationModel, DataTypes
-from pyhelios.RadiationModel import RadiationModelError
+from pyhelios import Context, RadiationModel, RadiationModelError, DataTypes
 from pyhelios.validation.exceptions import ValidationError
 
 # RadiationSourceType may not be available if RadiationModel is None

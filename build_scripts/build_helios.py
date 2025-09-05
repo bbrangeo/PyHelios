@@ -1412,7 +1412,7 @@ def get_default_plugins() -> List[str]:
         List of default plugins
     """
     # Return the plugins that are actually integrated into PyHelios
-    integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance", "solarposition"]
+    integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance", "solarposition", "stomatalconductance"]
     
     # Filter by platform compatibility
     default_plugins = []

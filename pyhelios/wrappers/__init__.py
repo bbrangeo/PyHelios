@@ -14,3 +14,4 @@ from . import UVisualizerWrapper
 from . import UWeberPennTreeWrapper
 from . import UEnergyBalanceWrapper
 from . import USolarPositionWrapper
+from . import UStomatalConductanceWrapper

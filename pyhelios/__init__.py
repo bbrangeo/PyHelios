@@ -19,10 +19,11 @@ except (AttributeError, ImportError):
     WPTType = None
 
 try:
-    from .RadiationModel import RadiationModel
+    from .RadiationModel import RadiationModel, RadiationModelError
 except (AttributeError, ImportError):
     # RadiationModel functions not available in current library
     RadiationModel = None
+    RadiationModelError = None
 
 try:
     from .EnergyBalance import EnergyBalanceModel, EnergyBalanceModelError
@@ -44,6 +45,26 @@ except (AttributeError, ImportError):
     # SolarPosition functions not available in current library
     SolarPosition = None
     SolarPositionError = None
+
+try:
+    from .StomatalConductance import (
+        StomatalConductanceModel, 
+        StomatalConductanceModelError,
+        BWBCoefficients,
+        BBLCoefficients, 
+        MOPTCoefficients,
+        BMFCoefficients,
+        BBCoefficients
+    )
+except (AttributeError, ImportError):
+    # StomatalConductanceModel functions not available in current library
+    StomatalConductanceModel = None
+    StomatalConductanceModelError = None
+    BWBCoefficients = None
+    BBLCoefficients = None
+    MOPTCoefficients = None
+    BMFCoefficients = None
+    BBCoefficients = None
 from .wrappers import DataTypes as DataTypes
 from . import dev_utils
 from .exceptions import (

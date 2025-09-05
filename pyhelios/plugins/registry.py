@@ -331,4 +331,15 @@ def get_plugin_registry() -> PluginRegistry:
 def reset_plugin_registry():
     """Reset the global plugin registry (useful for testing)."""
     global _plugin_registry
+    if _plugin_registry is not None:
+        # Clean up existing registry state before reset
+        try:
+            _plugin_registry._available_plugins = None
+            _plugin_registry._plugin_capabilities = None
+            _plugin_registry._failed_plugins.clear()
+            _plugin_registry._initialized = False
+        except AttributeError:
+            # Registry might not have these attributes yet
+            pass
     _plugin_registry = None
+    logger.debug("Plugin registry reset for test isolation")

@@ -132,7 +132,7 @@ PLUGIN_METADATA: Dict[str, PluginMetadata] = {
         platforms=["windows", "linux", "macos"],
         gpu_required=False,
         optional=True,
-        test_symbols=["runStomatalConductanceModel", "setStomatalConductanceParameters"]
+        test_symbols=["createStomatalConductanceModel", "runStomatalConductanceModel"]
     ),
     
     "boundarylayerconductance": PluginMetadata(

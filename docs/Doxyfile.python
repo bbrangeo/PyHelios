@@ -132,6 +132,7 @@ INPUT                  = pyhelios \
                          docs/plugin_energybalance.md \
                          docs/plugin_radiation.md \
                          docs/plugin_solarposition.md \
+                         docs/plugin_stomatalconductance.md \
                          docs/plugin_visualizer.md \
                          docs/plugin_weberpenntree.md \
                          docs/CHANGELOG.md \
@@ -150,6 +151,7 @@ EXCLUDE                = pyhelios/plugins/__pycache__ \
                          pyhelios/wrappers/URadiationModelWrapper.py \
                          pyhelios/wrappers/UEnergyBalanceWrapper.py \
                          pyhelios/wrappers/USolarPositionWrapper.py \
+                         pyhelios/wrappers/UStomatalConductanceWrapper.py \
                          pyhelios/wrappers/UVisualizerWrapper.py \
                          pyhelios/wrappers/UWeberPennTreeWrapper.py \
                          pyhelios/config \

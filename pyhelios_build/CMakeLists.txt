@@ -62,6 +62,10 @@ if("solarposition" IN_LIST PLUGINS)
     list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_solarposition.cpp)
 endif()
 
+if("stomatalconductance" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_stomatalconductance.cpp)
+endif()
+
 add_library(pyhelios_interface STATIC ${PYHELIOS_WRAPPER_SOURCES})
 
 # Add include directories for plugin headers
@@ -101,6 +105,12 @@ endif()
 if("solarposition" IN_LIST PLUGINS)
     target_include_directories(pyhelios_interface PRIVATE
         ${BASE_DIRECTORY}/plugins/solarposition/include
+    )
+endif()
+
+if("stomatalconductance" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_interface PRIVATE
+        ${BASE_DIRECTORY}/plugins/stomatalconductance/include
     )
 endif()
 
@@ -180,6 +190,12 @@ endif()
 if("solarposition" IN_LIST PLUGINS)
     target_include_directories(pyhelios_shared PRIVATE
         ${BASE_DIRECTORY}/plugins/solarposition/include
+    )
+endif()
+
+if("stomatalconductance" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_shared PRIVATE
+        ${BASE_DIRECTORY}/plugins/stomatalconductance/include
     )
 endif()
 

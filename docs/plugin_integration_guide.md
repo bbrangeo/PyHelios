@@ -1843,6 +1843,105 @@ ls tests/test_*yourplugin*
 mv tests/test_your_plugin.py tests/test_yourplugin.py
 ```
 
+#### Pytest Test Isolation Issues (State Contamination)
+
+**CRITICAL PROBLEM**: A persistent issue where tests pass individually but fail when run as part of the full test suite, affecting multiple plugins (energybalance, radiation, stomatalconductance).
+
+**Symptoms**:
+- Tests pass when run with `pytest tests/test_yourplugin.py -v`
+- Same tests fail when run with `pytest` (full suite)
+- Import-related failures with class identity mismatches
+- Error messages like `AssertionError: False = issubclass(...)`
+
+**Root Causes Identified**:
+1. **Global Plugin Registry State**: Plugin registry singleton persists contaminated state across test modules
+2. **Import Path Inconsistencies**: Different import paths for error classes cause class identity issues
+3. **Context Validation Issues**: `isinstance()` checks fail due to class identity problems during module reloading
+
+**PERMANENT SOLUTION IMPLEMENTED** (v0.0.7+):
+
+**1. Enhanced Test Fixture Architecture** (`conftest.py` - already fixed):
+```python
+@pytest.fixture(scope="module", autouse=True)
+def reset_plugin_state():
+    """Reset plugin registry state between test modules to prevent contamination."""
+    # Reset at the start of each test module
+    _reset_plugin_registry_if_available()
+    yield
+    # Reset at the end of each test module
+    _reset_plugin_registry_if_available()
+
+def _reset_plugin_registry_if_available():
+    """Reset plugin registry to prevent test contamination."""
+    try:
+        from pyhelios.plugins.registry import reset_plugin_registry
+        reset_plugin_registry()
+    except ImportError:
+        pass
+```
+
+**2. Import Path Standardization** (REQUIRED for new plugins):
+```python
+# ✅ CORRECT - Import from main pyhelios module
+from pyhelios import HeliosError, YourPluginError
+
+# ❌ WRONG - Direct import from exceptions module causes contamination
+from pyhelios.exceptions import HeliosError
+```
+
+**3. Robust Parameter Validation** (for Context-related issues):
+```python
+# Use duck typing to handle class identity issues during test runs
+if not (hasattr(context, '__class__') and 
+        (isinstance(context, Context) or 
+         context.__class__.__name__ == 'Context')):
+    raise TypeError(f"Requires a Context instance, got {type(context).__name__}")
+```
+
+**4. Enhanced Error Class Registration** (add to `pyhelios/__init__.py`):
+```python
+# Ensure ALL plugin error classes are available from main module
+try:
+    from .YourPlugin import YourPlugin, YourPluginError
+except (AttributeError, ImportError):
+    YourPlugin = None
+    YourPluginError = None
+```
+
+**PREVENTION CHECKLIST** for new plugin integrations:
+- [ ] Import ALL error classes from main `pyhelios` module, not submodules
+- [ ] Add plugin error classes to main module imports in `__init__.py`
+- [ ] Use duck typing for Context validation (see pattern above)
+- [ ] Test both individual plugin tests AND full test suite
+- [ ] Verify no failing tests when plugin unavailable (proper skipping)
+
+**Debugging Commands**:
+```bash
+# Test individual plugin tests
+pytest tests/test_yourplugin.py -v
+
+# Test with other plugin tests to check for contamination
+pytest tests/test_yourplugin.py tests/test_energybalance.py tests/test_radiation_model.py -v
+
+# Run full test suite to verify no contamination
+pytest --tb=short -x --maxfail=3
+
+# Check for import consistency issues
+python -c "
+from pyhelios import YourPluginError, HeliosError
+print('YourPluginError module:', YourPluginError.__module__)
+print('HeliosError module:', HeliosError.__module__)
+print('Inheritance check:', issubclass(YourPluginError, HeliosError))
+"
+```
+
+**Resolution Verification**:
+After implementing the fix, expect:
+- ✅ All tests pass individually: `pytest tests/test_yourplugin.py -v`
+- ✅ All tests pass in full suite: `pytest --tb=short`  
+- ✅ Zero test failures due to state contamination
+- ✅ Proper test skipping when plugins unavailable
+
 **Debug Plugin Detection**:
 ```python
 # Test the plugin detection logic

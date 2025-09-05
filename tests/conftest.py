@@ -62,15 +62,42 @@ def setup_development_mode():
     This fixture automatically runs before any tests to enable dev mode
     if native libraries aren't available.
     """
+    # Store original state
+    original_dev_mode = dev_utils.is_dev_mode_enabled()
+    
     if not is_native_library_available():
         # Enable development mode for tests when native libraries aren't available
         dev_utils.enable_dev_mode()
         yield
-        # Clean up after tests
-        dev_utils.enable_dev_mode(False)
+        # Clean up after tests - always restore original state
+        dev_utils.enable_dev_mode(original_dev_mode)
+        # Reset plugin registry to prevent state contamination
+        _reset_plugin_registry_if_available()
     else:
         # Native libraries are available, no need for dev mode
         yield
+        # Reset plugin registry to prevent state contamination
+        _reset_plugin_registry_if_available()
+
+
+def _reset_plugin_registry_if_available():
+    """Reset plugin registry to prevent test contamination."""
+    try:
+        from pyhelios.plugins.registry import reset_plugin_registry
+        reset_plugin_registry()
+    except ImportError:
+        # Registry module not available, skip reset
+        pass
+
+
+@pytest.fixture(scope="module", autouse=True)
+def reset_plugin_state():
+    """Reset plugin registry state between test modules to prevent contamination."""
+    # Reset at the start of each test module
+    _reset_plugin_registry_if_available()
+    yield
+    # Reset at the end of each test module
+    _reset_plugin_registry_if_available()
 
 
 # No longer skip all tests on non-Windows platforms

@@ -1,5 +1,12 @@
 # Changelog
 
+# [v0.0.8] 2025-09-05
+
+🚨++ New Plug-in Integrated ++ 🚨
+- Stomatal Conductance plug-in integrated with PyHelios
+
+- Made some updates to testing infrastructure to avoid pytest state contamination
+
 # [v0.0.7] 2025-09-04
 
 - Updated Helios native C++ library to v1.3.47
