@@ -65,6 +65,13 @@ except (AttributeError, ImportError):
     MOPTCoefficients = None
     BMFCoefficients = None
     BBCoefficients = None
+
+try:
+    from .PhotosynthesisModel import PhotosynthesisModel, PhotosynthesisModelError
+except (AttributeError, ImportError):
+    # PhotosynthesisModel functions not available in current library
+    PhotosynthesisModel = None
+    PhotosynthesisModelError = None
 from .wrappers import DataTypes as DataTypes
 from . import dev_utils
 from .exceptions import (

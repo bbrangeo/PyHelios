@@ -1,5 +1,17 @@
 # Changelog
 
+# [v0.0.9] 2025-09-06
+
+🚨++ New Plug-in Integrated ++ 🚨
+- Photosynthesis model plug-in integrated with PyHelios
+
+## Stomatal Conductance
+- Fixed a few errors in the stomatal conductance model implementation
+- Corrected a few errors in the stomatal conductance model documentation
+
+## Radiation Model
+- Corrected a few errors in the radiation model documentation
+
 # [v0.0.8] 2025-09-05
 
 🚨++ New Plug-in Integrated ++ 🚨

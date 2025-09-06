@@ -14,13 +14,14 @@ This comprehensive guide provides step-by-step instructions for integrating new 
 8. [Phase 6: Asset Management](#phase-6-asset-management)
 9. [Phase 7: Testing Integration](#phase-7-testing-integration)
 10. [Phase 8: Documentation](#phase-8-documentation)
-11. [Critical Requirements](#critical-requirements)
-12. [Troubleshooting](#troubleshooting)
-13. [Examples from Existing Plugins](#examples-from-existing-plugins)
+11. [Phase 9: Code Review and Quality Assurance](#phase-9-code-review-and-quality-assurance)
+12. [Critical Requirements](#critical-requirements)
+13. [Troubleshooting](#troubleshooting)
+14. [Examples from Existing Plugins](#examples-from-existing-plugins)
 
 ## Overview
 
-PyHelios uses a sophisticated plugin architecture that enables seamless integration of Helios C++ plugins through Python bindings. The integration process involves **8 distinct phases**, each with specific requirements and best practices.
+PyHelios uses a sophisticated plugin architecture that enables seamless integration of Helios C++ plugins through Python bindings. The integration process involves **9 distinct phases**, each with specific requirements and best practices.
 
 ### Architecture Components
 
@@ -1187,70 +1188,7 @@ with Context() as context:
         print(f"Data: {data}")
 ```
 
-## API Reference
-
-### YourPlugin Class
-
-#### Constructor
-
-```python
-YourPlugin(context: Context)
-```
-
-Initialize YourPlugin with a Helios context.
-
-**Parameters:**
-- `context`: Active Helios Context instance
-
-**Raises:**
-- `YourPluginError`: If plugin not available
-- `RuntimeError`: If initialization fails
-
-#### Methods
-
-##### compute_something
-
-```python
-compute_something(parameters: List[float]) -> int
-```
-
-Perform plugin computation with given parameters.
-
-**Parameters:**
-- `parameters`: List of computation parameters
-  - `parameters[0]`: [Description, units, range]
-  - `parameters[1]`: [Description, units, range]
-  - `parameters[2]`: [Description, units, range]
-
-**Returns:**
-- `int`: Computation result [description]
-
-**Raises:**
-- `ValueError`: If parameters are invalid
-- `YourPluginError`: If computation fails
-
-**Example:**
-```python
-result = plugin.compute_something([1.0, 2.0, 3.0])
-```
-
-##### get_data_array
-
-```python
-get_data_array(uuid: int) -> List[float]
-```
-
-Get array data for specified primitive.
-
-**Parameters:**
-- `uuid`: Primitive UUID
-
-**Returns:**
-- `List[float]`: Array of data values
-
-**Raises:**
-- `ValueError`: If UUID is invalid
-- `YourPluginError`: If data retrieval fails
+**IMPORTANT NOTE**: Do NOT include an "API Reference" section in plugin documentation. Doxygen automatically generates comprehensive API documentation from the Python docstrings in your plugin class. Focus on overview, installation, examples, and troubleshooting instead.
 
 ## Examples
 
@@ -2021,4 +1959,198 @@ if not registry.is_plugin_available('visualizer'):
 
 ---
 
-This guide provides comprehensive coverage of PyHelios plugin integration. Following these phases and requirements will ensure successful integration of new Helios plugins while maintaining PyHelios's high standards for cross-platform compatibility, error handling, and user experience.
+## Phase 9: Code Review and Quality Assurance
+
+**CRITICAL FINAL STEP**: After completing all integration phases, conduct a comprehensive code review to ensure production readiness and maintain PyHelios's high quality standards.
+
+### 9.1 Code Review Requirements
+
+**Use the `code-reviewer` sub-agent** to analyze the complete plugin integration holistically:
+
+```bash
+# Request comprehensive code review from Claude Code
+# Focus on the following critical aspects:
+```
+
+**1. Integration Completeness Assessment**
+- [ ] **All 8 integration phases completed**: Verify every step from metadata registration through documentation has been properly implemented
+- [ ] **No missing components**: Check that all required files exist and are properly configured
+- [ ] **Build system integration**: Confirm plugin builds successfully with all dependency combinations
+- [ ] **Asset management**: Verify all runtime assets are identified and properly copied
+
+**2. Implementation Production Readiness**
+- [ ] **100% functional completeness**: Every public method and property works correctly with no stub implementations
+- [ ] **No silent fallbacks**: All error conditions raise appropriate exceptions with actionable messages
+- [ ] **No TODO comments**: No placeholder code or unfinished implementations remain
+- [ ] **No development artifacts**: Remove debugging code, test-only features, or temporary workarounds
+- [ ] **Parameter validation**: All public methods have comprehensive parameter validation using PyHelios decorators
+- [ ] **Memory management**: Proper resource cleanup with context managers and safe pointer handling
+
+**3. Testing Quality and Rigor**
+- [ ] **Comprehensive test coverage**: Tests cover all public methods, error conditions, and edge cases
+- [ ] **No skipped tests**: All tests either pass or are properly marked with platform/dependency requirements
+- [ ] **No mock fallbacks in native tests**: Tests marked `@pytest.mark.native_only` use actual plugin functionality
+- [ ] **Cross-platform compatibility**: Tests run successfully on all supported platforms with appropriate markers
+- [ ] **Integration testing**: Tests verify interaction with other PyHelios components (Context, other plugins)
+- [ ] **Performance validation**: Critical operations meet performance expectations
+- [ ] **Error handling testing**: Exception paths are thoroughly tested with appropriate error types and messages
+
+**4. Documentation Accuracy Verification**
+- [ ] **Line-by-line accuracy**: Every code example compiles and runs correctly
+- [ ] **Parameter documentation**: All method parameters documented with correct names, types, and meanings
+- [ ] **API consistency**: Method names match C++ API exactly (upperCamelCase convention)
+- [ ] **Example validation**: All usage examples have been tested and work as documented
+- [ ] **Installation instructions**: Build and installation steps are current and complete
+- [ ] **Troubleshooting accuracy**: Error scenarios and solutions reflect actual behavior
+- [ ] **System requirements**: Dependencies, platforms, and hardware requirements are accurate
+
+### 9.2 Review Process
+
+**Step 1: Initiate Code Review**
+```bash
+# Use Claude Code's code-reviewer sub-agent for comprehensive analysis
+# Request analysis of the complete plugin integration
+```
+
+**Step 2: Integration Phase Checklist**
+The code reviewer should verify completion of all integration phases:
+
+```
+✅ Phase 1: Plugin Metadata Registration
+   - Plugin registered in plugin_metadata.py
+   - Metadata includes all required fields
+   - Plugin discoverable via discovery commands
+
+✅ Phase 2: Build System Integration  
+   - CMakeLists.txt updated with plugin include directories
+   - Plugin builds with --plugins flag
+   - Asset copying implemented if needed
+   - Added to default builds if appropriate
+
+✅ Phase 3: C++ Interface Implementation
+   - All C++ wrapper functions implemented in pyhelios_interface.cpp
+   - Proper exception handling with try/catch blocks
+   - Parameter validation and type conversion
+   - Library rebuilt with new functions available
+
+✅ Phase 4: ctypes Wrapper Creation
+   - Complete wrapper file created (UYourPluginWrapper.py)
+   - All functions have errcheck callbacks (CRITICAL)
+   - Mock mode implementation for development
+   - Availability detection working correctly
+
+✅ Phase 5: High-Level Python API
+   - User-friendly class with context manager support
+   - Method names match C++ API (upperCamelCase)
+   - Comprehensive error handling and validation
+   - Added to main module imports
+
+✅ Phase 6: Asset Management
+   - All runtime assets identified and documented
+   - Asset copying implemented in build system
+   - Assets available at expected locations
+   - Working directory handling if needed
+
+✅ Phase 7: Testing Integration
+   - Test file named to match plugin exactly
+   - Cross-platform and native-only test coverage
+   - Integration tests with other components
+   - Performance and edge case testing
+
+✅ Phase 8: Documentation
+   - Plugin documentation file created
+   - Doxygen configuration updated
+   - API examples tested and accurate
+   - Troubleshooting guide complete
+```
+
+**Step 3: Quality Standards Verification**
+The code reviewer must confirm the plugin meets PyHelios quality standards:
+
+- **Fail-fast error handling**: No silent fallbacks or misleading return values
+- **Cross-platform compatibility**: Works on Windows, macOS, and Linux
+- **Consistent API patterns**: Follows established PyHelios conventions  
+- **Resource management**: Proper cleanup prevents memory leaks
+- **User experience**: Clear error messages with actionable solutions
+
+**Step 4: Final Integration Test**
+After code review approval, run the complete verification sequence:
+
+```bash
+# Clean build from scratch
+build_scripts/build_helios --clean --plugins yourplugin
+
+# Complete test suite (MANDATORY)
+pytest
+
+# Verify zero failures
+# Success criteria: All tests pass, appropriate tests skipped, zero errors
+```
+
+### 9.3 Review Deliverables
+
+The code reviewer should provide:
+
+1. **Integration Completion Report**: Confirmation all 8 phases completed correctly
+2. **Code Quality Assessment**: Production readiness evaluation
+3. **Test Coverage Analysis**: Verification of comprehensive, rigorous testing
+4. **Documentation Accuracy Report**: Line-by-line verification of all documentation
+5. **Issue Identification**: Any problems requiring resolution before merge
+6. **Approval Status**: Clear go/no-go decision for production deployment
+
+### 9.4 Common Review Findings
+
+Based on previous integrations, watch for these frequent issues:
+
+**Implementation Issues**:
+- Missing errcheck callbacks causing cryptic ctypes errors
+- Incomplete parameter validation allowing invalid inputs
+- Memory management issues causing segmentation faults
+- Asset paths hardcoded instead of using proper working directories
+
+**Testing Issues**:
+- Tests that skip instead of actually testing functionality
+- Mock tests that don't validate real behavior
+- Missing edge case coverage
+- Test isolation problems causing contamination between test modules
+
+**Documentation Issues**:
+- Code examples using wrong parameter names or types
+- Outdated API method names not matching current C++ interface
+- Installation instructions missing platform-specific requirements
+- Error message examples that don't match actual behavior
+
+### 9.5 Final Verification Protocol
+
+**MANDATORY**: Before declaring integration complete, verify:
+
+```bash
+# 1. Clean build succeeds
+build_scripts/build_helios --clean --plugins yourplugin
+
+# 2. Plugin availability detection works
+python -c "from pyhelios.plugins import print_plugin_status; print_plugin_status()"
+
+# 3. Import works correctly
+python -c "from pyhelios import YourPlugin; print('Import successful')"
+
+# 4. Basic functionality test
+python -c "
+from pyhelios import Context, YourPlugin
+with Context() as context:
+    with YourPlugin(context) as plugin:
+        print('Plugin creation successful')
+"
+
+# 5. Complete test suite passes
+pytest
+
+# 6. Documentation builds without errors  
+cd docs && doxygen Doxyfile.python
+```
+
+**Success Criteria**: All commands complete without errors, warnings, or failures.
+
+---
+
+This guide provides comprehensive coverage of PyHelios plugin integration. Following these phases and requirements, **including the mandatory Phase 9 code review**, will ensure successful integration of new Helios plugins while maintaining PyHelios's high standards for cross-platform compatibility, error handling, and user experience.

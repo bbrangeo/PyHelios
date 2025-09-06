@@ -58,6 +58,10 @@ if("energybalance" IN_LIST PLUGINS)
     list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_energybalance.cpp)
 endif()
 
+if("photosynthesis" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_photosynthesis.cpp)
+endif()
+
 if("solarposition" IN_LIST PLUGINS)
     list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_solarposition.cpp)
 endif()
@@ -99,6 +103,12 @@ endif()
 if("energybalance" IN_LIST PLUGINS)
     target_include_directories(pyhelios_interface PRIVATE
         ${BASE_DIRECTORY}/plugins/energybalance/include
+    )
+endif()
+
+if("photosynthesis" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_interface PRIVATE
+        ${BASE_DIRECTORY}/plugins/photosynthesis/include
     )
 endif()
 

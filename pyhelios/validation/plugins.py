@@ -559,3 +559,303 @@ def validate_recursion_level(level: Any, param_name: str = "recursion_level", fu
 def validate_subdivision_count(count: Any, param_name: str = "subdivision_count", function_name: str = None):
     """Validate subdivision count parameters."""
     validate_positive_integer_range(count, min_val=1, max_val=20, param_name=param_name, function_name=function_name)
+
+
+# ============================================================================
+# Photosynthesis Plugin Validation Functions
+# ============================================================================
+
+def validate_species_name(species: Any, param_name: str = "species", function_name: str = None):
+    """Validate species name for photosynthesis library."""
+    from ..types.photosynthesis import validate_species_name as _validate_species
+    
+    if not isinstance(species, str):
+        raise create_validation_error(
+            f"Parameter must be a string, got {type(species).__name__}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="string",
+            actual_value=species,
+            suggestion="Species names must be strings."
+        )
+    
+    try:
+        return _validate_species(species)
+    except ValueError as e:
+        raise create_validation_error(
+            str(e),
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="valid species name",
+            actual_value=species,
+            suggestion="Use one of the available species or aliases. See get_available_species()."
+        )
+
+
+def validate_temperature(temperature: Any, param_name: str = "temperature", function_name: str = None):
+    """Validate temperature values for photosynthesis calculations."""
+    validate_physical_quantity(
+        value=temperature,
+        quantity_name="Temperature",
+        expected_units="K",
+        min_val=200.0,  # Absolute minimum for biological processes
+        max_val=400.0,  # Absolute maximum for biological processes
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_co2_concentration(co2: Any, param_name: str = "co2_concentration", function_name: str = None):
+    """Validate CO2 concentration values for photosynthesis calculations."""
+    validate_physical_quantity(
+        value=co2,
+        quantity_name="CO2 concentration",
+        expected_units="ppm",
+        min_val=50.0,   # Well below atmospheric levels
+        max_val=2000.0, # Well above atmospheric levels for controlled environments
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_photosynthetic_rate(rate: Any, param_name: str = "photosynthetic_rate", function_name: str = None):
+    """Validate photosynthetic rate values."""
+    validate_physical_quantity(
+        value=rate,
+        quantity_name="Photosynthetic rate",
+        expected_units="μmol/m²/s",
+        min_val=0.0,    # Cannot be negative
+        max_val=100.0,  # Reasonable upper limit for most plants
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_conductance(conductance: Any, param_name: str = "conductance", function_name: str = None):
+    """Validate conductance values for photosynthesis calculations."""
+    validate_physical_quantity(
+        value=conductance,
+        quantity_name="Conductance",
+        expected_units="mol/m²/s",
+        min_val=0.0,   # Cannot be negative
+        max_val=10.0,  # Reasonable upper limit
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_par_flux(par_flux: Any, param_name: str = "PAR_flux", function_name: str = None):
+    """Validate PAR flux values for photosynthesis calculations."""
+    validate_physical_quantity(
+        value=par_flux,
+        quantity_name="PAR flux",
+        expected_units="μmol/m²/s",
+        min_val=0.0,     # Cannot be negative
+        max_val=3000.0,  # Very high light conditions
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_empirical_coefficients(coefficients: Any, param_name: str = "coefficients", function_name: str = None):
+    """Validate empirical model coefficients array or dataclass."""
+    # Accept dataclass instances with to_array() method
+    if hasattr(coefficients, 'to_array') and callable(getattr(coefficients, 'to_array')):
+        return  # Dataclass instances are valid
+    
+    if not isinstance(coefficients, (list, tuple)):
+        raise create_validation_error(
+            f"Parameter must be a list or tuple, got {type(coefficients).__name__}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="list or tuple of numbers",
+            actual_value=coefficients,
+            suggestion="Provide coefficients as a list or tuple of numbers."
+        )
+    
+    if len(coefficients) < 10:
+        raise create_validation_error(
+            f"Empirical model coefficients need at least 10 elements, got {len(coefficients)}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="list with >= 10 elements",
+            actual_value=f"length {len(coefficients)}",
+            suggestion="Provide all 10 empirical model coefficients: [Tref, Ci_ref, Asat, theta, Tmin, Topt, q, R, ER, kC]."
+        )
+    
+    for i, coeff in enumerate(coefficients[:10]):
+        if not is_finite_numeric(coeff):
+            raise create_validation_error(
+                f"Coefficient at index {i} must be a finite number, got {coeff} ({type(coeff).__name__})",
+                param_name=f"{param_name}[{i}]",
+                function_name=function_name,
+                expected_type="finite number",
+                actual_value=coeff,
+                suggestion="All coefficients must be finite numbers (not NaN or infinity)."
+            )
+
+
+def validate_farquhar_coefficients(coefficients: Any, param_name: str = "coefficients", function_name: str = None):
+    """Validate Farquhar model coefficients array or dataclass."""
+    # Accept dataclass instances with to_array() method
+    if hasattr(coefficients, 'to_array') and callable(getattr(coefficients, 'to_array')):
+        return  # Dataclass instances are valid
+        
+    if not isinstance(coefficients, (list, tuple)):
+        raise create_validation_error(
+            f"Parameter must be a list or tuple, got {type(coefficients).__name__}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="list or tuple of numbers",
+            actual_value=coefficients,
+            suggestion="Provide coefficients as a list or tuple of numbers."
+        )
+    
+    if len(coefficients) < 18:
+        raise create_validation_error(
+            f"Farquhar model coefficients need at least 18 elements, got {len(coefficients)}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="list with >= 18 elements",
+            actual_value=f"length {len(coefficients)}",
+            suggestion="Provide all 18 Farquhar model coefficients including temperature response parameters."
+        )
+    
+    for i, coeff in enumerate(coefficients[:18]):
+        if not is_finite_numeric(coeff):
+            raise create_validation_error(
+                f"Coefficient at index {i} must be a finite number, got {coeff} ({type(coeff).__name__})",
+                param_name=f"{param_name}[{i}]",
+                function_name=function_name,
+                expected_type="finite number",
+                actual_value=coeff,
+                suggestion="All coefficients must be finite numbers (not NaN or infinity)."
+            )
+
+
+def validate_vcmax(vcmax: Any, param_name: str = "Vcmax", function_name: str = None):
+    """Validate maximum carboxylation rate (Vcmax) parameter.""" 
+    if vcmax == -1.0:
+        # Special case: -1 indicates uninitialized parameter (valid in Farquhar model)
+        return
+    
+    validate_physical_quantity(
+        value=vcmax,
+        quantity_name="Maximum carboxylation rate (Vcmax)",
+        expected_units="μmol/m²/s",
+        min_val=1.0,    # Reasonable minimum
+        max_val=300.0,  # Reasonable maximum for most plants
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_jmax(jmax: Any, param_name: str = "Jmax", function_name: str = None):
+    """Validate maximum electron transport rate (Jmax) parameter."""
+    if jmax == -1.0:
+        # Special case: -1 indicates uninitialized parameter (valid in Farquhar model)
+        return
+    
+    validate_physical_quantity(
+        value=jmax,
+        quantity_name="Maximum electron transport rate (Jmax)",
+        expected_units="μmol/m²/s",
+        min_val=5.0,    # Reasonable minimum
+        max_val=500.0,  # Reasonable maximum for most plants
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_quantum_efficiency(alpha: Any, param_name: str = "alpha", function_name: str = None):
+    """Validate quantum efficiency (alpha) parameter."""
+    if alpha == -1.0:
+        # Special case: -1 indicates uninitialized parameter (valid in Farquhar model)
+        return
+    
+    validate_physical_quantity(
+        value=alpha,
+        quantity_name="Quantum efficiency (alpha)",
+        expected_units="unitless",
+        min_val=0.01,   # Very low efficiency
+        max_val=1.0,    # Theoretical maximum
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_dark_respiration(rd: Any, param_name: str = "Rd", function_name: str = None):
+    """Validate dark respiration rate (Rd) parameter."""
+    if rd == -1.0:
+        # Special case: -1 indicates uninitialized parameter (valid in Farquhar model)
+        return
+    
+    validate_physical_quantity(
+        value=rd,
+        quantity_name="Dark respiration rate (Rd)",
+        expected_units="μmol/m²/s",
+        min_val=0.1,   # Reasonable minimum
+        max_val=20.0,  # Reasonable maximum
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_oxygen_concentration(o2: Any, param_name: str = "oxygen", function_name: str = None):
+    """Validate oxygen concentration for photosynthesis calculations."""
+    validate_physical_quantity(
+        value=o2,
+        quantity_name="Oxygen concentration",
+        expected_units="mmol/mol",
+        min_val=50.0,   # Very low O2 environment
+        max_val=500.0,  # Very high O2 environment  
+        param_name=param_name,
+        function_name=function_name
+    )
+
+
+def validate_temperature_response_params(value_at_25c: Any, dha: Any = None, topt: Any = None, dhd: Any = None,
+                                       param_prefix: str = "", function_name: str = None):
+    """Validate temperature response parameters for photosynthetic processes."""
+    # Validate base value at 25°C
+    validate_physical_quantity(
+        value=value_at_25c,
+        quantity_name=f"{param_prefix} value at 25°C",
+        min_val=0.1,
+        param_name=f"{param_prefix}_at_25C",
+        function_name=function_name
+    )
+    
+    # Validate optional temperature response parameters
+    if dha is not None and dha >= 0:  # -1 means not provided
+        validate_physical_quantity(
+            value=dha,
+            quantity_name=f"{param_prefix} activation energy (dHa)",
+            expected_units="kJ/mol",
+            min_val=10.0,   # Reasonable minimum activation energy
+            max_val=150.0,  # Reasonable maximum activation energy
+            param_name=f"{param_prefix}_dHa",
+            function_name=function_name
+        )
+    
+    if topt is not None and topt >= 0:  # -1 means not provided
+        validate_physical_quantity(
+            value=topt,
+            quantity_name=f"{param_prefix} optimum temperature",
+            expected_units="°C",
+            min_val=15.0,   # Reasonable minimum
+            max_val=55.0,   # Reasonable maximum
+            param_name=f"{param_prefix}_Topt",
+            function_name=function_name
+        )
+    
+    if dhd is not None and dhd >= 0:  # -1 means not provided
+        validate_physical_quantity(
+            value=dhd,
+            quantity_name=f"{param_prefix} deactivation energy (dHd)",
+            expected_units="kJ/mol",
+            min_val=100.0,  # Reasonable minimum deactivation energy
+            max_val=1000.0, # Reasonable maximum deactivation energy
+            param_name=f"{param_prefix}_dHd",
+            function_name=function_name
+        )

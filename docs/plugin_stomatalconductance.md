@@ -41,10 +41,11 @@ python -c "from pyhelios.plugins import print_plugin_status; print_plugin_status
 
 ```python
 from pyhelios import Context, StomatalConductanceModel, BMFCoefficients
+from pyhelios.types import vec3, vec2
 
 # Create context and add leaf geometry
 with Context() as context:
-    leaf_uuid = context.addPatch(center=[0, 0, 1], size=[0.1, 0.1])
+    leaf_uuid = context.addPatch(center=vec3(0, 0, 1), size=vec2(0.1, 0.1))
     
     with StomatalConductanceModel(context) as stomatal:
         # Use species library for quick setup
@@ -224,9 +225,13 @@ setBMFCoefficientsFromLibrary(species: str, uuids: Optional[List[int]] = None) -
 Set BMF coefficients using the built-in species library with pre-calibrated values.
 
 **Available Species:**
-- **Tree crops**: Almond, Apple, Avocado, Cherry, Lemon, Orange, Peach, Pear, Plum, Walnut
+- **Tree crops**: Almond, Apple, Cherry, Pear, Prune, Walnut
+- **Nut crops**: PistachioFemale, PistachioMale  
 - **Vine crops**: Grape
+- **Ornamental/Native**: Big_Leaf_Maple, Baylaurel, Elderberry, EasternRedbud, Toyon, Western_Redbud
 - **Other**: Olive
+
+*Note: Species names are case-sensitive and must match exactly as listed above.*
 
 **Parameters:**
 - `species`: Species name from library
@@ -280,19 +285,15 @@ optionalOutputPrimitiveData(label: str) -> None
 
 Add optional output primitive data to the Context for result analysis.
 
-**Common Output Variables:**
-- `"gs"`: Stomatal conductance (mol/m²/s)
-- `"Ci"`: Intercellular CO₂ concentration (μmol/mol)  
-- `"E"`: Transpiration rate (mmol/m²/s)
-- `"A"`: Net photosynthesis rate (μmol/m²/s)
-- `"WUE"`: Water use efficiency (μmol CO₂/mmol H₂O)
+**Valid Output Variables:**
+- `"vapor_pressure_deficit"`: Vapor pressure deficit (kPa)
+- `"model_parameters"`: Model parameters and coefficients
 
 **Example:**
 ```python
-# Output key gas exchange variables
-stomatal.optionalOutputPrimitiveData("gs")
-stomatal.optionalOutputPrimitiveData("Ci") 
-stomatal.optionalOutputPrimitiveData("E")
+# Output available stomatal conductance data
+stomatal.optionalOutputPrimitiveData("vapor_pressure_deficit")
+stomatal.optionalOutputPrimitiveData("model_parameters")
 ```
 
 #### printDefaultValueReport
@@ -318,43 +319,44 @@ stomatal.printDefaultValueReport(uuids=[leaf1_uuid, leaf2_uuid])
 
 ```python
 from pyhelios import Context, StomatalConductanceModel
+from pyhelios.types import vec3, vec2
 
 with Context() as context:
     # Create leaf geometry
-    leaf_uuid = context.addPatch(center=[0, 0, 1], size=[0.1, 0.1])
+    leaf_uuid = context.addPatch(center=vec3(0, 0, 1), size=vec2(0.1, 0.1))
     
     with StomatalConductanceModel(context) as stomatal:
         # Use species library for quick setup
         stomatal.setBMFCoefficientsFromLibrary("Almond")
         
         # Add output variables
-        stomatal.optionalOutputPrimitiveData("gs")
-        stomatal.optionalOutputPrimitiveData("Ci")
+        stomatal.optionalOutputPrimitiveData("vapor_pressure_deficit")
+        stomatal.optionalOutputPrimitiveData("model_parameters")
         
         # Run steady-state calculation
         stomatal.run()
         
-        # Get results
-        gs_values = context.getPrimitiveData(leaf_uuid, "gs")
-        ci_values = context.getPrimitiveData(leaf_uuid, "Ci")
+        # Get results (returns single float value per primitive)
+        vpd_values = context.getPrimitiveData(leaf_uuid, "vapor_pressure_deficit")
+        model_params = context.getPrimitiveData(leaf_uuid, "model_parameters")
         
-        print(f"Stomatal conductance: {gs_values} mol/m²/s")
-        print(f"Intercellular CO2: {ci_values} μmol/mol")
+        print(f"Vapor pressure deficit: {vpd_values} kPa")
+        print(f"Model parameters: {model_params}")
 ```
 
 ### Dynamic Stomatal Response Simulation
 
 ```python
 from pyhelios import Context, StomatalConductanceModel
-from pyhelios.types import SphericalCoord
+from pyhelios.types import SphericalCoord, vec3, vec2
 
 with Context() as context:
     # Create multiple leaves with different orientations
     leaf_uuids = []
     for angle in [0, 30, 60, 90]:  # degrees
         leaf_uuid = context.addPatch(
-            center=[0, 0, 1], 
-            size=[0.1, 0.1],
+            center=vec3(0, 0, 1), 
+            size=vec2(0.1, 0.1),
             rotation=SphericalCoord(1, 0, angle)  # radius=1, elevation=0, azimuth=angle
         )
         leaf_uuids.append(leaf_uuid)
@@ -367,8 +369,8 @@ with Context() as context:
         stomatal.setDynamicTimeConstants(tau_open=120.0, tau_close=300.0)
         
         # Add output variables
-        stomatal.optionalOutputPrimitiveData("gs")
-        stomatal.optionalOutputPrimitiveData("E")
+        stomatal.optionalOutputPrimitiveData("vapor_pressure_deficit")
+        stomatal.optionalOutputPrimitiveData("model_parameters")
         
         # Simulate timesteps
         timestep = 60.0  # 60 seconds
@@ -377,8 +379,8 @@ with Context() as context:
             
             # Get current values
             for i, leaf_uuid in enumerate(leaf_uuids):
-                gs = context.getPrimitiveData(leaf_uuid, "gs")
-                print(f"Time {t}s, Leaf {i}: gs = {gs} mol/m²/s")
+                vpd = context.getPrimitiveData(leaf_uuid, "vapor_pressure_deficit")
+                print(f"Time {t}s, Leaf {i}: VPD = {vpd} kPa")
 ```
 
 ### Multi-Model Comparison
@@ -386,13 +388,14 @@ with Context() as context:
 ```python
 from pyhelios import (Context, StomatalConductanceModel, 
                      BWBCoefficients, BBLCoefficients, MOPTCoefficients)
+from pyhelios.types import vec3, vec2
 
 with Context() as context:
-    leaf_uuid = context.addPatch(center=[0, 0, 1], size=[0.1, 0.1])
+    leaf_uuid = context.addPatch(center=vec3(0, 0, 1), size=vec2(0.1, 0.1))
     
     with StomatalConductanceModel(context) as stomatal:
         # Add output variable
-        stomatal.optionalOutputPrimitiveData("gs")
+        stomatal.optionalOutputPrimitiveData("vapor_pressure_deficit")
         
         models = {
             "BWB": BWBCoefficients(gs0=0.0733, a1=9.422),
@@ -412,18 +415,19 @@ with Context() as context:
                 stomatal.setMOPTCoefficients(coeffs)
             
             stomatal.run()
-            gs = context.getPrimitiveData(leaf_uuid, "gs")
-            results[model_name] = gs
+            vpd = context.getPrimitiveData(leaf_uuid, "vapor_pressure_deficit")
+            results[model_name] = vpd
             
         # Compare results
-        for model_name, gs in results.items():
-            print(f"{model_name} model: gs = {gs} mol/m²/s")
+        for model_name, vpd in results.items():
+            print(f"{model_name} model: VPD = {vpd} kPa")
 ```
 
 ### Integration with Tree Geometry
 
 ```python
 from pyhelios import Context, WeberPennTree, WPTType, StomatalConductanceModel
+from pyhelios.types import *
 
 with Context() as context:
     # Generate tree geometry
@@ -441,26 +445,27 @@ with Context() as context:
         stomatal.setDynamicTimeConstants(tau_open=180.0, tau_close=360.0)
         
         # Add output variables
-        stomatal.optionalOutputPrimitiveData("gs")
-        stomatal.optionalOutputPrimitiveData("E")
-        stomatal.optionalOutputPrimitiveData("WUE")
+        stomatal.optionalOutputPrimitiveData("vapor_pressure_deficit")
+        stomatal.optionalOutputPrimitiveData("model_parameters")
         
         # Run for all leaves
         stomatal.run()
         
         # Analyze results by canopy position
-        total_transpiration = 0
+        avg_vpd = 0
         for leaf_uuid in leaf_uuids:
-            E = context.getPrimitiveData(leaf_uuid, "E")
-            total_transpiration += E
+            vpd = context.getPrimitiveData(leaf_uuid, "vapor_pressure_deficit")
+            avg_vpd += vpd
             
-        print(f"Total tree transpiration: {total_transpiration} mmol/s")
+        avg_vpd = avg_vpd / len(leaf_uuids)
+        print(f"Average tree VPD: {avg_vpd} kPa")
 ```
 
 ## Error Handling
 
 ```python
-from pyhelios import Context, StomatalConductanceModel, StomatalConductanceModelError
+from pyhelios import Context, StomatalConductanceModel
+from pyhelios.StomatalConductance import StomatalConductanceModelError
 
 with Context() as context:
     try:
@@ -504,9 +509,10 @@ If you see "StomatalConductanceModel not available" errors:
 - Check coefficient units and typical ranges
 
 **Species not found:**
-- Use exact species names: "Almond", "Apple", "Grape", etc.
-- Case-sensitive species names
-- Limited to pre-calibrated species in library
+- Use exact species names: "Almond", "Apple", "Cherry", "Grape", "PistachioFemale", etc.
+- Species names are case-sensitive  
+- Only pre-calibrated species in library are available (see Available Species section above)
+- Note: "Avocado", "Lemon", "Orange", "Peach", "Plum" are NOT available in the current library
 
 ### Runtime Calculation Errors
 
@@ -514,6 +520,10 @@ If you see "StomatalConductanceModel not available" errors:
 - Check input environmental conditions (temperature, humidity, radiation)
 - Ensure primitive data has required variables (CO2, light, etc.)
 - Validate that Context contains proper environmental setup
+
+**Invalid optionalOutputPrimitiveData variables:**
+- Only "vapor_pressure_deficit" and "model_parameters" are valid
+- Using invalid variables like "gs", "Ci", "E", "A", "WUE" will result in warnings and no data output
 
 **Slow convergence:**
 - Check dynamic time constants are appropriate for timestep

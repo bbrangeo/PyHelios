@@ -12,7 +12,13 @@ from .plugins import (
     validate_flux_value, validate_ray_count, validate_direction_vector,
     validate_angle_degrees, validate_scaling_factor, validate_uuid_list,
     validate_tree_id, validate_segment_resolution, validate_filename,
-    validate_recursion_level, validate_subdivision_count, validate_time_value
+    validate_recursion_level, validate_subdivision_count, validate_time_value,
+    # Photosynthesis validation functions
+    validate_species_name, validate_temperature, validate_co2_concentration,
+    validate_photosynthetic_rate, validate_conductance, validate_par_flux,
+    validate_empirical_coefficients, validate_farquhar_coefficients,
+    validate_vcmax, validate_jmax, validate_quantum_efficiency, validate_dark_respiration,
+    validate_oxygen_concentration, validate_temperature_response_params
 )
 from .datatypes import validate_vec3, validate_rgb_color
 from .core import validate_positive_value, validate_non_negative_value
@@ -400,4 +406,154 @@ def validate_print_window_params(func: Callable) -> Callable:
         validate_filename(filename, "filename", func.__name__, 
                          allowed_extensions=['.png', '.jpg', '.jpeg', '.bmp', '.tga'])
         return func(self, filename, *args, **kwargs)
+    return wrapper
+
+
+# Photosynthesis decorators
+def validate_photosynthesis_species_params(func: Callable) -> Callable:
+    """Validate photosynthesis species parameters."""
+    @wraps(func)
+    def wrapper(self, species: str, *args, **kwargs):
+        validate_species_name(species, "species", func.__name__)
+        return func(self, species, *args, **kwargs)
+    return wrapper
+
+
+def validate_photosynthesis_temperature_params(func: Callable) -> Callable:
+    """Validate temperature parameters for photosynthesis."""
+    @wraps(func)
+    def wrapper(self, temperature: float, *args, **kwargs):
+        validate_temperature(temperature, "temperature", func.__name__)
+        return func(self, temperature, *args, **kwargs)
+    return wrapper
+
+
+def validate_photosynthesis_co2_params(func: Callable) -> Callable:
+    """Validate CO2 concentration parameters."""
+    @wraps(func)
+    def wrapper(self, co2_concentration: float, *args, **kwargs):
+        validate_co2_concentration(co2_concentration, "co2_concentration", func.__name__)
+        return func(self, co2_concentration, *args, **kwargs)
+    return wrapper
+
+
+def validate_photosynthesis_par_params(func: Callable) -> Callable:
+    """Validate PAR flux parameters."""
+    @wraps(func)
+    def wrapper(self, par_flux: float, *args, **kwargs):
+        validate_par_flux(par_flux, "par_flux", func.__name__)
+        return func(self, par_flux, *args, **kwargs)
+    return wrapper
+
+
+def validate_photosynthesis_conductance_params(func: Callable) -> Callable:
+    """Validate conductance parameters."""
+    @wraps(func)
+    def wrapper(self, conductance: float, *args, **kwargs):
+        validate_conductance(conductance, "conductance", func.__name__)
+        return func(self, conductance, *args, **kwargs)
+    return wrapper
+
+
+def validate_empirical_model_params(func: Callable) -> Callable:
+    """Validate empirical model coefficient parameters."""
+    @wraps(func)
+    def wrapper(self, coefficients, *args, **kwargs):
+        validate_empirical_coefficients(coefficients, "coefficients", func.__name__)
+        return func(self, coefficients, *args, **kwargs)
+    return wrapper
+
+
+def validate_farquhar_model_params(func: Callable) -> Callable:
+    """Validate Farquhar model coefficient parameters."""
+    @wraps(func)
+    def wrapper(self, coefficients, *args, **kwargs):
+        validate_farquhar_coefficients(coefficients, "coefficients", func.__name__)
+        return func(self, coefficients, *args, **kwargs)
+    return wrapper
+
+
+def validate_vcmax_params(func: Callable) -> Callable:
+    """Validate Vcmax parameters for Farquhar model."""
+    @wraps(func)
+    def wrapper(self, vcmax: float, *args, **kwargs):
+        validate_vcmax(vcmax, "vcmax", func.__name__)
+        return func(self, vcmax, *args, **kwargs)
+    return wrapper
+
+
+def validate_jmax_params(func: Callable) -> Callable:
+    """Validate Jmax parameters for Farquhar model."""
+    @wraps(func)
+    def wrapper(self, jmax: float, *args, **kwargs):
+        validate_jmax(jmax, "jmax", func.__name__)
+        return func(self, jmax, *args, **kwargs)
+    return wrapper
+
+
+def validate_quantum_efficiency_params(func: Callable) -> Callable:
+    """Validate quantum efficiency parameters."""
+    @wraps(func)
+    def wrapper(self, efficiency: float, *args, **kwargs):
+        validate_quantum_efficiency(efficiency, "efficiency", func.__name__)
+        return func(self, efficiency, *args, **kwargs)
+    return wrapper
+
+
+def validate_dark_respiration_params(func: Callable) -> Callable:
+    """Validate dark respiration parameters."""
+    @wraps(func)
+    def wrapper(self, respiration: float, *args, **kwargs):
+        validate_dark_respiration(respiration, "respiration", func.__name__)
+        return func(self, respiration, *args, **kwargs)
+    return wrapper
+
+
+def validate_oxygen_concentration_params(func: Callable) -> Callable:
+    """Validate oxygen concentration parameters."""
+    @wraps(func)
+    def wrapper(self, o2_concentration: float, *args, **kwargs):
+        validate_oxygen_concentration(o2_concentration, "o2_concentration", func.__name__)
+        return func(self, o2_concentration, *args, **kwargs)
+    return wrapper
+
+
+def validate_temperature_response_params(func: Callable) -> Callable:
+    """Validate temperature response parameters."""
+    @wraps(func)
+    def wrapper(self, params, *args, **kwargs):
+        validate_temperature_response_params(params, "params", func.__name__)
+        return func(self, params, *args, **kwargs)
+    return wrapper
+
+
+def validate_photosynthesis_rate_params(func: Callable) -> Callable:
+    """Validate photosynthetic rate parameters."""
+    @wraps(func)
+    def wrapper(self, rate: float, *args, **kwargs):
+        validate_photosynthetic_rate(rate, "rate", func.__name__)
+        return func(self, rate, *args, **kwargs)
+    return wrapper
+
+
+def validate_photosynthesis_uuid_params(func: Callable) -> Callable:
+    """Validate UUID parameters for photosynthesis methods."""
+    @wraps(func)
+    def wrapper(self, uuids: Union[List[int], int], *args, **kwargs):
+        if isinstance(uuids, int):
+            # Single UUID - validate as non-negative integer (UUIDs start from 0)
+            validate_non_negative_value(uuids, "uuids", func.__name__)
+        elif isinstance(uuids, list):
+            validate_uuid_list(uuids, "uuids", func.__name__, allow_empty=False)
+        else:
+            from .exceptions import create_validation_error
+            raise create_validation_error(
+                f"Parameter must be an integer or list of integers, got {type(uuids).__name__}",
+                param_name="uuids",
+                function_name=func.__name__,
+                expected_type="integer or list of integers",
+                actual_value=uuids,
+                suggestion="Provide a UUID (integer) or list of UUIDs."
+            )
+        return func(self, uuids, *args, **kwargs)
     return wrapper

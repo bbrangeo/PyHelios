@@ -90,9 +90,18 @@ for band, description in bands.items():
 # Default collimated source (verified methods)
 source_id = radiation.addCollimatedRadiationSource()
 
-# Source with specific direction vector
+# Source with specific direction vector (accepts tuple, vec3, or SphericalCoord)
 source_id = radiation.addCollimatedRadiationSource(
-    direction=(0.3, 0.3, -0.9)  # Sun angle
+    direction=(0.3, 0.3, -0.9)  # tuple: (x, y, z)
+)
+
+# Alternative formats for direction parameter
+source_id = radiation.addCollimatedRadiationSource(
+    direction=vec3(0.3, 0.3, -0.9)  # vec3 object
+)
+
+source_id = radiation.addCollimatedRadiationSource(
+    direction=SphericalCoord(1.0, 45.0, 135.0)  # spherical coordinates
 )
 
 # Set source flux
@@ -300,24 +309,25 @@ print(f"  Std Dev: {std_flux:.2f} W")
 
 ```python
 from pyhelios import Context, WeberPennTree, WPTType, RadiationModel
+from pyhelios.exceptions import RadiationModelError
 from pyhelios.types import *
 
-# Create scene
-context = Context()
-
-# Add ground plane
-ground_uuid = context.addPatch(
-    center=vec3(0, 0, 0),
-    size=vec2(10, 10),
-    color=RGBcolor(0.3, 0.2, 0.1)
-)
-
-# Generate tree
-wpt = WeberPennTree(context)
-tree_id = wpt.buildTree(WPTType.LEMON)
-
-# Run radiation simulation
 try:
+    # Create scene
+    context = Context()
+
+    # Add ground plane
+    ground_uuid = context.addPatch(
+        center=vec3(0, 0, 0),
+        size=vec2(10, 10),
+        color=RGBcolor(0.3, 0.2, 0.1)
+    )
+
+    # Generate tree
+    wpt = WeberPennTree(context)
+    tree_id = wpt.buildTree(WPTType.LEMON)
+
+    # Run radiation simulation
     with RadiationModel(context) as radiation:
         # Configure multiple radiation bands for comprehensive analysis
         radiation.addRadiationBand("PAR")  # Photosynthetically Active Radiation
@@ -371,6 +381,13 @@ try:
         for band in ["PAR", "NIR", "SW"]:
             print(f"Band {band} results available in primitive data: radiation_flux_{band}")
 
+except RadiationModelError as e:
+    print(f"Radiation modeling failed: {e}")
+    print("Ensure NVIDIA GPU with CUDA support is available")
+    print("Check that radiation plugin is compiled: build_scripts/build_helios --plugins radiation")
+except Exception as e:
+    print(f"Simulation setup failed: {e}")
+    print("Check geometry creation and tree generation parameters")
 ```
 
 ### Data Storage
@@ -396,7 +413,9 @@ context.colorPrimitiveByDataPseudocolor(
 )
 ```
 
-## Camera and Image Functions (v1.3.47)
+## Camera and Image Functions
+
+> **Note**: Camera functions are available in Helios core v1.3.47+ and PyHelios v0.0.4+
 
 The RadiationModel now includes advanced camera functionality for generating synthetic images, object detection training data, and auto-calibrated imagery.
 
@@ -552,6 +571,7 @@ for algorithm, description in algorithms.items():
 
 ```python
 from pyhelios import Context, WeberPennTree, WPTType, RadiationModel
+from pyhelios.exceptions import RadiationModelError
 from pyhelios.types import *
 
 # Create scene with labeled geometry
@@ -679,12 +699,13 @@ except RuntimeError as e:
 ## Error Handling
 
 ```python
+from pyhelios import RadiationModel
 from pyhelios.exceptions import HeliosGPUInitializationError
 
 try:
     radiation = RadiationModel(context)
     
-except RadiationModelError as e:
+except Exception as e:
     print(f"RadiationModel initialization failed: {e}")
     
     # Check if GPU is available
@@ -692,9 +713,8 @@ except RadiationModelError as e:
         print("Ensure NVIDIA GPU with CUDA support is available")
     elif "OptiX" in str(e):
         print("OptiX runtime error - check graphics drivers")
-        
-except HeliosGPUInitializationError as e:
-    print(f"GPU initialization failed: {e}")
+    elif "GPU" in str(e):
+        print(f"GPU initialization failed: {e}")
 ```
 
 ## Build Requirements
