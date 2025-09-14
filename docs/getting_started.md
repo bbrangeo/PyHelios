@@ -27,7 +27,22 @@ PyHelios provides cross-platform Python bindings for the Helios 3D plant simulat
 
 ## Installation {#Installation}
 
-### Platform-Specific Installation
+### Quick Install (Recommended)
+
+**Easy Install:**
+```bash
+pip install pyhelios3d
+```
+
+This installs pre-built PyHelios with platform-appropriate plugins:
+- **Windows/Linux**: All plugins including GPU acceleration (when hardware supports it)
+- **macOS**: All plugins except GPU-accelerated ones (automatically detected)
+
+PyHelios will gracefully handle GPU features - if you don't have CUDA-capable hardware, GPU plugins will display helpful error messages with setup instructions.
+
+### Build from Source (Advanced)
+
+If you need to customize plugins or build from source:
 
 #### Windows
 
@@ -40,7 +55,7 @@ PyHelios provides cross-platform Python bindings for the Helios 3D plant simulat
 git clone --recursive https://github.com/PlantSimulationLab/PyHelios.git
 cd PyHelios/
 
-# Build native libraries (required)
+# Build native libraries (optional - pre-built binaries included)
 ./build_scripts/build_helios
 
 # Install PyHelios
@@ -105,10 +120,36 @@ pip install -e .[dev]
 pytest
 ```
 
-### GPU Support
+### GPU Features Setup
 
-For GPU-accelerated radiation modeling:
+If you want to use GPU-accelerated features (radiation modeling, energy balance modeling), ensure you have:
 
+**Requirements:**
+- NVIDIA GPU with CUDA support
+- NVIDIA drivers installed
+- CUDA Toolkit (version 11.8 or 12.x)
+
+**Verification:**
+```bash
+nvidia-smi  # Should show GPU information
+nvcc --version  # Should show CUDA compiler version
+```
+
+**Testing GPU Features:**
+```python
+from pyhelios import Context, RadiationModel
+
+context = Context()
+try:
+    radiation = RadiationModel(context)
+    print("GPU radiation modeling available!")
+except RuntimeError as e:
+    print(f"GPU features unavailable: {e}")
+```
+
+If GPU features fail, PyHelios will provide specific guidance on installation and setup requirements.
+
+**Build from Source with GPU Support:**
 ```bash
 # Install CUDA toolkit (varies by platform)
 # Then build with all plugins (includes radiation with GPU support)
@@ -241,7 +282,7 @@ print_plugin_status()
 
 **Import Error**: 
 - Verify Python version: `python --version`
-- Check installation: `pip list | grep pyhelios`
+- Check installation: `pip list | grep pyhelios3d`
 
 **Missing Native Libraries**:
 - Build libraries: `build_scripts/build_helios`

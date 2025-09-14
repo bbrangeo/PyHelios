@@ -9,8 +9,18 @@ build/
 *.egg-info/
 *.egg
 
+# Generated assets and libraries for wheel packaging (created by prepare_wheel.py)
+pyhelios/assets/build/
+# Track Python source files in plugins but ignore binary libraries
+pyhelios/plugins/*.so
+pyhelios/plugins/*.dll  
+pyhelios/plugins/*.dylib
+
 # Auto-generated version file (setuptools-scm)
 pyhelios/_version.py
+
+# Auto-generated documentation
+docs/generated/
 
 # IDEs and editors
 .vscode/

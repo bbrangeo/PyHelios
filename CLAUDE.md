@@ -438,11 +438,13 @@ pytest tests/test_context.py -v
 For ANY changes to C++ interface files (native/src/*, native/include/*, pyhelios_build/*), ctypes wrappers, or core functionality, you MUST complete this verification sequence:
 
 1. **Full Native Rebuild**: Run `build_scripts/build_helios --clean` to rebuild from scratch
-2. **Complete Test Suite**: Run `pytest` (not individual tests) to verify ALL tests pass
+2. **Complete Test Suite**: Run `pytest` (uses subprocess isolation for robust testing) to verify ALL tests pass
 3. **Zero Tolerance**: Any failing tests must be fixed before declaring success
 4. **No Shortcuts**: Never skip the full test suite even if "individual tests pass"
 
 This protocol is NON-NEGOTIABLE and must be completed regardless of time constraints or apparent simplicity of changes.
+
+**Note**: PyHelios uses pytest-forked for subprocess isolation, preventing ctypes contamination and ensuring reliable test results across all test execution patterns.
 
 **GitHub CI/CD Integration:**
 - Comprehensive CI/CD workflows test PyHelios across all platforms
@@ -460,17 +462,20 @@ This protocol is NON-NEGOTIABLE and must be completed regardless of time constra
 - **Platform detection**: Use `from pyhelios.plugins import get_plugin_info` to check current status and library availability
 
 **Testing and Development Workflow:**
-- **Comprehensive test suite**: 86 passing tests, 60 properly skipped, zero failures/errors/warnings
+- **Comprehensive test suite**: 477 passing tests, 70 properly skipped, zero failures/errors/warnings
+- **Subprocess isolation**: pytest-forked prevents ctypes contamination and state interference between tests
 - **Cross-platform testing**: Run `pytest` on any platform - tests automatically adapt to available libraries
 - **Mock mode development**: Develop and test PyHelios functionality without requiring native library compilation
 - **Test categories**: Use `pytest -m cross_platform` for platform-independent tests, `pytest -m native_only` for native library tests
+- **Robust test execution**: Tests pass consistently whether run individually or as part of full suite
 
 **MANDATORY: Final Verification Checklist**
 Before declaring ANY task complete involving C++/Python interface changes:
 □ Built native libraries from scratch using `build_scripts/build_helios --clean`
-□ Ran complete `pytest` suite (not selective tests)
+□ Ran complete `pytest` suite (automatically uses subprocess isolation)
 □ All tests pass with zero failures
-□ No regressions introduced in any module
+□ No regressions introduced in any module  
+□ Test session shows "plugins: forked-X.X.X" confirming subprocess isolation is active
 □ Changes committed to git if task involves file modifications
 
 Failure to complete this checklist constitutes incomplete task execution.
@@ -619,3 +624,39 @@ nodes_vec.reserve(node_count);  // Pre-allocate - CRITICAL for performance
 ```cpp
 static thread_local std::vector<unsigned int> static_result;  // Not just static
 ```
+
+## MCP: Knowledge-graph memory policy
+
+- Server alias: `memory` (added via `claude mcp add memory npx:@modelcontextprotocol/server-memory`).
+- Purpose: persist structured facts and relationships about this repo, projects, and collaborators using the knowledge-graph memory tools.
+- Safety: summarize what you plan to store before writing; do not store secrets or API keys.
+
+### When to write memory
+Trigger a write when any of the following occur:
+1. A new project, module, or dataset is introduced.
+2. A design decision or convention is finalized.
+3. A collaborator’s role, preference, or responsibility is clarified.
+
+### How to write memory
+Use the server’s tools rather than free-form text. Prefer the smallest useful graph entries.
+
+1. Create entities  
+Run the MCP tool `create_entities` with fields `name`, `entityType`, and `observations`. Example:
+- “Create an entity for the library ‘Helios EnergyBalanceModel’ with observation summarizing the inputs, outputs, and key files.”
+
+2. Add relations  
+Run `create_relations` to connect entities. Example:
+- “Link ‘Helios EnergyBalanceModel’ to ‘SurfaceEnergyBalance’ with relationType ‘implements’.”
+
+3. Update or annotate  
+Use `append_observations` to add a brief dated note when behavior or conventions change.
+
+### When to read memory
+Before large refactors, onboarding explanations, or when the task mentions prior decisions, call `search_entities` or `search_relations` with a concise query, then cite what you found.
+
+### Usage examples
+- “Search memory for entities about ‘Helios’ and ‘stomatal conductance’ and summarize relevant observations.”
+- “Create entities for ‘GEMINI project’ (type: project) and ‘Nonpareil orchard dataset’ (type: dataset), then relate them with relationType ‘uses’.”
+
+### References inside prompts
+- To reference MCP resources or trigger tools, you can type `/mcp` in Claude Code to view available servers and tools, or mention the server by name in your instruction, e.g., “Using the `memory` server, run `search_entities` for ‘trellis’.” See Anthropic’s MCP guide for listing and managing servers. 

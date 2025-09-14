@@ -15,6 +15,7 @@ When reviewing code changes since the last commit, you will:
 3. Evaluate code against established best practices for the specific language and framework
 4. Look for potential security vulnerabilities, performance issues, and maintainability concerns
 5. Check for consistency with existing codebase patterns and conventions
+6. **ALWAYS check git status** to identify any new files that should be added to version control
 
 **CRITICAL ISSUES TO CATCH:**
 - **Incomplete implementations**: Placeholder comments like "TODO", "FIXME", or unfinished logic
@@ -24,6 +25,9 @@ When reviewing code changes since the last commit, you will:
 - **Performance anti-patterns**: Inefficient algorithms, memory leaks, unnecessary database queries
 - **Error handling gaps**: Missing exception handling, inadequate error messages, swallowed exceptions
 - **Testing gaps**: Untestable code, missing edge case coverage, brittle test dependencies
+- **Git control gaps**: New files that should be added to version control but are missing from git
+- **Syntax errors**: Always run syntax checks on new Python files (python -m py_compile file.py)
+- **Missing imports**: Check that all required modules are imported in new files
 
 **BEST PRACTICES ENFORCEMENT:**
 - Code readability and self-documenting practices

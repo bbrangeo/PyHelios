@@ -19,7 +19,7 @@ try:
 except ImportError:
     HAS_YAML = False
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 # Load plugin configurations directly to avoid pyhelios library loading
 # We'll import the config data directly by reading and executing the files
@@ -88,7 +88,7 @@ class HeliosBuilder:
         }
     }
     
-    def __init__(self, helios_root: Path, output_dir: Path, plugins: Optional[List[str]] = None, buildmode: str = 'release'):
+    def __init__(self, helios_root, output_dir, plugins=None, buildmode='release'):
         """
         Initialize the Helios builder.
         
@@ -111,7 +111,7 @@ class HeliosBuilder:
         self.buildmode = buildmode.title()  # Convert to CMake format (Debug, Release, RelWithDebInfo)
         
         if self.platform_name not in self.PLATFORM_CONFIG:
-            raise HeliosBuildError(f"Unsupported platform: {self.platform_name}")
+            raise HeliosBuildError("Unsupported platform: {}".format(self.platform_name))
         
         # Get base config and update for architecture and build mode
         self.config = self.PLATFORM_CONFIG[self.platform_name].copy()
@@ -123,8 +123,73 @@ class HeliosBuilder:
         self.dependency_resolver = PluginDependencyResolver()
     
     def _detect_architecture(self) -> str:
-        """Detect the current architecture (x86_64, arm64, etc.)."""
-        # First try platform.machine() which gives the most accurate result
+        """Detect the target architecture for wheel building (Python target, not system)."""
+        import sysconfig
+        import os
+        
+        # Check if we're in a cibuildwheel environment - use Python target architecture
+        if os.environ.get('CIBUILDWHEEL') == '1':
+            print("Detected cibuildwheel environment - using Python target architecture")
+            
+            # First check for platform override from cibuildwheel
+            auditwheel_plat = os.environ.get('AUDITWHEEL_PLAT', '')
+            if auditwheel_plat:
+                if 'arm64' in auditwheel_plat:
+                    print("AUDITWHEEL_PLAT indicates arm64: {}".format(auditwheel_plat))
+                    return 'arm64'
+                elif 'x86_64' in auditwheel_plat:
+                    print("AUDITWHEEL_PLAT indicates x86_64: {}".format(auditwheel_plat))
+                    return 'x64'
+            
+            # Use enhanced detection method for Python 3.8 compatibility on Apple Silicon
+            # Check HOST_GNU_TYPE which is more reliable than sysconfig.get_platform()
+            config_vars = sysconfig.get_config_vars()
+            host_gnu_type = config_vars.get('HOST_GNU_TYPE', '')
+            print("Python HOST_GNU_TYPE: {}".format(host_gnu_type))
+            
+            if host_gnu_type and 'arm64' in host_gnu_type and 'apple' in host_gnu_type:
+                print("Detected native ARM64 Python interpreter")
+                return 'arm64'
+            elif host_gnu_type and 'x86_64' in host_gnu_type:
+                print("Detected x86_64 Python interpreter (may be running under Rosetta)")
+                return 'x64'
+            
+            # Fallback to sysconfig platform detection  
+            platform_str = sysconfig.get_platform()
+            print("Python target platform from sysconfig: {}".format(platform_str))
+            
+            # For Python 3.8 on Apple Silicon, test ctypes architecture expectations
+            # since ctypes may expect x86_64 even if sysconfig reports arm64
+            if 'arm64' in platform_str:
+                print("WARNING: Python 3.8 on Apple Silicon detected - testing ctypes compatibility")
+                ctypes_arch = self._test_ctypes_architecture()
+                if ctypes_arch:
+                    print("ctypes architecture test result: {}".format(ctypes_arch))
+                    return ctypes_arch
+                else:
+                    print("ctypes architecture test failed - falling back to ARM64")
+                    return 'arm64'
+            elif 'x86_64' in platform_str:
+                return 'x64'
+        
+        # For macOS outside cibuildwheel, check system architecture
+        if self.platform_name == 'Darwin':
+            # On Apple Silicon, we might be running under Rosetta
+            # Check native architecture using sysctl
+            import subprocess
+            try:
+                # Check if we're running on Apple Silicon natively
+                result = subprocess.run(['sysctl', '-n', 'hw.optional.arm64'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0 and result.stdout.strip() == '1':
+                    return 'arm64'  # Native Apple Silicon
+                else:
+                    return 'x64'   # Intel Mac
+            except:
+                # Fallback to platform.machine()
+                pass
+        
+        # Standard detection for other platforms
         machine = platform.machine().lower()
         
         # Normalize common architecture names
@@ -148,7 +213,61 @@ class HeliosBuilder:
                 print(f"Warning: Unknown architecture '{machine}', assuming x86")
                 return 'x86'
     
-    def _detect_visual_studio_version(self) -> tuple[str, str]:
+    def _test_ctypes_architecture(self) -> Optional[str]:
+        """Test what architecture ctypes expects by attempting to load system libraries."""
+        import ctypes
+        import os
+        
+        if self.platform_name != 'Darwin':
+            return None
+        
+        # Test loading system libraries to determine ctypes architecture expectations
+        try:
+            # Try to load system C library - this should always be available
+            libc_paths = [
+                '/usr/lib/libc.dylib',  # System library path
+                '/usr/lib/libSystem.dylib',  # Another system library
+            ]
+            
+            for lib_path in libc_paths:
+                if os.path.exists(lib_path):
+                    try:
+                        # Try to load the library - this will fail if architecture mismatch
+                        lib = ctypes.CDLL(lib_path)
+                        print(f"Successfully loaded system library: {lib_path}")
+                        
+                        # If we can load system libraries, check their architecture
+                        import subprocess
+                        try:
+                            result = subprocess.run(['file', lib_path], 
+                                                  capture_output=True, text=True, timeout=5)
+                            if result.returncode == 0:
+                                output = result.stdout.lower()
+                                if 'arm64' in output:
+                                    print("System libraries are ARM64 - ctypes expects arm64")
+                                    return 'arm64'
+                                elif 'x86_64' in output:
+                                    print("System libraries are x86_64 - ctypes expects x86_64")
+                                    return 'x64'
+                        except:
+                            pass
+                            
+                        # Fallback: if we can load it, assume it matches Python architecture
+                        return None  # Let caller decide
+                        
+                    except OSError as e:
+                        print(f"Failed to load {lib_path}: {e}")
+                        # Architecture mismatch - continue to next library
+                        continue
+            
+            print("Could not determine ctypes architecture from system libraries")
+            return None
+            
+        except Exception as e:
+            print(f"ctypes architecture test failed: {e}")
+            return None
+    
+    def _detect_visual_studio_version(self) -> Tuple[str, str]:
         """Detect available Visual Studio version and return (generator, architecture)."""
         # List of Visual Studio generators to try (newest first)
         vs_generators = [
@@ -179,6 +298,45 @@ class HeliosBuilder:
         print("Warning: Could not detect Visual Studio version, using default VS 2019")
         return 'Visual Studio 16 2019', 'x64' if self.architecture == 'x64' else 'Win32'
     
+    def _is_manylinux_container(self) -> bool:
+        """Detect if running in a manylinux container."""
+        try:
+            # Check for manylinux indicator files/environment
+            import os
+            
+            # Check environment variable used by cibuildwheel
+            if os.environ.get('CIBUILDWHEEL') == '1':
+                return True
+            
+            # Check for manylinux tag files
+            manylinux_files = [
+                '/etc/centos-release',
+                '/etc/redhat-release',
+                '/opt/python'  # manylinux containers have Python in /opt/python
+            ]
+            
+            for indicator in manylinux_files:
+                if Path(indicator).exists():
+                    # Additional check - verify this is a manylinux environment
+                    if 'centos' in str(Path('/etc/centos-release')).lower() if Path('/etc/centos-release').exists() else False:
+                        return True
+                    if Path('/opt/python').exists():
+                        return True
+            
+            return False
+        except Exception:
+            return False
+    
+    def _apply_manylinux_zlib_fixes(self) -> None:
+        """Apply zlib compatibility fixes for manylinux containers."""
+        print("Detected manylinux container - zlib fixes applied via CMake configuration")
+        
+        # Set environment variable for CMake to detect manylinux
+        import os
+        os.environ['CIBUILDWHEEL'] = '1'
+        
+        print("Manylinux environment configured for CMake")
+    
     def _configure_for_architecture(self):
         """Configure build settings based on detected architecture."""
         print(f"Detected architecture: {self.architecture}")
@@ -190,16 +348,32 @@ class HeliosBuilder:
             self.config['cmake_args'] = ['-A', arch_flag]
             
         elif self.platform_name == 'Darwin':  # macOS
-            if self.architecture == 'arm64':
+            # Check if CMAKE_OSX_ARCHITECTURES is already set in environment (e.g., by cibuildwheel)
+            env_cmake_arch = os.environ.get('CMAKE_OSX_ARCHITECTURES')
+            if env_cmake_arch:
+                self.config['cmake_args'].append(f'-DCMAKE_OSX_ARCHITECTURES={env_cmake_arch}')
+                print(f"Using CMAKE_OSX_ARCHITECTURES from environment: {env_cmake_arch}")
+                # Update our internal architecture tracking to match environment
+                if env_cmake_arch == 'arm64':
+                    self.architecture = 'arm64'
+                    print("Configuring for Apple Silicon (ARM64) - from environment")
+                else:
+                    self.architecture = 'x64'  
+                    print("Configuring for Intel Mac (x86_64) - from environment")
+            elif self.architecture == 'arm64':
                 # Apple Silicon - set CMAKE_OSX_ARCHITECTURES
                 self.config['cmake_args'].append('-DCMAKE_OSX_ARCHITECTURES=arm64')
                 print("Configuring for Apple Silicon (ARM64)")
             else:
-                # Intel Mac
+                # Intel Mac - handle both 'x64' and 'x86_64' internally
                 self.config['cmake_args'].append('-DCMAKE_OSX_ARCHITECTURES=x86_64')
                 print("Configuring for Intel Mac (x86_64)")
                 
         elif self.platform_name == 'Linux':
+            # Check for manylinux container and apply zlib compatibility fixes
+            if self._is_manylinux_container():
+                self._apply_manylinux_zlib_fixes()
+            
             if self.architecture == 'arm64':
                 # ARM64 Linux - may need cross-compilation flags
                 self.config['cmake_args'].extend([
@@ -216,19 +390,59 @@ class HeliosBuilder:
         """
         Clean all build artifacts for a fresh build.
         
-        With the current architecture, all build artifacts are contained within
-        the build directory, so cleaning is simply removing that directory.
+        This removes both intermediate build artifacts and final packaged files
+        that are generated during the build and wheel preparation process.
         """
-        print("[CLEAN] Cleaning build artifacts...")
+        print("[CLEAN] Cleaning all build artifacts...")
+        cleaned_items = []
         
-        # Remove the build directory - this contains all build artifacts
+        # Remove the build directory - this contains all intermediate build artifacts
         if self.build_dir.exists():
             print(f"Removing build directory: {self.build_dir}")
             shutil.rmtree(self.build_dir)
+            cleaned_items.append("build artifacts")
         else:
             print(f"Build directory does not exist: {self.build_dir}")
         
-        print("[OK] Build artifacts cleaned")
+        # Also clean packaged artifacts from wheel preparation
+        repo_root = self.helios_root.parent
+        
+        # Remove packaged native libraries (copied by prepare_wheel.py)
+        # Only remove binary libraries, preserve Python source files
+        packaged_plugins = repo_root / 'pyhelios' / 'plugins'
+        if packaged_plugins.exists():
+            binary_extensions = ['.so', '.dll', '.dylib']
+            removed_count = 0
+            for ext in binary_extensions:
+                for binary_file in packaged_plugins.glob(f'*{ext}'):
+                    print(f"Removing binary library: {binary_file}")
+                    binary_file.unlink()
+                    removed_count += 1
+            if removed_count > 0:
+                cleaned_items.append(f"{removed_count} binary libraries")
+            else:
+                print("No binary libraries found to remove")
+        
+        # Remove packaged assets (copied by prepare_wheel.py)
+        packaged_assets = repo_root / 'pyhelios' / 'assets' / 'build'
+        if packaged_assets.exists():
+            print(f"Removing packaged assets: {packaged_assets}")
+            shutil.rmtree(packaged_assets)
+            cleaned_items.append("packaged assets")
+        
+        # Remove stub extension file if it exists (created for wheel building)
+        stub_file = repo_root / 'pyhelios' / '_stub.c'
+        if stub_file.exists():
+            print(f"Removing stub extension: {stub_file}")
+            stub_file.unlink()
+            cleaned_items.append("stub extension")
+        
+        if cleaned_items:
+            print(f"[OK] Cleaned: {', '.join(cleaned_items)}")
+        else:
+            print("[OK] No artifacts found to clean")
+        
+        print("[OK] Build artifacts cleaning completed")
     
     def _update_config_for_buildmode(self):
         """Update configuration based on build mode."""
@@ -483,14 +697,21 @@ class HeliosBuilder:
     
     def run_cmake_configure(self, additional_args: Optional[List[str]] = None) -> None:
         """Run CMake configuration."""
+        # Use relative path from build directory to source directory to avoid path interpretation issues
+        # Since build_dir = source_dir / 'build', the relative path from build to source is '..'
+        source_path = '..' if self.build_dir.parent == self.source_dir else str(self.source_dir)
+        
         cmake_cmd = [
             'cmake',
-            str(self.source_dir),  # Use PyHelios source directory
+            source_path,  # Use relative path to PyHelios source directory
             '-G', self.config['generator']
         ]
         
         # Add platform-specific arguments
         cmake_cmd.extend(self.config['cmake_args'])
+        
+        # OpenMP handling is now managed via CMAKE_DISABLE_FIND_PACKAGE_OpenMP environment variable
+        # for cibuildwheel cross-compilation scenarios
         
         # Add architecture-specific flags for cross-platform compatibility
         if self.platform_name != 'Windows':
@@ -532,6 +753,8 @@ class HeliosBuilder:
                 cmake_cmd.extend(['-DCMAKE_RC_COMPILER='])  # Empty RC compiler disables resource compilation
         
         print(f"Running CMake configure: {' '.join(cmake_cmd)}")
+        print(f"Working directory: {self.build_dir}")
+        print(f"Source directory (relative): {source_path} -> {self.source_dir}")
         
         try:
             subprocess.run(cmake_cmd, cwd=self.build_dir, check=True)
@@ -1318,10 +1541,12 @@ class HeliosBuilder:
         self.check_prerequisites()
         self.setup_build_directory()
         
-        # Add plugin configuration to CMake args
+        # Add plugin configuration to CMake args  
         if cmake_args is None:
             cmake_args = []
-        cmake_args.append(f"-DPYHELIOS_PLUGIN_CONFIG={plugin_config_file}")
+        # Use absolute path for plugin config file to avoid path resolution issues
+        plugin_config_absolute = str(plugin_config_file.absolute())
+        cmake_args.append(f"-DPYHELIOS_PLUGIN_CONFIG={plugin_config_absolute}")
         
         self.run_cmake_configure(cmake_args)
         self.run_cmake_build()
@@ -1453,9 +1678,9 @@ def parse_plugin_selection(args) -> List[str]:
     if args.nogpu:
         # Remove GPU-dependent plugins
         gpu_plugins = [p for p in selected_plugins 
-                      if PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [], [])).gpu_required]
+                      if PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [])).gpu_required]
         selected_plugins = [p for p in selected_plugins 
-                          if not PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [], [])).gpu_required]
+                          if not PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [])).gpu_required]
         if gpu_plugins:
             print(f"[EXCLUDED] GPU-dependent plugins excluded (--nogpu): {gpu_plugins}")
     
@@ -1463,10 +1688,10 @@ def parse_plugin_selection(args) -> List[str]:
         # Remove visualization plugins
         vis_plugins = [p for p in selected_plugins 
                       if any(dep in ["opengl", "glfw", "imgui"] 
-                           for dep in PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [], [])).system_dependencies)]
+                           for dep in PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [])).system_dependencies)]
         selected_plugins = [p for p in selected_plugins 
                           if not any(dep in ["opengl", "glfw", "imgui"] 
-                                   for dep in PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [], [])).system_dependencies)]
+                                   for dep in PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [])).system_dependencies)]
         if vis_plugins:
             print(f"[EXCLUDED] Visualization plugins excluded (--novis): {vis_plugins}")
     
@@ -1481,9 +1706,9 @@ def parse_plugin_selection(args) -> List[str]:
     # 4. Check environment variables for additional exclusions
     if os.environ.get('PYHELIOS_EXCLUDE_GPU', '').lower() in ['1', 'true', 'yes']:
         env_gpu_plugins = [p for p in selected_plugins 
-                          if PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [], [])).gpu_required]
+                          if PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [])).gpu_required]
         selected_plugins = [p for p in selected_plugins 
-                          if not PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [], [])).gpu_required]
+                          if not PLUGIN_METADATA.get(p, PluginMetadata("", "", [], [], [], False, True, [])).gpu_required]
         if env_gpu_plugins:
             print(f"[EXCLUDED] GPU-dependent plugins excluded (PYHELIOS_EXCLUDE_GPU): {env_gpu_plugins}")
     
@@ -1570,8 +1795,8 @@ Build Examples:
                        help='Path to helios-core directory (default: ../helios-core)')
     parser.add_argument('--output-dir', type=Path,
                        help='Output directory for built libraries (default: ../pyhelios/plugins)')
-    parser.add_argument('--cmake-args', nargs='*', default=[],
-                       help='Additional CMake arguments')
+    parser.add_argument('--cmake-args', action='append', default=[],
+                       help='Additional CMake arguments (can be specified multiple times)')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Verbose output')
     
@@ -1580,7 +1805,7 @@ Build Examples:
     build_group.add_argument('--buildmode', choices=['debug', 'release', 'relwithdebinfo'], 
                             default='release', help='CMake build type (default: release)')
     build_group.add_argument('--clean', action='store_true',
-                            help='Clean all build artifacts before building (fresh build)')
+                            help='Clean all build artifacts before building (removes pyhelios_build/, pyhelios/plugins/, pyhelios/assets/build/)')
     build_group.add_argument('--nogpu', action='store_true',
                             help='Exclude GPU-dependent plugins (radiation, aeriallidar, collisiondetection)')
     build_group.add_argument('--novis', action='store_true', 

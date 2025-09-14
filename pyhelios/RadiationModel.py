@@ -41,18 +41,34 @@ def _radiation_working_directory():
         RuntimeError: If build directory or RadiationModel assets are not found, indicating a build system error.
     """
     # Find the build directory containing RadiationModel assets
-    current_dir = Path(__file__).parent
-    repo_root = current_dir.parent
-    build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
-    working_dir = build_lib_dir.parent
-    radiation_assets = working_dir / 'plugins' / 'radiation'
+    # Try asset manager first (works for both development and wheel installations)
+    from .assets import get_asset_manager
     
-    # Validate that build directory and assets exist - fail fast if not
-    if not build_lib_dir.exists():
-        raise RuntimeError(
-            f"PyHelios build directory not found at {build_lib_dir}. "
-            f"Run: python build_scripts/build_helios.py --plugins radiation"
-        )
+    asset_manager = get_asset_manager()
+    working_dir = asset_manager._get_helios_build_path()
+    
+    if working_dir and working_dir.exists():
+        radiation_assets = working_dir / 'plugins' / 'radiation'
+    else:
+        # For wheel installations, check packaged assets  
+        current_dir = Path(__file__).parent
+        packaged_build = current_dir / 'assets' / 'build'
+        
+        if packaged_build.exists():
+            working_dir = packaged_build
+            radiation_assets = working_dir / 'plugins' / 'radiation'
+        else:
+            # Fallback to development paths
+            repo_root = current_dir.parent
+            build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
+            working_dir = build_lib_dir.parent
+            radiation_assets = working_dir / 'plugins' / 'radiation'
+            
+            if not build_lib_dir.exists():
+                raise RuntimeError(
+                    f"PyHelios build directory not found at {build_lib_dir}. "
+                    f"Run: python build_scripts/build_helios.py --plugins radiation"
+                )
     
     if not radiation_assets.exists():
         raise RuntimeError(

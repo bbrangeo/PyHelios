@@ -10,7 +10,7 @@ import os
 import ctypes
 from pathlib import Path
 from contextlib import contextmanager
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 
 from .plugins.registry import get_plugin_registry
 from .plugins import helios_lib
@@ -32,23 +32,41 @@ def _visualizer_working_directory():
     is set correctly during visualizer initialization and operations.
     """
     # Find the build directory where assets are located
-    current_dir = Path(__file__).parent
-    repo_root = current_dir.parent
-    build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
+    # Try asset manager first (works for both development and wheel installations)
+    from .assets import get_asset_manager
     
-    if not build_lib_dir.exists():
-        logger.warning(f"Build directory not found: {build_lib_dir}")
-        # Fallback to current directory - may not work but don't break
-        yield
-        return
+    asset_manager = get_asset_manager()
+    working_dir = asset_manager._get_helios_build_path()
     
-    # The correct working directory is the parent of 'plugins' directory
-    # In the build system, assets are at: pyhelios_build/build/plugins/visualizer/
-    # So we need working directory to be: pyhelios_build/build/
-    working_dir = build_lib_dir.parent
+    if working_dir and working_dir.exists():
+        visualizer_assets = working_dir / 'plugins' / 'visualizer'
+    else:
+        # For wheel installations, check packaged assets  
+        current_dir = Path(__file__).parent
+        packaged_build = current_dir / 'assets' / 'build'
+        
+        if packaged_build.exists():
+            working_dir = packaged_build
+            visualizer_assets = working_dir / 'plugins' / 'visualizer'
+        else:
+            # Fallback to development paths
+            repo_root = current_dir.parent
+            build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
+            working_dir = build_lib_dir.parent
+            visualizer_assets = working_dir / 'plugins' / 'visualizer'
+            
+            if not build_lib_dir.exists():
+                logger.warning(f"Build directory not found: {build_lib_dir}")
+                # Fallback to current directory - may not work but don't break
+                yield
+                return
     
-    if not (working_dir / 'plugins' / 'visualizer' / 'shaders').exists():
-        logger.warning(f"Visualizer assets not found at: {working_dir / 'plugins' / 'visualizer'}")
+    if not (visualizer_assets / 'shaders').exists():
+        # Only warn in development environments, not wheel installations
+        from .assets import get_asset_manager
+        asset_mgr = get_asset_manager()
+        if not asset_mgr._is_wheel_install():
+            logger.warning(f"Visualizer assets not found at: {visualizer_assets}")
         # Continue anyway - may be using source assets or alternative setup
     
     # Change working directory temporarily
@@ -573,7 +591,7 @@ class Visualizer:
         except Exception as e:
             raise VisualizerError(f"Failed to set camera field of view: {e}")
 
-    def getCameraPosition(self) -> tuple[vec3, vec3]:
+    def getCameraPosition(self) -> Tuple[vec3, vec3]:
         """
         Get current camera position and look-at point.
         
@@ -649,7 +667,7 @@ class Visualizer:
 
     # Window and Display Methods
 
-    def getWindowSize(self) -> tuple[int, int]:
+    def getWindowSize(self) -> Tuple[int, int]:
         """
         Get window size in pixels.
         
@@ -672,7 +690,7 @@ class Visualizer:
         except Exception as e:
             raise VisualizerError(f"Failed to get window size: {e}")
 
-    def getFramebufferSize(self) -> tuple[int, int]:
+    def getFramebufferSize(self) -> Tuple[int, int]:
         """
         Get framebuffer size in pixels.
         
@@ -796,7 +814,7 @@ class Visualizer:
         except Exception as e:
             raise VisualizerError(f"Failed to get window pixels: {e}")
 
-    def getDepthMap(self) -> tuple[List[float], int, int]:
+    def getDepthMap(self) -> Tuple[List[float], int, int]:
         """
         Get depth map from current window.
         

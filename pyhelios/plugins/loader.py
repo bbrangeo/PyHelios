@@ -348,9 +348,6 @@ def _find_library_directory() -> str:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pyhelios_root = os.path.dirname(os.path.dirname(current_dir))  # Go up to PyHelios root
     
-    # Expected library location after build
-    expected_location = os.path.join(pyhelios_root, 'pyhelios_build', 'build', 'lib')
-    
     platform_name = platform.system()
     if platform_name == 'Darwin':  # macOS
         library_names = ['libhelios.dylib', 'libCHelios.dylib', 'CHelios.dylib']
@@ -364,17 +361,26 @@ def _find_library_directory() -> str:
             f"Supported platforms: Windows, macOS, Linux"
         )
     
-    # Check the expected build location
-    if os.path.exists(expected_location):
-        for lib_name in library_names:
-            lib_path = os.path.join(expected_location, lib_name)
-            if os.path.exists(lib_path):
-                logger.debug(f"Found library at: {lib_path}")
-                return expected_location
+    # Try multiple locations in order of priority
+    search_locations = [
+        # 1. Packaged wheel location (for pip-installed PyHelios)
+        current_dir,  # This is pyhelios/plugins/ when installed as wheel
+        # 2. Development location (for local development)
+        os.path.join(pyhelios_root, 'pyhelios_build', 'build', 'lib')
+    ]
     
-    # Library not found - provide clear error with actionable solution
+    for location in search_locations:
+        if os.path.exists(location):
+            for lib_name in library_names:
+                lib_path = os.path.join(location, lib_name)
+                if os.path.exists(lib_path):
+                    logger.debug(f"Found library at: {lib_path}")
+                    return location
+    
+    # Library not found in any location - provide clear error with actionable solution
     raise LibraryLoadError(
-        f"Native Helios library not found in expected location: {expected_location}\n"
+        f"Native Helios library not found in any expected location.\n"
+        f"Searched locations: {search_locations}\n"
         f"Expected library files: {', '.join(library_names)}\n\n"
         f"To fix this issue:\n"
         f"1. Build native libraries: ./build_scripts/build_helios --plugins visualizer\n"

@@ -1,0 +1,536 @@
+name: Build Wheels
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: windows-2022
+            arch: AMD64
+          - os: macos-13
+            arch: x86_64
+          - os: macos-14
+            arch: arm64
+
+    steps:
+    - name: Checkout PyHelios
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0  # Required for setuptools-scm
+        # Ensure all tags are fetched
+        fetch-tags: true
+
+    - name: Debug version detection
+      shell: bash
+      run: |
+        echo "=== Git tag information ==="
+        git tag --list | head -10
+        echo "Current HEAD: $(git rev-parse HEAD)"
+        echo "Describe: $(git describe --tags --always --dirty)"
+        echo "=== Setuptools-scm version detection ==="
+        python -m pip install setuptools-scm
+        python -c "from setuptools_scm import get_version; print(f'Detected version: {get_version()}')" || echo "Version detection failed"
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'  # Updated for cibuildwheel 3.x compatibility
+
+    - name: Setup MSVC (Windows)
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Install Helios dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        cd helios-core/utilities
+        sudo bash dependencies.sh ALL
+        
+    - name: Install Helios dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        cd helios-core/utilities
+        # Install base + visualization dependencies (no GPU/CUDA for macOS builds)
+        bash dependencies.sh BASE
+        bash dependencies.sh VIS
+
+    - name: Debug environment (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        echo "=== Directory structure ==="
+        ls -la
+        echo "=== PyHelios build scripts ==="
+        ls -la build_scripts/
+        echo "=== Helios core ==="
+        ls -la helios-core/ || echo "helios-core not found"
+        echo "=== Python version and location ==="
+        python --version
+        which python
+        echo "=== Environment ==="
+        env | grep -E "(PYTHON|PATH)" | head -10
+
+    - name: Install CUDA Toolkit (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        # Download CUDA 12.6 installer with integrity verification
+        $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.6.2/network_installers/cuda_12.6.2_windows_network.exe"
+        $expectedMD5 = "d109e3e1720d33f9ea75379c619e22a6"  # Official MD5 hash from NVIDIA
+        
+        Write-Host "Downloading CUDA toolkit installer..."
+        Invoke-WebRequest -Uri $installerUrl -OutFile "cuda_installer.exe"
+        
+        # Verify file integrity using official NVIDIA MD5 checksum
+        Write-Host "Verifying installer integrity..."
+        $actualMD5 = (Get-FileHash -Algorithm MD5 "cuda_installer.exe").Hash
+        if ($actualMD5 -ne $expectedMD5) {
+            Write-Error "CUDA installer MD5 verification failed!"
+            Write-Error "Expected: $expectedMD5"
+            Write-Error "Actual:   $actualMD5"
+            Write-Error "This may indicate a corrupted download or security issue."
+            exit 1
+        }
+        Write-Host "✓ Installer integrity verified using official NVIDIA MD5 checksum"
+        
+        # Install CUDA toolkit components needed for compilation
+        Write-Host "Installing CUDA toolkit components..."
+        Start-Process -FilePath ".\cuda_installer.exe" -ArgumentList "-s","nvcc_12.6","cudart_12.6","nvrtc_12.6","nvrtc_dev_12.6","visual_studio_integration_12.6" -Wait
+        
+        # Add CUDA to PATH for subsequent steps
+        echo "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        Write-Host "✓ CUDA toolkit installation completed"
+
+    - name: Install cibuildwheel and repair tools
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install 'cibuildwheel>=2.23.0'
+        # Install platform-specific wheel repair tools
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          python -m pip install auditwheel
+        elif [ "${{ runner.os }}" = "macOS" ]; then
+          python -m pip install delocate
+        fi
+
+    - name: Debug version detection
+      shell: bash
+      run: |
+        echo "=== Version Detection Debug ==="
+        echo "Git describe: $(git describe --tags --long --dirty)"
+        echo "Git tags:"
+        git tag -l --sort=-version:refname | head -10
+        echo "Git log (recent commits):"
+        git log --oneline --decorate -5
+        pip install setuptools-scm
+        echo "setuptools-scm version: $(python -m setuptools_scm)"
+        echo "================================"
+
+    - name: Build wheels
+      run: python -m cibuildwheel --output-dir wheelhouse
+      timeout-minutes: 20  # Single timeout for the entire step
+      env:
+        # Build for Python 3.8+ on all platforms
+        CIBW_BUILD: cp38-* cp39-* cp310-* cp311-* cp312-*
+        
+        # Fail fast on build errors instead of continuing to next Python version
+        CIBW_BUILD_VERBOSITY: 1
+        
+        # Skip 32-bit builds and Python 3.8 on ARM64 due to cross-compilation issues
+        # Python 3.8 lacks official ARM64 support, causing OpenMP linking issues in cibuildwheel
+        CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux* cp38-macosx_arm64"
+        
+        # Architecture configuration based on runner
+        CIBW_ARCHS: ${{ matrix.arch }}
+        
+        # Use stable manylinux images to avoid gateway timeout issues
+        CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+        CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+        
+        # Platform-specific build commands with broad CUDA compatibility  
+        CIBW_BEFORE_BUILD_MACOS: 'python build_scripts/prepare_wheel.py --buildmode release --nogpu --novis --verbose --clean --cmake-args=-DENABLE_OPENMP=OFF --cmake-args=-DCMAKE_IGNORE_PATH=/opt/homebrew --cmake-args=-DCMAKE_IGNORE_PREFIX_PATH=/opt/homebrew --cmake-args=-DCMAKE_SYSTEM_IGNORE_PATH=/opt/homebrew'
+        CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=${{ matrix.arch == 'x86_64' && '13.0' || '14.0' }} CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} SYSTEM_VERSION_COMPAT=0"
+        CIBW_BEFORE_BUILD_WINDOWS: "set CMAKE_RC_COMPILER= && set PYHELIOS_CUDA_ARCHITECTURES=50;60;70;75;80;86;90 && python build_scripts/prepare_wheel.py --buildmode release --verbose"
+        CIBW_BEFORE_BUILD_LINUX: "yum install -y zlib-devel && export PYHELIOS_CUDA_ARCHITECTURES='50;60;70;75;80;86;90' && python build_scripts/prepare_wheel.py --buildmode release --verbose"
+        
+        # Manylinux-specific environment for zlib compatibility
+        CIBW_ENVIRONMENT_LINUX: "CFLAGS='-D_GNU_SOURCE -I/usr/include' CXXFLAGS='-D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=0 -I/usr/include' CMAKE_C_FLAGS='-D_GNU_SOURCE' CMAKE_CXX_FLAGS='-D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=0'"
+        
+        # Comprehensive wheel testing using pytest suite
+        CIBW_TEST_COMMAND: |
+          python -c "
+          import sys, os
+          print(f'=== cibuildwheel Test Environment ===')
+          print(f'Python: {sys.executable}')
+          print(f'Platform: {sys.platform}')
+          print(f'Working directory: {os.getcwd()}')
+          
+          try:
+              import pyhelios
+              print(f'[SUCCESS] PyHelios3D {pyhelios.__version__} imported successfully')
+              
+              # Test native library functionality (most critical test)
+              from pyhelios.plugins import get_plugin_info
+              info = get_plugin_info()
+              print(f'[SUCCESS] Platform: {info[\"platform\"]}')
+              mock_mode = info.get('is_mock', True)
+              print(f'[SUCCESS] Mock mode: {mock_mode}')
+              
+              if mock_mode:
+                  print('[FAILED] Mock mode detected - this violates fail-fast policy!')
+                  print('Mock mode indicates native libraries are not properly packaged in wheel.')
+                  print('This must be fixed before deployment.')
+                  raise RuntimeError('Mock mode detected in wheel testing - native libraries missing')
+              else:
+                  lib_path = info.get('library_path', 'Unknown')
+                  print(f'[SUCCESS] Native library loaded: {lib_path}')
+                  
+              # Asset validation (non-critical, allow failure)
+              try:
+                  from pyhelios.assets import get_asset_manager
+                  manager = get_asset_manager()
+                  helios_build = manager._get_helios_build_path()
+                  if helios_build:
+                      print(f'[INFO] HELIOS_BUILD assets: {helios_build}')
+                  else:
+                      print('[INFO] HELIOS_BUILD assets not found (acceptable in wheel testing)')
+              except Exception as e:
+                  print(f'[INFO] Asset validation skipped: {e}')
+                  
+              print('[SUCCESS] cibuildwheel test completed successfully')
+              
+          except Exception as e:
+              print(f'[FAILED] cibuildwheel test FAILED: {e}')
+              import traceback
+              traceback.print_exc()
+              raise
+          "
+
+        # Platform-specific pytest commands (Windows doesn't support --forked)
+        CIBW_TEST_COMMAND_LINUX: |
+          python -c "
+          import sys, os
+          print(f'=== cibuildwheel Test Environment ===')
+          print(f'Python: {sys.executable}')
+          print(f'Platform: {sys.platform}')
+          print(f'Working directory: {os.getcwd()}')
+
+          try:
+              import pyhelios
+              print(f'[SUCCESS] PyHelios3D {pyhelios.__version__} imported successfully')
+
+              # Test native library functionality (most critical test)
+              from pyhelios.plugins import get_plugin_info
+              info = get_plugin_info()
+              print(f'[SUCCESS] Platform: {info[\"platform\"]}')
+              mock_mode = info.get('is_mock', True)
+              print(f'[SUCCESS] Mock mode: {mock_mode}')
+
+              if mock_mode:
+                  print('[FAILED] Mock mode detected - this violates fail-fast policy!')
+                  print('Mock mode indicates native libraries are not properly packaged in wheel.')
+                  print('This must be fixed before deployment.')
+                  raise RuntimeError('Mock mode detected in wheel testing - native libraries missing')
+              else:
+                  lib_path = info.get('library_path', 'Unknown')
+                  print(f'[SUCCESS] Native library loaded: {lib_path}')
+
+              # Asset validation (non-critical, allow failure)
+              try:
+                  from pyhelios.assets import get_asset_manager
+                  manager = get_asset_manager()
+                  helios_build = manager._get_helios_build_path()
+                  if helios_build:
+                      print(f'[INFO] HELIOS_BUILD assets: {helios_build}')
+                  else:
+                      print('[INFO] HELIOS_BUILD assets not found (acceptable in wheel testing)')
+              except Exception as e:
+                  print(f'[INFO] Asset validation skipped: {e}')
+
+              print('[SUCCESS] cibuildwheel test completed successfully')
+
+          except Exception as e:
+              print(f'[FAILED] cibuildwheel test FAILED: {e}')
+              import traceback
+              traceback.print_exc()
+              raise
+          " &&
+          python -m pytest {project}/tests/test_cross_platform.py {project}/tests/test_datatypes.py --tb=short -v --forked
+
+        CIBW_TEST_COMMAND_MACOS: |
+          python -c "
+          import sys, os
+          print(f'=== cibuildwheel Test Environment ===')
+          print(f'Python: {sys.executable}')
+          print(f'Platform: {sys.platform}')
+          print(f'Working directory: {os.getcwd()}')
+
+          try:
+              import pyhelios
+              print(f'[SUCCESS] PyHelios3D {pyhelios.__version__} imported successfully')
+
+              # Test native library functionality (most critical test)
+              from pyhelios.plugins import get_plugin_info
+              info = get_plugin_info()
+              print(f'[SUCCESS] Platform: {info[\"platform\"]}')
+              mock_mode = info.get('is_mock', True)
+              print(f'[SUCCESS] Mock mode: {mock_mode}')
+
+              if mock_mode:
+                  print('[FAILED] Mock mode detected - this violates fail-fast policy!')
+                  print('Mock mode indicates native libraries are not properly packaged in wheel.')
+                  print('This must be fixed before deployment.')
+                  raise RuntimeError('Mock mode detected in wheel testing - native libraries missing')
+              else:
+                  lib_path = info.get('library_path', 'Unknown')
+                  print(f'[SUCCESS] Native library loaded: {lib_path}')
+
+              # Asset validation (non-critical, allow failure)
+              try:
+                  from pyhelios.assets import get_asset_manager
+                  manager = get_asset_manager()
+                  helios_build = manager._get_helios_build_path()
+                  if helios_build:
+                      print(f'[INFO] HELIOS_BUILD assets: {helios_build}')
+                  else:
+                      print('[INFO] HELIOS_BUILD assets not found (acceptable in wheel testing)')
+              except Exception as e:
+                  print(f'[INFO] Asset validation skipped: {e}')
+
+              print('[SUCCESS] cibuildwheel test completed successfully')
+
+          except Exception as e:
+              print(f'[FAILED] cibuildwheel test FAILED: {e}')
+              import traceback
+              traceback.print_exc()
+              raise
+          " &&
+          python -m pytest {project}/tests/test_cross_platform.py {project}/tests/test_datatypes.py --tb=short -v --forked
+
+        CIBW_TEST_COMMAND_WINDOWS: |
+          python -c "
+          import sys, os
+          print(f'=== cibuildwheel Test Environment ===')
+          print(f'Python: {sys.executable}')
+          print(f'Platform: {sys.platform}')
+          print(f'Working directory: {os.getcwd()}')
+
+          try:
+              import pyhelios
+              print(f'[SUCCESS] PyHelios3D {pyhelios.__version__} imported successfully')
+
+              # Test native library functionality (most critical test)
+              from pyhelios.plugins import get_plugin_info
+              info = get_plugin_info()
+              print(f'[SUCCESS] Platform: {info[\"platform\"]}')
+              mock_mode = info.get('is_mock', True)
+              print(f'[SUCCESS] Mock mode: {mock_mode}')
+
+              if mock_mode:
+                  print('[FAILED] Mock mode detected - this violates fail-fast policy!')
+                  print('Mock mode indicates native libraries are not properly packaged in wheel.')
+                  print('This must be fixed before deployment.')
+                  raise RuntimeError('Mock mode detected in wheel testing - native libraries missing')
+              else:
+                  lib_path = info.get('library_path', 'Unknown')
+                  print(f'[SUCCESS] Native library loaded: {lib_path}')
+
+              # Asset validation (non-critical, allow failure)
+              try:
+                  from pyhelios.assets import get_asset_manager
+                  manager = get_asset_manager()
+                  helios_build = manager._get_helios_build_path()
+                  if helios_build:
+                      print(f'[INFO] HELIOS_BUILD assets: {helios_build}')
+                  else:
+                      print('[INFO] HELIOS_BUILD assets not found (acceptable in wheel testing)')
+              except Exception as e:
+                  print(f'[INFO] Asset validation skipped: {e}')
+
+              print('[SUCCESS] cibuildwheel test completed successfully')
+
+          except Exception as e:
+              print(f'[FAILED] cibuildwheel test FAILED: {e}')
+              import traceback
+              traceback.print_exc()
+              raise
+          " &&
+          python -m pytest {project}/tests/test_cross_platform.py {project}/tests/test_datatypes.py --tb=short -v
+        
+        # Platform-specific test requirements (pytest-forked only works on Unix systems)
+        CIBW_TEST_REQUIRES_LINUX: "pytest pytest-forked"
+        CIBW_TEST_REQUIRES_MACOS: "pytest pytest-forked"
+        CIBW_TEST_REQUIRES_WINDOWS: "pytest"
+        
+        # Skip problematic platforms for testing
+        CIBW_TEST_SKIP: "*-win32 *-manylinux_i686 *-musllinux*"
+        
+        # Repair wheels to bundle dependencies
+        CIBW_REPAIR_WHEEL_COMMAND_MACOS: "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"
+        CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel}"
+
+    - name: Debug build failure
+      if: failure()
+      shell: bash
+      run: |
+        echo "=== Build Failure Diagnostics ==="
+        echo "Build directory contents:"
+        find pyhelios_build -name "*.so" -o -name "*.dll" -o -name "*.dylib" 2>/dev/null || echo "No build directory found"
+        echo ""
+        echo "Plugin directory contents:"
+        ls -la pyhelios/plugins/ 2>/dev/null || echo "No plugins directory found"
+        echo ""
+        echo "Wheel directory contents:"
+        ls -la wheelhouse/ 2>/dev/null || echo "No wheelhouse directory found"
+        echo ""
+        echo "Python environment:"
+        python --version
+        pip list | grep -E "(cibuildwheel|auditwheel|delocate)" || echo "Wheel tools not found"
+
+    - name: Validate wheel contents
+      if: always()  # Run even if build partially failed
+      shell: bash
+      run: |
+        echo "=== Wheel Content Validation ==="
+        for wheel in wheelhouse/*.whl; do
+          if [ -f "$wheel" ]; then
+            echo "Validating: $(basename "$wheel")"
+            
+            # Check wheel contains both Python files and native libraries
+            python .github/scripts/validate_wheel.py "$wheel"
+          else
+            echo "No wheels found to validate"
+          fi
+        done
+
+    - name: Upload wheels as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}-${{ matrix.arch }}
+        path: wheelhouse/*.whl
+        retention-days: 7
+
+  test_wheels:
+    name: Test wheels on ${{ matrix.os }} Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    needs: build_wheels
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            python-version: '3.8'
+          - os: ubuntu-24.04  
+            python-version: '3.11'
+          - os: windows-2022
+            python-version: '3.8'
+          - os: windows-2022
+            python-version: '3.11'
+          - os: macos-13
+            python-version: '3.8'
+          - os: macos-13
+            python-version: '3.11'
+          - os: macos-14
+            python-version: '3.11'
+
+    steps:
+    - name: Checkout PyHelios for tests
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: wheelhouse
+
+    - name: Install wheel and test dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install numpy pytest pyyaml
+        # Install pytest-forked only on Unix systems (Windows doesn't support fork())
+        if [ "$RUNNER_OS" != "Windows" ]; then
+          python -m pip install pytest-forked
+        fi
+        python -m pip install --no-index --find-links wheelhouse pyhelios3d
+
+    - name: Test wheel functionality
+      shell: bash
+      run: |
+        # Create cross-platform temporary directory for isolated testing
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          ISOLATED_DIR="$RUNNER_TEMP/wheel_test"
+        else
+          ISOLATED_DIR="/tmp/wheel_test"
+        fi
+        
+        mkdir -p "$ISOLATED_DIR"
+        cd "$ISOLATED_DIR"
+        
+        echo "Testing wheel from isolated directory: $ISOLATED_DIR"
+        echo "Current directory: $(pwd)"
+        
+        # Test wheel import in isolation (not contaminated by source code)
+        python "$GITHUB_WORKSPACE/.github/scripts/test_wheel_import.py"
+        
+        # Copy complete test suite to isolated directory for clean wheel testing
+        echo "Copying test suite to isolated directory for clean wheel testing"
+        mkdir -p "$ISOLATED_DIR/tests"
+        cp "$GITHUB_WORKSPACE/tests/test_cross_platform.py" "$ISOLATED_DIR/tests/"
+        cp "$GITHUB_WORKSPACE/tests/test_datatypes.py" "$ISOLATED_DIR/tests/"
+        cp "$GITHUB_WORKSPACE/tests/test_utils.py" "$ISOLATED_DIR/tests/"
+        cp "$GITHUB_WORKSPACE/tests/conftest.py" "$ISOLATED_DIR/tests/"
+        cp "$GITHUB_WORKSPACE/pytest.ini" "$ISOLATED_DIR/" 2>/dev/null || echo "# Wheel testing" > "$ISOLATED_DIR/pytest.ini"
+        touch "$ISOLATED_DIR/tests/__init__.py"
+        
+        # Run pytest in isolated directory against copied test suite (tests real user import experience)
+        cd "$ISOLATED_DIR"
+        echo "Running pytest in isolated directory with copied test suite: $(pwd)"
+
+        # Use forked execution on Unix systems for subprocess isolation (Windows doesn't support fork())
+        if [ "$RUNNER_OS" != "Windows" ]; then
+          echo "Using forked execution for subprocess isolation"
+          python -m pytest tests/test_cross_platform.py tests/test_datatypes.py --tb=short -v --forked
+        else
+          echo "Using standard execution (Windows doesn't support fork())"
+          python -m pytest tests/test_cross_platform.py tests/test_datatypes.py --tb=short -v
+        fi
+
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build_wheels, test_wheels]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pyhelios3d
+    permissions:
+      id-token: write  # Required for trusted publishing
+
+    steps:
+    - name: Download all wheels
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: wheelhouse
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: wheelhouse/
+        verify-metadata: false  # Skip metadata verification due to dynamic versioning

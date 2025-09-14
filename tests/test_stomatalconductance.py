@@ -7,6 +7,7 @@ from pyhelios import Context
 from pyhelios.plugins.registry import get_plugin_registry
 # Import HeliosError from pyhelios main module to ensure consistency
 from pyhelios import HeliosError
+from pyhelios.types import vec3
 
 class TestStomatalConductanceMetadata:
     """Test plugin metadata and registration"""
@@ -393,11 +394,11 @@ class TestStomatalConductanceFunctionality:
             
             with StomatalConductanceModel(context) as stomatal:
                 # Test invalid time step
-                with pytest.raises(ValueError, match="positive"):
+                with pytest.raises(StomatalConductanceModelError, match="positive"):
                     stomatal.run(dt=-1.0)
                 
                 # Test empty UUIDs list
-                with pytest.raises(ValueError, match="empty"):
+                with pytest.raises(StomatalConductanceModelError, match="empty"):
                     stomatal.run(uuids=[])
                 
                 # Test invalid BWB coefficients
@@ -428,7 +429,7 @@ class TestStomatalConductanceIntegration:
         with Context() as context:
             # Add different types of geometry
             patch_uuid = context.addPatch(center=[0, 0, 1], size=[0.1, 0.1])
-            triangle_uuid = context.addTriangle([0, 0, 0], [0.1, 0, 0], [0, 0.1, 0])
+            triangle_uuid = context.addTriangle(vec3(0, 0, 0), vec3(0.1, 0, 0), vec3(0, 0.1, 0))
             
             with StomatalConductanceModel(context) as stomatal:
                 # Set coefficients using species library

@@ -1,6 +1,6 @@
 <br><br>
 
-[![Test Linux](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-linux.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-linux.yml) [![Test Windows](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-windows.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-windows.yml) [![Test MacOS](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-macos.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-macos.yml)
+[![Build Wheels](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/build-wheels.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/build-wheels.yml) [![Test Linux](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-linux.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-linux.yml) [![Test Windows](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-windows.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-windows.yml) [![Test MacOS](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-macos.yml/badge.svg?branch=master)](https://github.com/PlantSimulationLab/PyHelios/actions/workflows/pytest-macos.yml)
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/PlantSimulationLab/PyHelios/master/docs/images/PyHelios_logo_whiteborder.png"  alt="" width="300" />
@@ -21,6 +21,21 @@ See the Helios C++ documentation for a more in-depth description of Helios: http
 ## Quick Start
 
 ### Installation
+
+**Easy Install (Recommended):**
+```bash
+pip install pyhelios3d
+```
+
+This installs pre-built PyHelios with platform-appropriate plugins:
+- **macOS**: All plugins except GPU-accelerated ones (automatically detected)
+- **Windows/Linux**: All plugins including GPU acceleration (when hardware supports it)
+
+PyHelios will gracefully handle GPU features - if you don't have CUDA-capable hardware, GPU plugins will display helpful error messages with setup instructions.
+
+### Build from Source
+
+If you need to customize plugins or build from source:
 
 #### Windows
 
@@ -82,6 +97,35 @@ source helios-core/utilities/dependencies.sh
 pip install -e .
 ```
 
+### GPU Features Setup
+
+If you want to use GPU-accelerated features (radiation modeling, aerial LiDAR), ensure you have:
+
+**Requirements:**
+- NVIDIA GPU with CUDA support
+- NVIDIA drivers installed
+- CUDA Toolkit (version 11.8 or 12.x)
+
+**Verification:**
+```bash
+nvidia-smi  # Should show GPU information
+nvcc --version  # Should show CUDA compiler version
+```
+
+**Testing GPU Features:**
+```python
+from pyhelios import Context, RadiationModel
+
+context = Context()
+try:
+    radiation = RadiationModel(context)
+    print("GPU radiation modeling available!")
+except RuntimeError as e:
+    print(f"GPU features unavailable: {e}")
+```
+
+If GPU features fail, PyHelios will provide specific guidance on installation and setup requirements.
+
 ### First Example
 
 ```python
@@ -142,7 +186,7 @@ pip install -e .
 ## Quick Commands
 
 ```bash
-# Test installation
+# Test installation (uses subprocess isolation for robust testing)
 pytest
 
 # Check plugin status  

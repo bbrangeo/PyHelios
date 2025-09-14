@@ -60,19 +60,35 @@ def _weberpenntree_working_directory():
         RuntimeError: If build directory or WeberPennTree assets are not found, indicating a build system error.
     """
     # Find the build directory containing WeberPennTree assets
-    current_dir = Path(__file__).parent
-    repo_root = current_dir.parent
-    build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
-    working_dir = build_lib_dir.parent
-    weberpenntree_assets = working_dir / 'plugins' / 'weberpenntree'
+    # Try asset manager first (works for both development and wheel installations)
+    from .assets import get_asset_manager
     
-    # Validate that build directory and assets exist - fail fast if not
-    if not build_lib_dir.exists():
-        raise RuntimeError(
-            f"PyHelios build directory not found: {build_lib_dir}. "
-            f"WeberPennTree requires native libraries to be built. "
-            f"Run: python build_scripts/build_helios.py --plugins weberpenntree"
-        )
+    asset_manager = get_asset_manager()
+    working_dir = asset_manager._get_helios_build_path()
+    
+    if working_dir and working_dir.exists():
+        weberpenntree_assets = working_dir / 'plugins' / 'weberpenntree'
+    else:
+        # For wheel installations, check packaged assets  
+        current_dir = Path(__file__).parent
+        packaged_build = current_dir / 'assets' / 'build'
+        
+        if packaged_build.exists():
+            working_dir = packaged_build
+            weberpenntree_assets = working_dir / 'plugins' / 'weberpenntree'
+        else:
+            # Fallback to development paths
+            repo_root = current_dir.parent
+            build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
+            working_dir = build_lib_dir.parent
+            weberpenntree_assets = working_dir / 'plugins' / 'weberpenntree'
+            
+            if not build_lib_dir.exists():
+                raise RuntimeError(
+                    f"PyHelios build directory not found: {build_lib_dir}. "
+                    f"WeberPennTree requires native libraries to be built. "
+                    f"Run: python build_scripts/build_helios.py --plugins weberpenntree"
+                )
     
     if not weberpenntree_assets.exists():
         raise RuntimeError(
@@ -125,18 +141,31 @@ class WeberPennTree:
             print("Warning: WeberPennTree plugin not detected in current build")
             print("Tree generation functionality may be limited or unavailable")
         
-        # Find build directory for asset loading - fail fast if not found
-        current_dir = Path(__file__).parent
-        repo_root = current_dir.parent
-        build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
-        build_dir = build_lib_dir.parent
+        # Find build directory for asset loading using asset manager
+        from .assets import get_asset_manager
         
-        if not build_dir.exists():
-            raise RuntimeError(
-                f"PyHelios build directory not found: {build_dir}. "
-                f"WeberPennTree requires native libraries to be built. "
-                f"Run: python build_scripts/build_helios.py --plugins weberpenntree"
-            )
+        asset_manager = get_asset_manager()
+        build_dir = asset_manager._get_helios_build_path()
+        
+        if not build_dir or not build_dir.exists():
+            # In wheel installations, try packaged assets location
+            current_dir = Path(__file__).parent
+            packaged_build = current_dir / 'assets' / 'build'
+            
+            if packaged_build.exists() and (packaged_build / 'plugins' / 'weberpenntree').exists():
+                build_dir = packaged_build
+            else:
+                # Fallback to development build directory  
+                repo_root = current_dir.parent
+                build_lib_dir = repo_root / 'pyhelios_build' / 'build' / 'lib'
+                build_dir = build_lib_dir.parent
+                
+                if not build_dir.exists():
+                    raise RuntimeError(
+                        f"PyHelios build directory not found: {build_dir}. "
+                        f"WeberPennTree requires native libraries to be built. "
+                        f"Run: python build_scripts/build_helios.py --plugins weberpenntree"
+                    )
         
         # Use working directory context manager during WeberPennTree creation
         with _weberpenntree_working_directory():

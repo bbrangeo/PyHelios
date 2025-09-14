@@ -1,5 +1,23 @@
 # Changelog
 
+# [v0.1.0] 2025-09-06
+
+🎉++ PyPI Package Distribution ++ 🎉
+- PyHelios now available on PyPI with `pip install pyhelios3d`
+
+## Package Distribution
+- Added comprehensive wheel building infrastructure with GitHub Actions CI/CD
+- Cross-platform wheel support for Windows, macOS (x86_64 + ARM64), and Linux
+- Automated CUDA toolkit installation and multi-architecture GPU support
+- Smart platform detection for optimal plugin selection (macOS excludes GPU, Windows/Linux includes GPU when available)
+- Added wheel preparation script for native library packaging
+- Added MANIFEST.in for proper PyPI package structure
+
+## Bug Fixes
+- Fixed PluginMetadata constructor calls in build_helios.py
+- Corrected plugin metadata parameter handling for GPU/visualization exclusions
+- Enhanced build system robustness for different plugin configurations
+
 # [v0.0.9] 2025-09-06
 
 🚨++ New Plug-in Integrated ++ 🚨

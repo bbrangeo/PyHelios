@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 import os
 import platform
 import glob
@@ -30,10 +30,87 @@ def get_platform_libraries():
     
     library_files = []
     for pattern in patterns:
-        library_files.extend(glob.glob(os.path.join(plugins_dir, pattern)))
+        found_files = glob.glob(os.path.join(plugins_dir, pattern))
+        # Only include files that exist and have non-zero size
+        for f in found_files:
+            if os.path.exists(f) and os.path.getsize(f) > 0:
+                library_files.append(f)
     
     # Return relative paths for package_data
     return [os.path.basename(f) for f in library_files]
+
+def get_asset_files():
+    """Get asset files for packaging in wheels."""
+    # Look for build directory with assets
+    build_dirs = [
+        'pyhelios_build/build',
+        'pyhelios/assets/build',  # For pip packaging
+        'build'  # Alternative location
+    ]
+    
+    asset_patterns = []
+    
+    for build_dir in build_dirs:
+        if os.path.exists(build_dir):
+            # Core assets
+            core_images = os.path.join(build_dir, 'lib', 'images')
+            if os.path.exists(core_images):
+                asset_patterns.extend([
+                    'assets/build/lib/images/*'
+                ])
+            
+            # Plugin assets - comprehensive patterns matching prepare_wheel.py
+            plugins_dir = os.path.join(build_dir, 'plugins')
+            if os.path.exists(plugins_dir):
+                asset_patterns.extend([
+                    # Shader files - all graphics shader types
+                    'assets/build/plugins/*/shaders/*.glsl',
+                    'assets/build/plugins/*/shaders/*.vert',
+                    'assets/build/plugins/*/shaders/*.frag',
+                    'assets/build/plugins/*/shaders/*.geom', 
+                    'assets/build/plugins/*/shaders/*.comp',
+                    # Font files - all font formats
+                    'assets/build/plugins/*/fonts/*.ttf',
+                    'assets/build/plugins/*/fonts/*.otf',
+                    'assets/build/plugins/*/fonts/*.woff',
+                    'assets/build/plugins/*/fonts/*.woff2',
+                    # Texture files - all image formats
+                    'assets/build/plugins/*/textures/*.png',
+                    'assets/build/plugins/*/textures/*.jpg',
+                    'assets/build/plugins/*/textures/*.jpeg',
+                    'assets/build/plugins/*/textures/*.tiff',
+                    'assets/build/plugins/*/textures/*.bmp',
+                    # WeberPennTree assets - leaves and wood
+                    'assets/build/plugins/*/leaves/*.xml',
+                    'assets/build/plugins/*/leaves/*.obj',
+                    'assets/build/plugins/*/leaves/*.ply',
+                    'assets/build/plugins/*/wood/*.xml',
+                    'assets/build/plugins/*/wood/*.obj',
+                    'assets/build/plugins/*/wood/*.ply',
+                    # XML configuration files
+                    'assets/build/plugins/*/xml/*.xml',
+                    # Spectral data - all data formats
+                    'assets/build/plugins/*/spectral_data/*.csv',
+                    'assets/build/plugins/*/spectral_data/*.txt',
+                    'assets/build/plugins/*/spectral_data/*.dat',
+                    # Generic data files
+                    'assets/build/plugins/*/data/*.csv',
+                    'assets/build/plugins/*/data/*.txt',
+                    'assets/build/plugins/*/data/*.dat',
+                    'assets/build/plugins/*/data/*.json',
+                    # Camera and light models
+                    'assets/build/plugins/*/camera_light_models/*.xml',
+                    'assets/build/plugins/*/camera_light_models/*.json',
+                    # Subdirectories recursively for complex asset structures
+                    'assets/build/plugins/*/shaders/**/*',
+                    'assets/build/plugins/*/fonts/**/*',
+                    'assets/build/plugins/*/textures/**/*',
+                    'assets/build/plugins/*/spectral_data/**/*',
+                    'assets/build/plugins/*/data/**/*',
+                ])
+            break  # Use first found build directory
+    
+    return asset_patterns
 
 def get_long_description():
     """Read long description from README."""
@@ -43,16 +120,51 @@ def get_long_description():
     except FileNotFoundError:
         return 'Python bindings for Helios 3D plant simulation library'
 
-# Get platform-appropriate library files
+def get_extensions():
+    """
+    Create a stub extension to force setuptools to create platform-specific wheels.
+    
+    This is necessary because setuptools only creates platform-specific wheels when
+    it detects compiled extensions. Since PyHelios includes pre-built native libraries
+    via package_data, we need this stub to signal that the wheel is platform-specific.
+    """
+    # Check if we have actual binary libraries to justify platform wheel
+    plugins_dir = os.path.join('pyhelios', 'plugins')
+    has_binaries = False
+    
+    if os.path.exists(plugins_dir):
+        system = platform.system()
+        if system == 'Windows':
+            has_binaries = bool(glob.glob(os.path.join(plugins_dir, '*.dll')))
+        elif system == 'Darwin':
+            has_binaries = bool(glob.glob(os.path.join(plugins_dir, '*.dylib')))
+        else:  # Linux
+            has_binaries = bool(glob.glob(os.path.join(plugins_dir, '*.so*')))
+    
+    if has_binaries:
+        # Create a minimal stub extension that signals binary content
+        stub_extension = Extension(
+            name='pyhelios._stub',
+            sources=['pyhelios/_stub.c'],  # Minimal C extension
+            optional=True,  # Won't fail build if compilation fails
+        )
+        return [stub_extension]
+    else:
+        # No binaries found - allow pure Python wheel
+        return []
+
+# Get platform-appropriate library files and assets
 library_files = get_platform_libraries()
+asset_files = get_asset_files()
+
 if library_files:
-    package_data = {'pyhelios': [f'plugins/{f}' for f in library_files]}
+    package_data = {'pyhelios': [f'plugins/{f}' for f in library_files] + asset_files}
 else:
-    # Fallback - include common library extensions
-    package_data = {'pyhelios': ['plugins/*.dll', 'plugins/*.so', 'plugins/*.dylib']}
+    # Fallback - include common library extensions and assets
+    package_data = {'pyhelios': ['plugins/*.dll', 'plugins/*.so', 'plugins/*.dylib'] + asset_files}
 
 setup(
-    name='pyhelios',
+    name='pyhelios3d',
     use_scm_version=True,
     description='Cross-platform Python bindings for Helios 3D plant simulation',
     long_description=get_long_description(),
@@ -60,9 +172,10 @@ setup(
     author='Pranav Ghate',
     author_email='pghate@ucdavis.edu',
     url='https://github.com/PlantSimulationLab/PyHelios',
-    packages=find_packages(exclude=('tests', 'docs', 'build_scripts')),
+    packages=find_packages(exclude=('tests', 'docs', 'build_scripts', '*.build*', 'pyhelios_build*', '*.assets.build*')),
     package_data=package_data,
     include_package_data=True,
+    ext_modules=get_extensions(),  # Force platform-specific wheels
     
     # Platform support
     classifiers=[
@@ -73,7 +186,6 @@ setup(
         'Operating System :: POSIX :: Linux', 
         'Operating System :: MacOS',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
@@ -112,7 +224,7 @@ setup(
         ],
     },
     
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     
     # Additional metadata
     keywords='helios, plant simulation, 3d modeling, ray tracing, photosynthesis, plant architecture',

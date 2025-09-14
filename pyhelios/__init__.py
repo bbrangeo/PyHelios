@@ -2,6 +2,38 @@ from .Global import Global
 from .Logger import Logger
 from .Context import Context, PrimitiveType
 
+# Version information with robust fallback strategies
+def _get_version():
+    """Get version with multiple fallback strategies."""
+    try:
+        from ._version import version
+        return version
+    except ImportError:
+        pass
+    
+    try:
+        # Try setuptools-scm directly for development installs
+        from setuptools_scm import get_version
+        from pathlib import Path
+        return get_version(root=Path(__file__).parent.parent)
+    except (ImportError, LookupError):
+        pass
+    
+    try:
+        # Try pkg_resources/importlib.metadata as final fallback
+        try:
+            from importlib.metadata import version
+        except ImportError:
+            # Python < 3.8 fallback
+            from importlib_metadata import version
+        return version('pyhelios')
+    except Exception:
+        pass
+    
+    return "unknown"
+
+__version__ = _get_version()
+
 # Initialize asset paths for C++ plugins
 try:
     from .assets import initialize_asset_paths

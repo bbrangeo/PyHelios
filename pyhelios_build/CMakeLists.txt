@@ -20,6 +20,18 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PluginSelection.cmake")
 # Setup plugin system (replaces hardcoded PLUGINS variable)
 setup_plugin_system()
 
+#-------- MANYLINUX COMPATIBILITY FIX ---------#
+# Apply z_size_t compatibility fix globally for all dependencies
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(DEFINED ENV{CIBUILDWHEEL} OR DEFINED ENV{AUDITWHEEL_PLAT} OR "$ENV{AUDITWHEEL_PLAT}" MATCHES "manylinux")
+        message(STATUS "PyHelios: Applying manylinux z_size_t compatibility fix globally")
+        # Force inclusion of stddef.h for all C/C++ compilations to ensure size_t is available
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include stddef.h")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include stddef.h") 
+        message(STATUS "PyHelios: Applied global stddef.h inclusion for manylinux compatibility")
+    endif()
+endif()
+
 #-------- DO NOT MODIFY ---------#
 include( "${BASE_DIRECTORY}/core/CMake_project.cmake" )
 

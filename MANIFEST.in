@@ -1,0 +1,25 @@
+# Include build scripts
+include build_scripts/*.py
+include build_scripts/build_helios
+
+# Include documentation
+include README.md
+include docs/CHANGELOG.md
+graft docs/examples
+recursive-exclude docs/generated *
+
+# Include configuration files
+include pyproject.toml
+include requirements*.txt
+include pytest.ini
+
+# Include native libraries that get built
+recursive-include pyhelios/plugins *.dll *.so *.dylib
+
+# Exclude test and development files
+recursive-exclude tests *
+recursive-exclude .github *
+recursive-exclude pyhelios_build *
+exclude test_*.py
+exclude .gitignore
+exclude .gitmodules

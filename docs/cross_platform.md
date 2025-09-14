@@ -10,7 +10,7 @@ PyHelios is designed to work seamlessly across Windows, macOS, and Linux. This g
 | WeberPennTree | ✅ | ✅ | ✅ | Procedural trees |
 | Visualizer | ✅ | ✅ | ✅ | OpenGL rendering |
 | Radiation (GPU) | ✅ | ⚠️ | ✅ | Requires CUDA |
-| Pre-built Libraries | ❌ | ❌ | ❌ | Build from source required |
+| Pre-built Libraries | ✅ | ✅ | ✅ | `pip install pyhelios3d` |
 | Development Mode | ✅ | ✅ | ✅ | Mock mode |
 
 ## Windows
@@ -20,11 +20,16 @@ PyHelios is designed to work seamlessly across Windows, macOS, and Linux. This g
 - Comprehensive plugin support when built
 - Strong GPU computing support
 
-**Setup:**
+**Easy Install:**
+```bash
+pip install pyhelios3d
+```
+
+**Build from Source:**
 ```bash
 git clone --recursive https://github.com/PlantSimulationLab/PyHelios.git
 cd PyHelios/
-# Build native libraries (required)
+# Build native libraries (optional)
 build_scripts/build_helios
 pip install -e .
 ```
@@ -46,13 +51,20 @@ pip install -e .
 - Excellent development experience
 - Full OpenGL/Metal support
 
-**Setup:**
+**Easy Install:**
+```bash
+pip install pyhelios3d
+```
+
+**Build from Source:**
 ```bash
 # Install Xcode command line tools
 xcode-select --install
 
 git clone --recursive https://github.com/PlantSimulationLab/PyHelios.git
 cd PyHelios/
+# Install dependencies and build native libraries
+source helios-core/utilities/dependencies.sh
 build_scripts/build_helios
 pip install -e .
 ```
@@ -82,7 +94,12 @@ source pyhelios/setup_env.sh
 - Strong GPU computing support
 - Flexible package management
 
-**Setup (Ubuntu/Debian):**
+**Easy Install:**
+```bash
+pip install pyhelios3d
+```
+
+**Build from Source (Ubuntu/Debian):**
 ```bash
 # Install prerequisites
 sudo apt-get update
@@ -90,6 +107,8 @@ sudo apt-get install build-essential cmake python3-dev
 
 git clone --recursive https://github.com/PlantSimulationLab/PyHelios.git
 cd PyHelios/
+# Install dependencies and build native libraries
+source helios-core/utilities/dependencies.sh
 build_scripts/build_helios
 pip install -e .
 ```
