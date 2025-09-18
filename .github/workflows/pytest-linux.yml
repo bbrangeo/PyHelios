@@ -23,9 +23,8 @@ jobs:
         
     - name: Install Helios dependencies
       run: |
-        cd helios-core
-        chmod +x utilities/dependencies.sh
-        bash utilities/dependencies.sh VIS
+        sudo apt-get update
+        sudo apt-get install -y libomp-dev libx11-dev xorg-dev libgl1-mesa-dev libglu1-mesa-dev libxrandr-dev python3-dev pybind11-dev
         
     - name: Install build dependencies only
       run: |
@@ -33,7 +32,7 @@ jobs:
         
     - name: Build native libraries
       run: |
-        python build_scripts/build_helios.py --buildmode release --plugins visualizer,weberpenntree --verbose
+        python build_scripts/build_helios.py --buildmode release --nogpu --verbose
         
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

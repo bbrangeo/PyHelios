@@ -13,8 +13,14 @@ include pyproject.toml
 include requirements*.txt
 include pytest.ini
 
+# Include stub file for platform-specific wheels
+include pyhelios/_stub.c
+
 # Include native libraries that get built
 recursive-include pyhelios/plugins *.dll *.so *.dylib
+
+# Include PyHelios assets for wheel packaging
+recursive-include pyhelios/assets *
 
 # Exclude test and development files
 recursive-exclude tests *

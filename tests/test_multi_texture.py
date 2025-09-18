@@ -36,9 +36,10 @@ class TestMultiTextureValidation:
             [0.5, 1.0]
         ], dtype=np.float32)
         
-        # Single texture as string (backward compatible) - use real texture file
-        texture_file = "docs/examples/models/Helios_logo.jpeg"
-        
+        # Single texture as string (backward compatible) - use real texture file if available
+        from tests.conftest import get_example_file_path
+        texture_file = get_example_file_path("Helios_logo.jpeg")
+
         # Test both ways of calling with real texture file
         uuids1 = context.addTrianglesFromArraysTextured(vertices, faces, uv_coords, texture_file)
         uuids2 = context.addTrianglesFromArraysTextured(vertices, faces, uv_coords, texture_files=texture_file)
@@ -98,7 +99,8 @@ class TestMultiTextureValidation:
         ], dtype=np.float32)
         
         # When material_ids is None, should auto-generate zeros
-        texture_path = "docs/examples/models/Helios_logo.jpeg"
+        from tests.conftest import get_example_file_path
+        texture_path = get_example_file_path("Helios_logo.jpeg")
         uuids = context.addTrianglesFromArraysTextured(
             vertices, faces, uv_coords, [texture_path, texture_path]
         )
@@ -115,7 +117,8 @@ class TestMultiTextureValidation:
         uv_coords = np.array([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]], dtype=np.float32)
         
         # Valid: single texture with material ID 0
-        texture_path = "docs/examples/models/Helios_logo.jpeg"
+        from tests.conftest import get_example_file_path
+        texture_path = get_example_file_path("Helios_logo.jpeg")
         uuids = context.addTrianglesFromArraysTextured(
             vertices, faces, uv_coords, texture_path, material_ids=np.array([0], dtype=np.uint32)
         )
@@ -235,7 +238,8 @@ class TestOpenThreeDCompatibility:
         # Open3D style: triangle_material_ids specifying material for each triangle
         triangle_material_ids = np.array([0, 0, 1, 1], dtype=np.uint32)  # First quad material 0, second quad material 1
         
-        texture_path = "docs/examples/models/Helios_logo.jpeg"
+        from tests.conftest import get_example_file_path
+        texture_path = get_example_file_path("Helios_logo.jpeg")
         
         # Test Open3D-style API
         uuids = context.addTrianglesFromArraysTextured(
@@ -265,7 +269,8 @@ class TestTrimeshCompatibility:
         # Mixed material assignment
         material_ids = np.array([1, 0, 2], dtype=np.uint32)  # Out of order to test grouping
         
-        texture_path = "docs/examples/models/Helios_logo.jpeg"
+        from tests.conftest import get_example_file_path
+        texture_path = get_example_file_path("Helios_logo.jpeg")
         
         uuids = context.addTrianglesFromArraysTextured(
             vertices, faces, uv_coords,

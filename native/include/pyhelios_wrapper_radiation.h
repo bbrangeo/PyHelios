@@ -286,6 +286,48 @@ PYHELIOS_API const char* autoCalibrateCameraImage(RadiationModel* radiation_mode
                                                   const char* output_file_path, int print_quality_report,
                                                   int algorithm, const char* ccm_export_file_path);
 
+/**
+ * @brief Add radiation camera with position and lookat vectors
+ * @param radiation_model Pointer to the RadiationModel
+ * @param camera_label Camera label string
+ * @param band_labels Array of band label strings
+ * @param band_count Number of band labels
+ * @param position_x Camera position X coordinate
+ * @param position_y Camera position Y coordinate
+ * @param position_z Camera position Z coordinate
+ * @param lookat_x Lookat point X coordinate
+ * @param lookat_y Lookat point Y coordinate
+ * @param lookat_z Lookat point Z coordinate
+ * @param camera_properties Camera properties array [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]
+ * @param antialiasing_samples Number of antialiasing samples
+ */
+PYHELIOS_API void addRadiationCameraVec3(RadiationModel* radiation_model, const char* camera_label,
+                                         const char** band_labels, size_t band_count,
+                                         float position_x, float position_y, float position_z,
+                                         float lookat_x, float lookat_y, float lookat_z,
+                                         const float* camera_properties, unsigned int antialiasing_samples);
+
+/**
+ * @brief Add radiation camera with position and spherical viewing direction
+ * @param radiation_model Pointer to the RadiationModel
+ * @param camera_label Camera label string
+ * @param band_labels Array of band label strings
+ * @param band_count Number of band labels
+ * @param position_x Camera position X coordinate
+ * @param position_y Camera position Y coordinate
+ * @param position_z Camera position Z coordinate
+ * @param radius Spherical coordinate radius
+ * @param elevation Spherical coordinate elevation
+ * @param azimuth Spherical coordinate azimuth
+ * @param camera_properties Camera properties array [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]
+ * @param antialiasing_samples Number of antialiasing samples
+ */
+PYHELIOS_API void addRadiationCameraSpherical(RadiationModel* radiation_model, const char* camera_label,
+                                              const char** band_labels, size_t band_count,
+                                              float position_x, float position_y, float position_z,
+                                              float radius, float elevation, float azimuth,
+                                              const float* camera_properties, unsigned int antialiasing_samples);
+
 #ifdef __cplusplus
 }
 #endif

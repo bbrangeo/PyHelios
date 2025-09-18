@@ -311,8 +311,10 @@ class TestArrayBasedImport:
                 [0.0, 1.0]
             ], dtype=np.float32)
             
+            from tests.conftest import get_example_file_path
+            texture_path = get_example_file_path("Helios_logo.jpeg")
             uuids = context.addTrianglesFromArraysTextured(
-                vertices, faces, uv_coords, "docs/examples/models/Helios_logo.jpeg"
+                vertices, faces, uv_coords, texture_path
             )
             
             assert len(uuids) == 2

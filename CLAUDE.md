@@ -2,6 +2,39 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## MANDATORY WORKFLOW - FOLLOW EVERY SESSION
+
+### 1. Start Every Session
+- **TodoWrite**: Create todo list for complex/multi-step tasks (3+ steps or non-trivial tasks)
+- **Memory Check**: Search memory for relevant prior knowledge using `mcp__memory__search_nodes`
+- **Sub-Agent Selection**: Choose appropriate sub-agent(s) based on task type (see Sub-Agents section)
+
+### 2. During Work
+- **TodoWrite**: Update progress frequently - mark tasks in_progress and completed immediately
+- **Memory Capture**: For any technical discoveries, solutions, or architectural insights, IMMEDIATELY document in memory using MCP tools
+
+### 3. End Every Session
+- **Memory Documentation**: MANDATORY - Create memory entities for:
+  - Technical issues discovered and their solutions
+  - Design decisions made or conventions established
+  - Architectural insights about PyHelios systems
+  - Integration patterns or debugging approaches
+- **TodoWrite**: Mark final tasks as completed, clean up stale items
+- **Verification**: Confirm all memory writes were successful
+
+### 4. Memory Guidelines
+**When to write memory (REQUIRED):**
+- New technical problems discovered and solved
+- Plugin integration insights or patterns
+- Testing architecture discoveries (like ctypes contamination)
+- Build system or configuration changes
+- Performance insights or optimization approaches
+
+**How to write memory:**
+- Use `mcp__memory__create_entities` with specific entityType (technical_issue, solution, architecture, etc.)
+- Create meaningful relations with `mcp__memory__create_relations`
+- Write detailed observations that future sessions can reference
+
 ## Sub-Agents
 
 - Make sure to familiarize yourself with the available sub-agents (@.claude/agents/) and use them efficiently:

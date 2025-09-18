@@ -27,7 +27,7 @@ try:
     # Add errcheck to automatically handle errors and nulls
     def _check_visualizer_creation(result, func, args):
         if _ERROR_MANAGEMENT_AVAILABLE:
-            check_helios_error(helios_lib.getLastError, helios_lib.getLastErrorMessage)
+            check_helios_error(helios_lib.getLastErrorCode, helios_lib.getLastErrorMessage)
         if not result:
             raise RuntimeError(
                 "Failed to create Visualizer. This may indicate:\n"
@@ -233,7 +233,7 @@ try:
 
     # Error management functions availability check
     try:
-        helios_lib.getLastError.restype = ctypes.c_int
+        helios_lib.getLastErrorCode.restype = ctypes.c_int
         helios_lib.getLastErrorMessage.restype = ctypes.c_char_p
         helios_lib.clearLastError.restype = None
         _ERROR_MANAGEMENT_AVAILABLE = True
@@ -248,7 +248,7 @@ except AttributeError:
 def _check_for_helios_error():
     """Check for and raise Helios errors if error management is available."""
     if _ERROR_MANAGEMENT_AVAILABLE:
-        check_helios_error(helios_lib.getLastError, helios_lib.getLastErrorMessage)
+        check_helios_error(helios_lib.getLastErrorCode, helios_lib.getLastErrorMessage)
 
 # Wrapper functions
 

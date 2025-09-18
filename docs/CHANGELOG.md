@@ -1,5 +1,30 @@
 # Changelog
 
+# [v0.1.2] 2025-09-18
+
+🎉PyPI package distribution should now be working for all integrated plug-ins 🎉
+
+*Enhanced Build System and GPU Runtime Detection*
+- Added robust GPU runtime detection with fail-fast behavior and comprehensive error reporting
+- Enhanced wheel building infrastructure with improved GitHub Actions workflows and timeout management
+- **Build System**: Improved plugin dependency resolution with explicit user request tracking
+- **Context API**: Enhanced error handling with consistent RuntimeError exceptions and better UUID validation
+- **RadiationModel**: Expanded camera system integration with comprehensive GPU capability detection
+- **Testing**: Added pytest markers for GPU-specific tests and enhanced cross-platform test coverage
+
+# [v0.1.1] 2025-09-14
+
+*PyPI Package Distribution Fixes*
+- Fixed wheel building configuration with explicit plugin selection for cross-platform consistency
+- **macOS wheels**: Include visualization support while excluding GPU plugins due to cross-compilation constraints
+- **Windows/Linux wheels**: Include GPU plugins (radiation, energybalance) in addition to visualization for full feature support
+- Improved CI/CD testing with comprehensive plugin validation and better error reporting
+
+*Many documentation error fixes*
+
+## Context
+- Enhanced Context with new file export capabilities: `writePLY()`, `writeOBJ()` methods with comprehensive parameter support
+
 # [v0.1.0] 2025-09-06
 
 🎉++ PyPI Package Distribution ++ 🎉

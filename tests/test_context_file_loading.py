@@ -12,11 +12,11 @@ from pyhelios import HeliosError
 @pytest.fixture
 def sample_files():
     """Paths to sample files for testing."""
-    base_path = os.path.join(os.path.dirname(__file__), "../docs/examples/models")
+    from tests.conftest import get_example_file_path
     return {
-        'ply': os.path.join(base_path, "suzanne.ply"),
-        'obj': os.path.join(base_path, "suzanne.obj"), 
-        'xml': os.path.join(base_path, "leaf_cube.xml")
+        'ply': get_example_file_path("suzanne.ply"),
+        'obj': get_example_file_path("suzanne.obj"),
+        'xml': get_example_file_path("leaf_cube.xml")
     }
 
 
@@ -29,10 +29,21 @@ class TestContextFileLoading:
         return Context()
     
     @pytest.mark.cross_platform
-    def test_sample_files_exist(self, sample_files):
-        """Verify that sample files exist for testing."""
-        for file_type, file_path in sample_files.items():
-            assert os.path.exists(file_path), f"Sample {file_type} file not found: {file_path}"
+    def test_sample_files_exist(self):
+        """Verify that sample files exist for testing (skip if in wheel environment)."""
+        from tests.conftest import example_file_exists
+
+        # Check if example files are available
+        files_to_check = ["suzanne.ply", "suzanne.obj", "leaf_cube.xml"]
+        missing_files = [f for f in files_to_check if not example_file_exists(f)]
+
+        if missing_files:
+            pytest.skip(f"Example files not available in wheel environment: {missing_files}")
+
+        # If we get here, all files exist
+        for filename in files_to_check:
+            example_path = os.path.join("docs", "examples", "models", filename)
+            assert os.path.exists(example_path), f"Sample file not found: {example_path}"
     
     # =================================================================================
     # PLY Loading Tests

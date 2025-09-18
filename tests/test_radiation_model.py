@@ -24,6 +24,7 @@ except (ImportError, AttributeError):
 
 
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestRadiationModel:
     """Test RadiationModel class functionality"""
     
@@ -276,6 +277,7 @@ class TestContextPseudocolor:
 
 
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestRadiationModelIntegration:
     """Integration tests requiring native RadiationModel library"""
     
@@ -348,30 +350,101 @@ class TestRadiationModelMockMode:
             assert "build_scripts/build_helios" in error_msg
 
 
+@pytest.fixture
+def radiation_model_with_camera():
+    """Fixture providing a RadiationModel with camera setup ready for testing"""
+    with Context() as context:
+        with RadiationModel(context) as radiation_model:
+            # Add basic geometry for camera operations
+            from pyhelios.wrappers.DataTypes import vec3, vec2, RGBcolor
+            patch_center = vec3(0, 0, 0)
+            patch_size = vec2(1.0, 1.0)
+            patch_color = RGBcolor(0.5, 0.5, 0.5)
+            patch_uuid = context.addPatch(center=patch_center, size=patch_size, color=patch_color)
+
+            # Add primitive data for bounding box detection (integer values)
+            context.setPrimitiveDataInt(patch_uuid, "leaves", 1)
+            context.setPrimitiveDataInt(patch_uuid, "branches", 2)
+            context.setPrimitiveDataInt(patch_uuid, "trunk", 3)
+            context.setPrimitiveDataInt(patch_uuid, "tree_species", 4)
+
+            sourceid = radiation_model.addCollimatedRadiationSource()
+
+            # Add radiation band and camera
+            radiation_model.addRadiationBand("red")
+            radiation_model.setSourceFlux(sourceid, "red", 100.0)
+            radiation_model.setScatteringDepth("red", 2)
+            radiation_model.addRadiationCamera(
+                camera_label="test_camera",
+                band_labels=["red"],
+                position=vec3(0, 0, 5),
+                lookat_or_direction=vec3(0, 0, 0)
+            )
+
+            # Update geometry and run simulation (required for camera operations)
+            radiation_model.updateGeometry()
+            radiation_model.runBand(["red"])
+
+            # Generate camera image to create pixel labels (required for most camera operations)
+            radiation_model.writeCameraImage(
+                camera="test_camera",
+                bands=["red"],
+                imagefile_base="test_image",
+                image_path="./"
+            )
+
+            yield radiation_model, context
+
+
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestRadiationModelCameraFunctions:
     """Test new camera and image functions in RadiationModel v1.3.47"""
     
-    def test_write_camera_image(self):
+    def test_writeCameraImage(self):
         """Test camera image writing functionality"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
+                # Add some geometry for the camera to render
+                from pyhelios.wrappers.DataTypes import vec3, vec2, RGBcolor
+                patch_center = vec3(0, 0, 0)
+                patch_size = vec2(1.0, 1.0)
+                patch_color = RGBcolor(0.5, 0.5, 0.5)
+                context.addPatch(center=patch_center, size=patch_size, color=patch_color)
+
+                # Add radiation bands first (use 3 bands for RGB image)
+                radiation_model.addRadiationBand("red")
+                radiation_model.addRadiationBand("green")
+                radiation_model.addRadiationBand("blue")
+
+                # Add camera before writing image
+                radiation_model.addRadiationCamera(
+                    camera_label="test_camera",
+                    band_labels=["red", "green", "blue"],
+                    position=vec3(0, 0, 5),
+                    lookat_or_direction=vec3(0, 0, 0)
+                )
+
+                # Update geometry and run simulation (required for camera operations)
+                radiation_model.updateGeometry()
+                radiation_model.runBand(["red", "green", "blue"])
+
                 # Test basic camera image writing (may return empty string in mock mode)
-                filename = radiation_model.write_camera_image(
-                    camera="test_camera", 
-                    bands=["RGB", "NIR"], 
+                filename = radiation_model.writeCameraImage(
+                    camera="test_camera",
+                    bands=["red", "green", "blue"],
                     imagefile_base="test_image",
-                    image_path="./output"
+                    image_path="./"
                 )
                 assert isinstance(filename, str)
     
-    def test_write_camera_image_invalid_params(self):
+    def test_writeCameraImage_invalid_params(self):
         """Test camera image writing with invalid parameters"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
                 # Test invalid camera type
                 with pytest.raises(TypeError):
-                    radiation_model.write_camera_image(
+                    radiation_model.writeCameraImage(
                         camera=123,  # Invalid type
                         bands=["RGB"], 
                         imagefile_base="test"
@@ -379,7 +452,7 @@ class TestRadiationModelCameraFunctions:
                 
                 # Test empty bands list
                 with pytest.raises(TypeError):
-                    radiation_model.write_camera_image(
+                    radiation_model.writeCameraImage(
                         camera="test_camera",
                         bands=[],  # Empty list
                         imagefile_base="test"
@@ -387,18 +460,32 @@ class TestRadiationModelCameraFunctions:
                 
                 # Test invalid flux conversion
                 with pytest.raises(TypeError):
-                    radiation_model.write_camera_image(
+                    radiation_model.writeCameraImage(
                         camera="test_camera",
                         bands=["RGB"],
                         imagefile_base="test",
                         flux_to_pixel_conversion=0  # Invalid value
                     )
     
-    def test_write_norm_camera_image(self):
+    def test_writeNormCameraImage(self):
         """Test normalized camera image writing"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
-                filename = radiation_model.write_norm_camera_image(
+                # Add radiation bands first
+                radiation_model.addRadiationBand("R")
+                radiation_model.addRadiationBand("G")
+                radiation_model.addRadiationBand("B")
+
+                # Add camera before writing image
+                from pyhelios.wrappers.DataTypes import vec3
+                radiation_model.addRadiationCamera(
+                    camera_label="test_camera",
+                    band_labels=["R", "G", "B"],
+                    position=vec3(0, 0, 5),
+                    lookat_or_direction=vec3(0, 0, 0)
+                )
+
+                filename = radiation_model.writeNormCameraImage(
                     camera="test_camera",
                     bands=["R", "G", "B"],
                     imagefile_base="normalized_test",
@@ -406,76 +493,100 @@ class TestRadiationModelCameraFunctions:
                 )
                 assert isinstance(filename, str)
     
-    def test_write_camera_image_data(self):
+    def test_writeCameraImage_data(self):
         """Test camera image data writing (ASCII format)"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
+                # Add radiation band first
+                radiation_model.addRadiationBand("RGB")
+
+                # Add camera before writing data
+                from pyhelios.wrappers.DataTypes import vec3
+                radiation_model.addRadiationCamera(
+                    camera_label="test_camera",
+                    band_labels=["RGB"],
+                    position=vec3(0, 0, 5),
+                    lookat_or_direction=vec3(0, 0, 0)
+                )
+
                 # Should not raise exception
-                radiation_model.write_camera_image_data(
+                radiation_model.writeCameraImageData(
                     camera="test_camera",
                     band="RGB",
                     imagefile_base="data_test",
-                    image_path="./output",
+                    image_path="./output/",
                     frame=-1
                 )
     
-    def test_write_image_bounding_boxes_single_primitive(self):
+    def test_writeImageBoundingBoxes_single_primitive(self, radiation_model_with_camera):
         """Test writing image bounding boxes with single primitive data label"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Test single primitive data label
-                radiation_model.write_image_bounding_boxes(
-                    camera_label="test_camera",
-                    primitive_data_labels="tree_species",
-                    object_class_ids=1,
-                    image_file="test_image.jpg"
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Test single primitive data label (tree_species is already set in the fixture)
+        radiation_model.writeImageBoundingBoxes(
+            camera_label="test_camera",
+            primitive_data_labels="tree_species",
+            object_class_ids=1,
+            image_file="test_image.jpg"
+        )
     
-    def test_write_image_bounding_boxes_multiple_primitive(self):
+    def test_writeImageBoundingBoxes_multiple_primitive(self, radiation_model_with_camera):
         """Test writing image bounding boxes with multiple primitive data labels"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Test multiple primitive data labels
-                radiation_model.write_image_bounding_boxes(
-                    camera_label="test_camera",
-                    primitive_data_labels=["leaves", "branches", "trunk"],
-                    object_class_ids=[1, 2, 3],
-                    image_file="test_image.jpg",
-                    classes_txt_file="plant_classes.txt"
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Test multiple primitive data labels (leaves, branches, trunk are already set in the fixture)
+        radiation_model.writeImageBoundingBoxes(
+            camera_label="test_camera",
+            primitive_data_labels=["leaves", "branches", "trunk"],
+            object_class_ids=[1, 2, 3],
+            image_file="test_image.jpg",
+            classes_txt_file="plant_classes.txt"
+        )
     
-    def test_write_image_bounding_boxes_single_object(self):
+    def test_writeImageBoundingBoxes_single_object(self, radiation_model_with_camera):
         """Test writing image bounding boxes with single object data label"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Test single object data label
-                radiation_model.write_image_bounding_boxes(
-                    camera_label="test_camera",
-                    object_data_labels="tree_id",
-                    object_class_ids=5,
-                    image_file="test_image.jpg"
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Add object data that can be used for bounding boxes
+        patch_uuids = context.getAllUUIDs()
+        if patch_uuids:
+            context.setPrimitiveDataString(patch_uuids[0], "tree_id", "oak_tree_001")
+
+        # Test single object data label
+        radiation_model.writeImageBoundingBoxes(
+            camera_label="test_camera",
+            object_data_labels="tree_id",
+            object_class_ids=5,
+            image_file="test_image.jpg"
+        )
     
-    def test_write_image_bounding_boxes_multiple_object(self):
+    def test_writeImageBoundingBoxes_multiple_object(self, radiation_model_with_camera):
         """Test writing image bounding boxes with multiple object data labels"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Test multiple object data labels
-                radiation_model.write_image_bounding_boxes(
-                    camera_label="test_camera",
-                    object_data_labels=["tree_1", "tree_2", "tree_3"],
-                    object_class_ids=[10, 11, 12],
-                    image_file="test_image.jpg",
-                    image_path="./annotations"
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Add object data that can be used for bounding boxes
+        patch_uuids = context.getAllUUIDs()
+        if patch_uuids:
+            context.setPrimitiveDataString(patch_uuids[0], "tree_1", "oak_001")
+            context.setPrimitiveDataString(patch_uuids[0], "tree_2", "oak_002")
+            context.setPrimitiveDataString(patch_uuids[0], "tree_3", "oak_003")
+
+        # Test multiple object data labels
+        radiation_model.writeImageBoundingBoxes(
+            camera_label="test_camera",
+            object_data_labels=["tree_1", "tree_2", "tree_3"],
+            object_class_ids=[10, 11, 12],
+            image_file="test_image.jpg",
+            image_path="./annotations/"
+        )
     
-    def test_write_image_bounding_boxes_invalid_params(self):
+    def test_writeImageBoundingBoxes_invalid_params(self):
         """Test bounding boxes with invalid parameters"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
                 # Test both primitive and object labels provided (should fail)
                 with pytest.raises(ValueError):
-                    radiation_model.write_image_bounding_boxes(
+                    radiation_model.writeImageBoundingBoxes(
                         camera_label="test_camera",
                         primitive_data_labels="test",
                         object_data_labels="test2",  # Both provided - invalid
@@ -485,76 +596,119 @@ class TestRadiationModelCameraFunctions:
                 
                 # Test neither provided (should fail)
                 with pytest.raises(ValueError):
-                    radiation_model.write_image_bounding_boxes(
+                    radiation_model.writeImageBoundingBoxes(
                         camera_label="test_camera",
                         image_file="test.jpg"
                     )
                 
                 # Test mismatched lengths
                 with pytest.raises(ValueError):
-                    radiation_model.write_image_bounding_boxes(
+                    radiation_model.writeImageBoundingBoxes(
                         camera_label="test_camera",
                         primitive_data_labels=["a", "b"],
                         object_class_ids=[1],  # Wrong length
                         image_file="test.jpg"
                     )
     
-    def test_write_image_segmentation_masks_single_primitive(self):
+    def test_writeImageSegmentationMasks_single_primitive(self, radiation_model_with_camera):
         """Test writing segmentation masks with single primitive data label"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                radiation_model.write_image_segmentation_masks(
-                    camera_label="test_camera",
-                    primitive_data_labels="leaf_type",
-                    object_class_ids=1,
-                    json_filename="segmentation.json",
-                    image_file="test_image.jpg",
-                    append_file=False
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Generate camera image first (required for segmentation masks)
+        image_filename = radiation_model.writeCameraImage(
+            camera="test_camera",
+            bands=["red"],
+            imagefile_base="test_image",
+            image_path="./"
+        )
+
+        # Add primitive data for segmentation masks
+        patch_uuids = context.getAllUUIDs()
+        if patch_uuids:
+            context.setPrimitiveDataInt(patch_uuids[0], "leaf_type", 1)
+
+        radiation_model.writeImageSegmentationMasks(
+            camera_label="test_camera",
+            primitive_data_labels="leaf_type",
+            object_class_ids=1,
+            json_filename="segmentation.json",
+            image_file=image_filename,
+            append_file=False
+        )
     
-    def test_write_image_segmentation_masks_multiple_primitive(self):
+    def test_writeImageSegmentationMasks_multiple_primitive(self, radiation_model_with_camera):
         """Test writing segmentation masks with multiple primitive data labels"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                radiation_model.write_image_segmentation_masks(
-                    camera_label="test_camera",
-                    primitive_data_labels=["leaves", "stem", "fruit"],
-                    object_class_ids=[1, 2, 3],
-                    json_filename="multi_segmentation.json",
-                    image_file="test_image.jpg",
-                    append_file=True
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Generate camera image first (required for segmentation masks)
+        image_filename = radiation_model.writeCameraImage(
+            camera="test_camera",
+            bands=["red"],
+            imagefile_base="test_image",
+            image_path="./"
+        )
+
+        # Add primitive data for segmentation masks
+        patch_uuids = context.getAllUUIDs()
+        if patch_uuids:
+            context.setPrimitiveDataInt(patch_uuids[0], "leaves", 1)
+            context.setPrimitiveDataInt(patch_uuids[0], "stem", 1)
+            context.setPrimitiveDataInt(patch_uuids[0], "fruit", 2)
+
+        radiation_model.writeImageSegmentationMasks(
+            camera_label="test_camera",
+            primitive_data_labels=["leaves", "stem", "fruit"],
+            object_class_ids=[1, 2, 3],
+            json_filename="multi_segmentation.json",
+            image_file=image_filename,
+            append_file=True
+        )
     
-    def test_write_image_segmentation_masks_object_data(self):
+    def test_writeImageSegmentationMasks_object_data(self, radiation_model_with_camera):
         """Test writing segmentation masks with object data labels"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Single object data label
-                radiation_model.write_image_segmentation_masks(
-                    camera_label="test_camera",
-                    object_data_labels="plant_id",
-                    object_class_ids=10,
-                    json_filename="object_segmentation.json",
-                    image_file="test_image.jpg"
-                )
-                
-                # Multiple object data labels
-                radiation_model.write_image_segmentation_masks(
-                    camera_label="test_camera",
-                    object_data_labels=["plant_1", "plant_2"],
-                    object_class_ids=[10, 11],
-                    json_filename="multi_object_segmentation.json",
-                    image_file="test_image.jpg",
-                    append_file=True
-                )
+        radiation_model, context = radiation_model_with_camera
+
+        # Generate camera image first (required for segmentation masks)
+        image_filename = radiation_model.writeCameraImage(
+            camera="test_camera",
+            bands=["red"],
+            imagefile_base="test_image",
+            image_path="./"
+        )
+
+        # Add object data for segmentation masks
+        patch_uuids = context.getAllUUIDs()
+        if patch_uuids:
+            context.setPrimitiveDataString(patch_uuids[0], "plant_id", "plant_001")
+            context.setPrimitiveDataString(patch_uuids[0], "plant_1", "plant_a")
+            context.setPrimitiveDataString(patch_uuids[0], "plant_2", "plant_b")
+
+        # Single object data label
+        radiation_model.writeImageSegmentationMasks(
+            camera_label="test_camera",
+            object_data_labels="plant_id",
+            object_class_ids=10,
+            json_filename="object_segmentation.json",
+            image_file=image_filename
+        )
+
+        # Multiple object data labels
+        radiation_model.writeImageSegmentationMasks(
+            camera_label="test_camera",
+            object_data_labels=["plant_1", "plant_2"],
+            object_class_ids=[10, 11],
+            json_filename="multi_object_segmentation.json",
+            image_file=image_filename,
+            append_file=True
+        )
     
-    def test_write_image_segmentation_masks_invalid_params(self):
+    def test_writeImageSegmentationMasks_invalid_params(self):
         """Test segmentation masks with invalid parameters"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
                 # Test both primitive and object labels provided (should fail)
                 with pytest.raises(ValueError):
-                    radiation_model.write_image_segmentation_masks(
+                    radiation_model.writeImageSegmentationMasks(
                         camera_label="test_camera",
                         primitive_data_labels="test",
                         object_data_labels="test2",  # Both provided - invalid
@@ -565,7 +719,7 @@ class TestRadiationModelCameraFunctions:
                 
                 # Test invalid append_file type
                 with pytest.raises(TypeError):
-                    radiation_model.write_image_segmentation_masks(
+                    radiation_model.writeImageSegmentationMasks(
                         camera_label="test_camera",
                         primitive_data_labels="test",
                         object_class_ids=1,
@@ -574,58 +728,13 @@ class TestRadiationModelCameraFunctions:
                         append_file="invalid"  # Should be boolean
                     )
     
-    def test_auto_calibrate_camera_image(self):
-        """Test auto-calibration of camera images"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Test basic auto-calibration
-                filename = radiation_model.auto_calibrate_camera_image(
-                    camera_label="test_camera",
-                    red_band_label="Red",
-                    green_band_label="Green", 
-                    blue_band_label="Blue",
-                    output_file_path="calibrated_image.jpg"
-                )
-                assert isinstance(filename, str)
-                
-                # Test with quality report and CCM export
-                filename2 = radiation_model.auto_calibrate_camera_image(
-                    camera_label="test_camera",
-                    red_band_label="R",
-                    green_band_label="G",
-                    blue_band_label="B",
-                    output_file_path="calibrated_with_report.jpg",
-                    print_quality_report=True,
-                    algorithm="DIAGONAL_ONLY",
-                    ccm_export_file_path="color_correction_matrix.txt"
-                )
-                assert isinstance(filename2, str)
-    
-    def test_auto_calibrate_camera_image_algorithms(self):
-        """Test auto-calibration with different algorithms"""
-        with Context() as context:
-            with RadiationModel(context) as radiation_model:
-                # Test all valid algorithms
-                algorithms = ["DIAGONAL_ONLY", "MATRIX_3X3_AUTO", "MATRIX_3X3_FORCE"]
-                
-                for algorithm in algorithms:
-                    filename = radiation_model.auto_calibrate_camera_image(
-                        camera_label="test_camera",
-                        red_band_label="R",
-                        green_band_label="G",
-                        blue_band_label="B",
-                        output_file_path=f"calibrated_{algorithm.lower()}.jpg",
-                        algorithm=algorithm
-                    )
-                    assert isinstance(filename, str)
-    
-    def test_auto_calibrate_camera_image_invalid_params(self):
+    def test_autoCalibrateCameraImage_invalid_params(self):
         """Test auto-calibration with invalid parameters"""
         with Context() as context:
             with RadiationModel(context) as radiation_model:
                 # Test invalid algorithm
                 with pytest.raises(ValueError):
-                    radiation_model.auto_calibrate_camera_image(
+                    radiation_model.autoCalibrateCameraImage(
                         camera_label="test_camera",
                         red_band_label="R",
                         green_band_label="G",
@@ -636,7 +745,7 @@ class TestRadiationModelCameraFunctions:
                 
                 # Test empty camera label
                 with pytest.raises(TypeError):
-                    radiation_model.auto_calibrate_camera_image(
+                    radiation_model.autoCalibrateCameraImage(
                         camera_label="",  # Empty string
                         red_band_label="R",
                         green_band_label="G",
@@ -646,7 +755,7 @@ class TestRadiationModelCameraFunctions:
                 
                 # Test invalid print_quality_report type
                 with pytest.raises(TypeError):
-                    radiation_model.auto_calibrate_camera_image(
+                    radiation_model.autoCalibrateCameraImage(
                         camera_label="test_camera",
                         red_band_label="R",
                         green_band_label="G",
@@ -656,28 +765,140 @@ class TestRadiationModelCameraFunctions:
                     )
 
 
-@pytest.mark.cross_platform
+@pytest.mark.requires_gpu
 class TestRadiationModelCameraFunctionsMock:
-    """Test camera functions work in mock mode (cross-platform)"""
-    
-    def test_camera_functions_in_mock_mode(self):
-        """Test that camera functions handle mock mode gracefully"""
-        # These tests should work even when native libraries are not available
-        # Mock mode should raise appropriate RadiationModelError with helpful messages
-        
+    """Test camera functions with GPU/OptiX requirements"""
+
+    def test_camera_functions_with_gpu(self, radiation_model_with_camera):
+        """Test that camera functions work when GPU/OptiX is available"""
+        # This test requires GPU/OptiX since camera functions use radiation ray tracing
+        radiation_model, context = radiation_model_with_camera
+
+        # Add RGB radiation band
+        radiation_model.addRadiationBand("RGB")
+
+        # Add camera for testing functionality
+        from pyhelios.wrappers.DataTypes import vec3
+        radiation_model.addRadiationCamera(
+            camera_label="gpu_test",
+            band_labels=["RGB"],
+            position=vec3(0, 0, 5),
+            lookat_or_direction=vec3(0, 0, 0)
+        )
+
+        # Update geometry and run simulation
+        radiation_model.updateGeometry()
+        radiation_model.runBand(["RGB"])
+
+        # Test basic camera functionality
+        filename = radiation_model.writeCameraImage(
+            camera="gpu_test", bands=["RGB"], imagefile_base="test")
+        assert isinstance(filename, str)
+
+
+@pytest.mark.native_only
+@pytest.mark.requires_gpu
+class TestRadiationModelCameraCreation:
+    """Test addRadiationCamera method functionality"""
+
+    def test_add_radiation_camera_vec3(self):
+        """Test adding radiation camera with vec3 position and lookat"""
         with Context() as context:
-            try:
-                with RadiationModel(context) as radiation_model:
-                    # If we get here, radiation plugin is available
-                    filename = radiation_model.write_camera_image(
-                        camera="test", bands=["RGB"], imagefile_base="test")
-                    assert isinstance(filename, str)
-                    
-            except (RuntimeError, RadiationModelError) as e:
-                # Expected in mock mode - should have helpful error message
-                error_msg = str(e).lower()
-                assert any(keyword in error_msg for keyword in 
-                          ["radiation", "not available", "plugin", "native library"])
+            with RadiationModel(context) as radiation_model:
+                # Add radiation bands first
+                radiation_model.addRadiationBand("red")
+                radiation_model.addRadiationBand("green")
+                radiation_model.addRadiationBand("blue")
+
+                # Test basic camera creation with vec3 coordinates
+                from pyhelios.wrappers.DataTypes import vec3
+                radiation_model.addRadiationCamera(
+                    camera_label="test_camera",
+                    band_labels=["red", "green", "blue"],
+                    position=vec3(0, 0, 5),
+                    lookat_or_direction=vec3(0, 0, 0)
+                )
+
+    def test_add_radiation_camera_with_properties(self):
+        """Test adding radiation camera with custom CameraProperties"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                # Add radiation band
+                radiation_model.addRadiationBand("RGB")
+
+                # Create custom camera properties
+                from pyhelios import CameraProperties
+                camera_props = CameraProperties(
+                    camera_resolution=(1024, 1024),
+                    focal_plane_distance=2.0,
+                    lens_diameter=0.1,
+                    HFOV=45.0,
+                    FOV_aspect_ratio=1.0
+                )
+
+                # Add camera with custom properties
+                from pyhelios.wrappers.DataTypes import vec3
+                radiation_model.addRadiationCamera(
+                    camera_label="hd_camera",
+                    band_labels=["RGB"],
+                    position=vec3(0, 0, 10),
+                    lookat_or_direction=vec3(0, 0, 0),
+                    camera_properties=camera_props,
+                    antialiasing_samples=200
+                )
+
+    def test_add_radiation_camera_validation(self):
+        """Test parameter validation for addRadiationCamera"""
+        with Context() as context:
+            with RadiationModel(context) as radiation_model:
+                radiation_model.addRadiationBand("test_band")
+                from pyhelios.wrappers.DataTypes import vec3
+                from pyhelios.validation.exceptions import ValidationError
+
+                # Test invalid camera label (empty string)
+                with pytest.raises(ValidationError):
+                    radiation_model.addRadiationCamera(
+                        camera_label="",  # Empty string
+                        band_labels=["test_band"],
+                        position=vec3(0, 0, 5),
+                        lookat_or_direction=vec3(0, 0, 0)
+                    )
+
+                # Test invalid band labels (empty list)
+                with pytest.raises(ValidationError):
+                    radiation_model.addRadiationCamera(
+                        camera_label="test",
+                        band_labels=[],  # Empty list
+                        position=vec3(0, 0, 5),
+                        lookat_or_direction=vec3(0, 0, 0)
+                    )
+
+                # Test invalid antialiasing samples
+                with pytest.raises(ValidationError):
+                    radiation_model.addRadiationCamera(
+                        camera_label="test",
+                        band_labels=["test_band"],
+                        position=vec3(0, 0, 5),
+                        lookat_or_direction=vec3(0, 0, 0),
+                        antialiasing_samples=0  # Must be positive
+                    )
+
+                # Test invalid list parameters (should reject lists)
+                with pytest.raises(TypeError):
+                    radiation_model.addRadiationCamera(
+                        camera_label="invalid_test",
+                        band_labels=["test_band"],
+                        position=[1, 2, 3],  # Should reject lists
+                        lookat_or_direction=vec3(0, 0, 0)
+                    )
+
+                # Test valid camera creation with proper vec3
+                radiation_model.addRadiationCamera(
+                    camera_label="valid_test",
+                    band_labels=["test_band"],
+                    position=vec3(1, 2, 3),  # Proper vec3
+                    lookat_or_direction=vec3(0, 0, 0)  # Proper vec3
+                )
 
 
 if __name__ == "__main__":

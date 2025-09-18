@@ -10,6 +10,7 @@ from pyhelios import Context, RadiationModel, DataTypes
 
 
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestRadiationValidation:
     """Tests that replicate exact C++ test cases to validate PyHelios radiation accuracy"""
 

@@ -51,10 +51,11 @@ except (AttributeError, ImportError):
     WPTType = None
 
 try:
-    from .RadiationModel import RadiationModel, RadiationModelError
+    from .RadiationModel import RadiationModel, RadiationModelError, CameraProperties
 except (AttributeError, ImportError):
     # RadiationModel functions not available in current library
     RadiationModel = None
+    CameraProperties = None
     RadiationModelError = None
 
 try:

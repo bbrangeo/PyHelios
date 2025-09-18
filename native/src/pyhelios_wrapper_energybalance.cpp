@@ -13,7 +13,7 @@
 
 extern "C" {
     
-    EnergyBalanceModel* createEnergyBalanceModel(helios::Context* context) {
+    PYHELIOS_API EnergyBalanceModel* createEnergyBalanceModel(helios::Context* context) {
         try {
             clearError();
             if (!context) {
@@ -35,13 +35,13 @@ extern "C" {
         }
     }
     
-    void destroyEnergyBalanceModel(EnergyBalanceModel* energy_model) {
+    PYHELIOS_API void destroyEnergyBalanceModel(EnergyBalanceModel* energy_model) {
         if (energy_model) {
             delete energy_model;
         }
     }
     
-    void enableEnergyBalanceMessages(EnergyBalanceModel* energy_model) {
+    PYHELIOS_API void enableEnergyBalanceMessages(EnergyBalanceModel* energy_model) {
         try {
             clearError();
             if (!energy_model) {
@@ -58,7 +58,7 @@ extern "C" {
         }
     }
     
-    void disableEnergyBalanceMessages(EnergyBalanceModel* energy_model) {
+    PYHELIOS_API void disableEnergyBalanceMessages(EnergyBalanceModel* energy_model) {
         try {
             clearError();
             if (!energy_model) {
@@ -75,7 +75,7 @@ extern "C" {
         }
     }
     
-    void runEnergyBalance(EnergyBalanceModel* energy_model) {
+    PYHELIOS_API void runEnergyBalance(EnergyBalanceModel* energy_model) {
         try {
             clearError();
             if (!energy_model) {
@@ -92,7 +92,7 @@ extern "C" {
         }
     }
     
-    void runEnergyBalanceDynamic(EnergyBalanceModel* energy_model, float dt) {
+    PYHELIOS_API void runEnergyBalanceDynamic(EnergyBalanceModel* energy_model, float dt) {
         try {
             clearError();
             if (!energy_model) {
@@ -113,7 +113,7 @@ extern "C" {
         }
     }
     
-    void runEnergyBalanceForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void runEnergyBalanceForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!energy_model) {
@@ -139,7 +139,7 @@ extern "C" {
         }
     }
     
-    void runEnergyBalanceForUUIDsDynamic(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count, float dt) {
+    PYHELIOS_API void runEnergyBalanceForUUIDsDynamic(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count, float dt) {
         try {
             clearError();
             if (!energy_model) {
@@ -169,7 +169,7 @@ extern "C" {
         }
     }
     
-    void addEnergyBalanceRadiationBand(EnergyBalanceModel* energy_model, const char* band) {
+    PYHELIOS_API void addEnergyBalanceRadiationBand(EnergyBalanceModel* energy_model, const char* band) {
         try {
             clearError();
             if (!energy_model) {
@@ -190,7 +190,7 @@ extern "C" {
         }
     }
     
-    void addEnergyBalanceRadiationBands(EnergyBalanceModel* energy_model, const char* const* bands, unsigned int band_count) {
+    PYHELIOS_API void addEnergyBalanceRadiationBands(EnergyBalanceModel* energy_model, const char* const* bands, unsigned int band_count) {
         try {
             clearError();
             if (!energy_model) {
@@ -221,7 +221,7 @@ extern "C" {
         }
     }
     
-    void enableAirEnergyBalance(EnergyBalanceModel* energy_model) {
+    PYHELIOS_API void enableAirEnergyBalance(EnergyBalanceModel* energy_model) {
         try {
             clearError();
             if (!energy_model) {
@@ -238,7 +238,7 @@ extern "C" {
         }
     }
     
-    void enableAirEnergyBalanceWithParameters(EnergyBalanceModel* energy_model, float canopy_height_m, float reference_height_m) {
+    PYHELIOS_API void enableAirEnergyBalanceWithParameters(EnergyBalanceModel* energy_model, float canopy_height_m, float reference_height_m) {
         try {
             clearError();
             if (!energy_model) {
@@ -263,7 +263,7 @@ extern "C" {
         }
     }
     
-    void evaluateAirEnergyBalance(EnergyBalanceModel* energy_model, float dt_sec, float time_advance_sec) {
+    PYHELIOS_API void evaluateAirEnergyBalance(EnergyBalanceModel* energy_model, float dt_sec, float time_advance_sec) {
         try {
             clearError();
             if (!energy_model) {
@@ -288,7 +288,7 @@ extern "C" {
         }
     }
     
-    void evaluateAirEnergyBalanceForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count, float dt_sec, float time_advance_sec) {
+    PYHELIOS_API void evaluateAirEnergyBalanceForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count, float dt_sec, float time_advance_sec) {
         try {
             clearError();
             if (!energy_model) {
@@ -322,7 +322,7 @@ extern "C" {
         }
     }
     
-    void optionalOutputPrimitiveData(EnergyBalanceModel* energy_model, const char* label) {
+    PYHELIOS_API void optionalOutputPrimitiveData(EnergyBalanceModel* energy_model, const char* label) {
         try {
             clearError();
             if (!energy_model) {
@@ -343,7 +343,7 @@ extern "C" {
         }
     }
     
-    void printDefaultValueReport(EnergyBalanceModel* energy_model) {
+    PYHELIOS_API void printDefaultValueReport(EnergyBalanceModel* energy_model) {
         try {
             clearError();
             if (!energy_model) {
@@ -360,7 +360,7 @@ extern "C" {
         }
     }
     
-    void printDefaultValueReportForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void printDefaultValueReportForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!energy_model) {

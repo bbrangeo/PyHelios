@@ -13,7 +13,7 @@ from pathlib import Path
 import subprocess
 import ctypes
 
-def validate_library(lib_path: Path) -> bool:
+def validate_library(lib_path):
     """
     Validate that library is a proper PyHelios library that can be loaded.
     
@@ -53,7 +53,104 @@ def validate_library(lib_path: Path) -> bool:
         print(f"[ERROR] Error validating library {lib_path.name}: {e}")
         return False
 
-def copy_assets_for_packaging(project_root: Path) -> None:
+def find_windows_dll_dependencies(lib_path, project_root):
+    """
+    Find and collect all required DLL dependencies for Windows wheels.
+
+    Args:
+        lib_path: Path to the main library (libhelios.dll)
+        project_root: Path to project root directory
+
+    Returns:
+        List of Path objects for all required DLLs
+    """
+    if platform.system() != 'Windows':
+        return []
+
+    print(f"\nScanning Windows DLL dependencies for {lib_path.name}...")
+
+    dependencies = []
+
+    # 1. OptiX DLL (if radiation plugin is built)
+    # PyHelios CMake copies OptiX DLL to build/lib/ directory for wheel packaging
+    build_lib_dir = project_root / 'pyhelios_build' / 'build' / 'lib'
+    optix_dlls = ['optix.6.5.0.dll', 'optix.51.dll']  # Support both versions
+
+    for optix_dll in optix_dlls:
+        optix_path = build_lib_dir / optix_dll
+        if optix_path.exists():
+            dependencies.append(optix_path)
+            print(f"[FOUND] OptiX dependency: {optix_dll}")
+            break
+
+    # 2. CUDA Runtime DLLs (from CI environment)
+    # Check common CUDA installation paths
+    cuda_paths = [
+        'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA',
+        'C:\\Program Files (x86)\\NVIDIA GPU Computing Toolkit\\CUDA'
+    ]
+
+    cuda_dlls = ['cudart64_12.dll', 'cudart64_11.dll', 'cudart64_10.dll']  # Common versions
+    for cuda_path in cuda_paths:
+        cuda_root = Path(cuda_path)
+        if cuda_root.exists():
+            for version_dir in cuda_root.glob('v*'):
+                bin_dir = version_dir / 'bin'
+                if bin_dir.exists():
+                    for cuda_dll in cuda_dlls:
+                        cuda_dll_path = bin_dir / cuda_dll
+                        if cuda_dll_path.exists():
+                            dependencies.append(cuda_dll_path)
+                            print(f"[FOUND] CUDA Runtime: {cuda_dll}")
+                            break
+                    break
+            break
+
+    # 3. Visual C++ Runtime (from Windows SDK/Visual Studio)
+    vcruntime_dlls = ['vcruntime140.dll', 'msvcp140.dll', 'concrt140.dll']
+
+    # Check system directories and Visual Studio installations
+    system_paths = [
+        'C:\\Windows\\System32',
+        'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Redist\\MSVC',
+        'C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Redist\\MSVC',
+        'C:\\Program Files\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Redist\\MSVC',
+        'C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Redist\\MSVC'
+    ]
+
+    for vc_dll in vcruntime_dlls:
+        found = False
+        for base_path in system_paths:
+            base_path = Path(base_path)
+            if base_path.exists():
+                # Check direct path and subdirectories
+                for dll_path in [base_path / vc_dll] + list(base_path.rglob(vc_dll)):
+                    if dll_path.exists() and dll_path.is_file():
+                        dependencies.append(dll_path)
+                        print(f"[FOUND] VC++ Runtime: {vc_dll}")
+                        found = True
+                        break
+                if found:
+                    break
+
+    # 4. Additional OptiX dependencies if found in NVIDIA directories
+    nvidia_paths = [
+        'C:\\Program Files\\NVIDIA Corporation\\OptiX SDK 6.5.0\\bin64',
+        'C:\\ProgramData\\NVIDIA Corporation\\OptiX\\cache'
+    ]
+
+    for nvidia_path in nvidia_paths:
+        nvidia_path = Path(nvidia_path)
+        if nvidia_path.exists():
+            for optix_file in nvidia_path.glob('*.dll'):
+                if 'optix' in optix_file.name.lower():
+                    dependencies.append(optix_file)
+                    print(f"[FOUND] Additional OptiX: {optix_file.name}")
+
+    print(f"Found {len(dependencies)} Windows DLL dependencies")
+    return dependencies
+
+def copy_assets_for_packaging(project_root):
     """
     Copy Helios assets to pyhelios/assets/build for packaging in wheels.
     
@@ -115,9 +212,45 @@ def copy_assets_for_packaging(project_root: Path) -> None:
     plugin_asset_dirs = {
         'weberpenntree': ['leaves', 'wood', 'xml'],
         'visualizer': ['textures', 'shaders'],
-        'radiation': ['spectral_data'] if Path(plugins_src_dir / 'radiation' / 'spectral_data').exists() else []
         # NOTE: plantarchitecture and canopygenerator are not integrated with PyHelios - assets not needed
     }
+
+    # Add radiation assets only on platforms that build GPU plugins (Windows/Linux)
+    if platform.system() != 'Darwin':  # Exclude radiation on macOS
+        radiation_assets = []
+
+        # Add spectral data if it exists
+        if Path(plugins_src_dir / 'radiation' / 'spectral_data').exists():
+            radiation_assets.append('spectral_data')
+
+        # Copy generated PTX files from build directory (critical for OptiX functionality)
+        radiation_build_dir = build_dir / 'plugins' / 'radiation'
+        if radiation_build_dir.exists():
+            # Copy generated PTX files from build directory
+            plugin_dest = dest_assets_dir / 'plugins' / 'radiation'
+            plugin_dest.mkdir(parents=True, exist_ok=True)
+
+            ptx_files = list(radiation_build_dir.glob('*.ptx'))
+            if ptx_files:
+                ptx_copied = 0
+                for ptx_file in ptx_files:
+                    try:
+                        shutil.copy2(ptx_file, plugin_dest / ptx_file.name)
+                        print(f"[OK] Copied PTX file: {ptx_file.name}")
+                        ptx_copied += 1
+                    except Exception as e:
+                        print(f"[ERROR] Failed to copy PTX file {ptx_file.name}: {e}")
+
+                if ptx_copied > 0:
+                    print(f"[OK] Successfully copied {ptx_copied} PTX files for radiation plugin")
+                    total_copied += ptx_copied
+            else:
+                print(f"[WARNING] No PTX files found in radiation build directory: {radiation_build_dir}")
+        else:
+            print(f"[WARNING] Radiation build directory not found: {radiation_build_dir}")
+
+        if radiation_assets:
+            plugin_asset_dirs['radiation'] = radiation_assets
     
     # Process each plugin directory
     for plugin_dir in plugins_src_dir.iterdir():
@@ -161,7 +294,10 @@ def copy_assets_for_packaging(project_root: Path) -> None:
         print(f"[OK] Successfully copied {total_copied} total assets for packaging")
     else:
         print("Warning: No assets found to copy")
-    
+
+    # Note: Asset directories should NOT have __init__.py files as they are data directories,
+    # not Python packages. setuptools handles them correctly via package_data configuration.
+
     print(f"[OK] Assets packaged in {dest_assets_dir}")
 
 def build_and_prepare(build_args):
@@ -317,7 +453,66 @@ def build_and_prepare(build_args):
         # Continue anyway - some failures might be acceptable
     
     print(f"[OK] Successfully prepared {copied_count} libraries for packaging")
-    
+
+    # Windows-specific: Bundle additional DLL dependencies
+    if system == 'Windows' and copied_count > 0:
+        print(f"\n=== Windows DLL Dependency Bundling ===")
+
+        # Find the main library (usually libhelios.dll or helios.dll)
+        main_library = None
+        for lib_file in found_libraries:
+            if 'helios' in lib_file.name.lower() and lib_file.suffix == '.dll':
+                main_library = lib_file
+                break
+
+        if main_library:
+            # Find all required DLL dependencies
+            dependencies = find_windows_dll_dependencies(main_library, project_root)
+
+            dependency_copied = 0
+            dependency_failed = 0
+
+            for dep_dll in dependencies:
+                try:
+                    dest_dll = plugins_dir / dep_dll.name
+
+                    # Skip if already exists (avoid overwriting main libraries)
+                    if dest_dll.exists():
+                        print(f"[SKIP] Dependency already bundled: {dep_dll.name}")
+                        continue
+
+                    shutil.copy2(dep_dll, dest_dll)
+                    print(f"[OK] Bundled dependency: {dep_dll.name}")
+                    dependency_copied += 1
+
+                except (OSError, PermissionError) as e:
+                    print(f"[ERROR] Failed to bundle critical dependency {dep_dll.name}: {e}")
+                    print(f"This dependency is required for libhelios.dll to load properly on Windows systems")
+                    print(f"without development tools installed. The wheel will not work correctly.")
+                    dependency_failed += 1
+
+            print(f"\n=== Dependency Bundle Summary ===")
+            print(f"Found: {len(dependencies)} DLL dependencies")
+            print(f"Bundled: {dependency_copied} dependencies")
+            print(f"Failed: {dependency_failed} dependencies")
+
+            # Fail-fast: If critical dependencies are missing, the wheel is broken
+            if len(dependencies) > 0 and dependency_copied == 0:
+                print(f"[ERROR] CRITICAL: No Windows DLL dependencies were bundled!")
+                print(f"This means the wheel will fail to load on systems without development tools.")
+                print(f"Required dependencies: {[dep.name for dep in dependencies]}")
+                print(f"The wheel build cannot continue with missing critical dependencies.")
+                sys.exit(1)
+            elif dependency_failed > 0:
+                print(f"[ERROR] CRITICAL: {dependency_failed} critical dependencies could not be bundled!")
+                print(f"The wheel will not work properly on clean Windows systems.")
+                print(f"All dependencies must be bundled for the wheel to function correctly.")
+                sys.exit(1)
+            else:
+                print(f"[OK] All {dependency_copied} Windows DLL dependencies bundled successfully")
+        else:
+            print(f"[WARNING] Could not find main Helios library for dependency analysis")
+
     # Copy assets for packaging
     copy_assets_for_packaging(project_root)
 
@@ -327,15 +522,33 @@ def main():
         print("prepare_wheel.py - Build PyHelios native libraries and prepare for wheel packaging")
         print()
         print("Usage: python prepare_wheel.py <build_args...>")
-        print("Example: python prepare_wheel.py --buildmode release --exclude radiation,aeriallidar --verbose")
+        print("Examples:")
+        print("  python prepare_wheel.py --buildmode release --nogpu --verbose")
+        print("  python prepare_wheel.py --plugins weberpenntree,visualizer")
+        print("  python prepare_wheel.py --exclude radiation --buildmode debug")
         print()
         print("This script:")
         print("  1. Calls build_scripts/build_helios.py with the provided arguments")
         print("  2. Copies built libraries to pyhelios/plugins/ for wheel packaging")
-        print("  3. Validates libraries can be loaded properly")
+        print("  3. Copies required assets to pyhelios/assets/build/")
+        print("  4. Validates libraries can be loaded properly")
         print()
-        print("For build argument options, run:")
+        print("Common build arguments:")
+        print("  --buildmode {debug,release,relwithdebinfo}  CMake build type")
+        print("  --nogpu                                     Exclude GPU plugins")
+        print("  --novis                                     Exclude visualization plugins")
+        print("  --plugins <plugin1,plugin2,...>            Specific plugins to build")
+        print("  --exclude <plugin1,plugin2,...>            Plugins to exclude")
+        print("  --clean                                     Clean build artifacts first")
+        print("  --verbose                                   Verbose output")
+        print()
+        print("For complete build argument options, run:")
         print("  python build_scripts/build_helios.py --help")
+        print()
+        print("For list of integrated plugins, run:")
+        print("  python build_scripts/build_helios.py --list-plugins")
+        print("For list of all helios-core plugins, run:")
+        print("  python build_scripts/build_helios.py --list-all-plugins")
         sys.exit(0 if '--help' in sys.argv or '-h' in sys.argv else 1)
     
     build_args = sys.argv[1:]

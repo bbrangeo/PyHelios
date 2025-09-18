@@ -18,7 +18,9 @@ from .plugins import (
     validate_photosynthetic_rate, validate_conductance, validate_par_flux,
     validate_empirical_coefficients, validate_farquhar_coefficients,
     validate_vcmax, validate_jmax, validate_quantum_efficiency, validate_dark_respiration,
-    validate_oxygen_concentration, validate_temperature_response_params
+    validate_oxygen_concentration, validate_temperature_response_params,
+    # Camera validation functions
+    validate_camera_label, validate_band_labels_list, validate_antialiasing_samples
 )
 from .datatypes import validate_vec3, validate_rgb_color
 from .core import validate_positive_value, validate_non_negative_value
@@ -556,4 +558,55 @@ def validate_photosynthesis_uuid_params(func: Callable) -> Callable:
                 suggestion="Provide a UUID (integer) or list of UUIDs."
             )
         return func(self, uuids, *args, **kwargs)
+    return wrapper
+
+
+def validate_radiation_camera_params(func: Callable) -> Callable:
+    """
+    Validate parameters for addRadiationCamera method.
+
+    Handles validation and type conversion for camera creation parameters:
+    - camera_label: string validation
+    - band_labels: list of strings validation
+    - position: converts lists/tuples to vec3 if needed
+    - lookat_or_direction: handles vec3 or SphericalCoord
+    - antialiasing_samples: positive integer validation
+    """
+    @wraps(func)
+    def wrapper(self, camera_label, band_labels, position, lookat_or_direction,
+                camera_properties=None, antialiasing_samples: int = 100, *args, **kwargs):
+        from ..wrappers.DataTypes import vec3, SphericalCoord, make_vec3
+
+        # Validate basic parameters
+        validated_label = validate_camera_label(camera_label, "camera_label", func.__name__)
+        validated_bands = validate_band_labels_list(band_labels, "band_labels", func.__name__)
+        validated_samples = validate_antialiasing_samples(antialiasing_samples, "antialiasing_samples", func.__name__)
+
+        # Validate and convert position to vec3
+        validated_position = validate_vec3(position, "position", func.__name__)
+
+        # Validate lookat_or_direction (can be vec3, list/tuple, or SphericalCoord)
+        validated_direction = None
+        if hasattr(lookat_or_direction, 'radius') and hasattr(lookat_or_direction, 'elevation'):
+            # SphericalCoord - validate directly (already proper type)
+            validated_direction = lookat_or_direction
+        else:
+            # Assume vec3 or convertible to vec3
+            validated_direction = validate_vec3(lookat_or_direction, "lookat_or_direction", func.__name__)
+
+        # Validate camera properties if provided
+        if camera_properties is not None:
+            if not hasattr(camera_properties, 'to_array'):
+                from ..validation.exceptions import create_validation_error
+                raise create_validation_error(
+                    f"camera_properties must be a CameraProperties instance or None, got {type(camera_properties).__name__}",
+                    param_name="camera_properties",
+                    function_name=func.__name__,
+                    expected_type="CameraProperties or None",
+                    actual_value=camera_properties,
+                    suggestion="Use a CameraProperties instance or None for default properties."
+                )
+
+        return func(self, validated_label, validated_bands, validated_position, validated_direction,
+                   camera_properties, validated_samples, *args, **kwargs)
     return wrapper

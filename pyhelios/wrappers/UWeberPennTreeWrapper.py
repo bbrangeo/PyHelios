@@ -3,11 +3,21 @@ from typing import List
 
 from .UContextWrapper import UContext
 from ..plugins import helios_lib
+from ..exceptions import check_helios_error
 
 
-# Define the UContext struct
+# Define the UWeberPennTree struct
 class UWeberPennTree(ctypes.Structure):
     pass
+
+# Automatic error checking callback
+def _check_error_wpt(result, func, args):
+    """
+    Errcheck callback that automatically checks for Helios errors after each WeberPennTree function call.
+    This ensures that C++ exceptions are properly converted to Python exceptions.
+    """
+    check_helios_error(helios_lib.getLastErrorCode, helios_lib.getLastErrorMessage)
+    return result
 
 # Try to set up WeberPennTree function prototypes
 try:
@@ -41,7 +51,21 @@ try:
     helios_lib.setTrunkSegmentResolution.argtypes = [ctypes.POINTER(UWeberPennTree), ctypes.c_uint]
     helios_lib.setBranchSegmentResolution.argtypes = [ctypes.POINTER(UWeberPennTree), ctypes.c_uint]
     helios_lib.setLeafSubdivisions.argtypes = [ctypes.POINTER(UWeberPennTree), ctypes.c_uint, ctypes.c_uint]
-    
+
+    # Add automatic error checking to all WeberPennTree functions
+    helios_lib.createWeberPennTree.errcheck = _check_error_wpt
+    helios_lib.createWeberPennTreeWithBuildPluginRootDirectory.errcheck = _check_error_wpt
+    helios_lib.buildTree.errcheck = _check_error_wpt
+    helios_lib.buildTreeWithScale.errcheck = _check_error_wpt
+    helios_lib.getWeberPennTreeTrunkUUIDs.errcheck = _check_error_wpt
+    helios_lib.getWeberPennTreeBranchUUIDs.errcheck = _check_error_wpt
+    helios_lib.getWeberPennTreeLeafUUIDs.errcheck = _check_error_wpt
+    helios_lib.getWeberPennTreeAllUUIDs.errcheck = _check_error_wpt
+    helios_lib.setBranchRecursionLevel.errcheck = _check_error_wpt
+    helios_lib.setTrunkSegmentResolution.errcheck = _check_error_wpt
+    helios_lib.setBranchSegmentResolution.errcheck = _check_error_wpt
+    helios_lib.setLeafSubdivisions.errcheck = _check_error_wpt
+
     _WPT_FUNCTIONS_AVAILABLE = True
 except AttributeError:
     _WPT_FUNCTIONS_AVAILABLE = False

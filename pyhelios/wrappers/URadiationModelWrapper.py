@@ -9,6 +9,7 @@ import ctypes
 from typing import List
 
 from ..plugins import helios_lib
+from ..exceptions import check_helios_error
 
 # Define the URadiationModel struct
 class URadiationModel(ctypes.Structure):
@@ -16,6 +17,15 @@ class URadiationModel(ctypes.Structure):
 
 # Import UContext from main wrapper to avoid type conflicts
 from .UContextWrapper import UContext
+
+# Error checking callback
+def _check_error(result, func, args):
+    """
+    Errcheck callback that automatically checks for Helios errors after each RadiationModel function call.
+    This ensures that C++ exceptions are properly converted to Python exceptions.
+    """
+    check_helios_error(helios_lib.getLastErrorCode, helios_lib.getLastErrorMessage)
+    return result
 
 # Try to set up RadiationModel function prototypes
 try:
@@ -177,7 +187,92 @@ try:
                                                     ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p]
     helios_lib.autoCalibrateCameraImage.restype = ctypes.c_char_p
 
-    
+    # Camera creation functions
+    helios_lib.addRadiationCameraVec3.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                  ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                                  ctypes.c_float, ctypes.c_float, ctypes.c_float,
+                                                  ctypes.c_float, ctypes.c_float, ctypes.c_float,
+                                                  ctypes.POINTER(ctypes.c_float), ctypes.c_uint]
+    helios_lib.addRadiationCameraVec3.restype = None
+
+    helios_lib.addRadiationCameraSpherical.argtypes = [ctypes.POINTER(URadiationModel), ctypes.c_char_p,
+                                                       ctypes.POINTER(ctypes.c_char_p), ctypes.c_size_t,
+                                                       ctypes.c_float, ctypes.c_float, ctypes.c_float,
+                                                       ctypes.c_float, ctypes.c_float, ctypes.c_float,
+                                                       ctypes.POINTER(ctypes.c_float), ctypes.c_uint]
+    helios_lib.addRadiationCameraSpherical.restype = None
+
+    # Add automatic error checking to all RadiationModel functions
+    helios_lib.createRadiationModel.errcheck = _check_error
+    # Note: destroyRadiationModel doesn't need errcheck as it doesn't fail
+
+    # Message control
+    helios_lib.disableRadiationMessages.errcheck = _check_error
+    helios_lib.enableRadiationMessages.errcheck = _check_error
+
+    # Band management
+    helios_lib.addRadiationBand.errcheck = _check_error
+    helios_lib.addRadiationBandWithWavelengths.errcheck = _check_error
+    helios_lib.copyRadiationBand.errcheck = _check_error
+
+    # Source management
+    helios_lib.addCollimatedRadiationSourceDefault.errcheck = _check_error
+    helios_lib.addCollimatedRadiationSourceVec3.errcheck = _check_error
+    helios_lib.addCollimatedRadiationSourceSpherical.errcheck = _check_error
+    helios_lib.addSphereRadiationSource.errcheck = _check_error
+    helios_lib.addSunSphereRadiationSource.errcheck = _check_error
+
+    # Ray count configuration
+    helios_lib.setDirectRayCount.errcheck = _check_error
+    helios_lib.setDiffuseRayCount.errcheck = _check_error
+
+    # Flux configuration
+    helios_lib.setDiffuseRadiationFlux.errcheck = _check_error
+    helios_lib.setSourceFlux.errcheck = _check_error
+    helios_lib.setSourceFluxMultiple.errcheck = _check_error
+    helios_lib.getSourceFlux.errcheck = _check_error
+
+    # Scattering configuration
+    helios_lib.setScatteringDepth.errcheck = _check_error
+    helios_lib.setMinScatterEnergy.errcheck = _check_error
+
+    # Emission control
+    helios_lib.disableEmission.errcheck = _check_error
+    helios_lib.enableEmission.errcheck = _check_error
+
+    # Geometry and simulation
+    helios_lib.updateRadiationGeometry.errcheck = _check_error
+    helios_lib.updateRadiationGeometryUUIDs.errcheck = _check_error
+    helios_lib.runRadiationBand.errcheck = _check_error
+    helios_lib.runRadiationBandMultiple.errcheck = _check_error
+
+    # Results and information
+    helios_lib.getTotalAbsorbedFlux.errcheck = _check_error
+
+    # Camera and Image Functions
+    helios_lib.writeCameraImage.errcheck = _check_error
+    helios_lib.writeNormCameraImage.errcheck = _check_error
+    helios_lib.writeCameraImageData.errcheck = _check_error
+
+    # Bounding box functions
+    helios_lib.writeImageBoundingBoxes.errcheck = _check_error
+    helios_lib.writeImageBoundingBoxesVector.errcheck = _check_error
+    helios_lib.writeImageBoundingBoxes_ObjectData.errcheck = _check_error
+    helios_lib.writeImageBoundingBoxes_ObjectDataVector.errcheck = _check_error
+
+    # Segmentation mask functions
+    helios_lib.writeImageSegmentationMasks.errcheck = _check_error
+    helios_lib.writeImageSegmentationMasksVector.errcheck = _check_error
+    helios_lib.writeImageSegmentationMasks_ObjectData.errcheck = _check_error
+    helios_lib.writeImageSegmentationMasks_ObjectDataVector.errcheck = _check_error
+
+    # Auto-calibration function
+    helios_lib.autoCalibrateCameraImage.errcheck = _check_error
+
+    # Camera creation functions
+    helios_lib.addRadiationCameraVec3.errcheck = _check_error
+    helios_lib.addRadiationCameraSpherical.errcheck = _check_error
+
     # Mark that RadiationModel functions are available
     _RADIATION_MODEL_FUNCTIONS_AVAILABLE = True
 
@@ -195,10 +290,10 @@ def createRadiationModel(context):
 
 def destroyRadiationModel(radiation_model):
     """Destroy RadiationModel instance"""
-    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
-        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
     if radiation_model is None:
         return  # Destroying None is acceptable - no-op
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
     helios_lib.destroyRadiationModel(radiation_model)
 
 def disableMessages(radiation_model):
@@ -682,7 +777,70 @@ def autoCalibrateCameraImage(radiation_model, camera_label: str, red_band_label:
     ccm_encoded = ccm_export_file_path.encode('utf-8') if ccm_export_file_path else None
     
     result = helios_lib.autoCalibrateCameraImage(radiation_model, camera_encoded, red_encoded, green_encoded,
-                                               blue_encoded, output_encoded, int(print_quality_report), 
+                                               blue_encoded, output_encoded, int(print_quality_report),
                                                algorithm, ccm_encoded)
     return result.decode('utf-8') if result else ""
+
+# Camera creation functions
+def addRadiationCameraVec3(radiation_model, camera_label: str, band_labels: List[str],
+                          position_x: float, position_y: float, position_z: float,
+                          lookat_x: float, lookat_y: float, lookat_z: float,
+                          camera_properties: List[float], antialiasing_samples: int):
+    """Add radiation camera with position and lookat vectors"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot add radiation camera.")
+
+    if not band_labels:
+        raise ValueError("At least one band label is required")
+    if len(camera_properties) != 6:
+        raise ValueError("camera_properties must contain exactly 6 values: [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]")
+
+    # Encode camera label
+    camera_encoded = camera_label.encode('utf-8')
+
+    # Convert band labels to ctypes array
+    band_array = (ctypes.c_char_p * len(band_labels))()
+    for i, label in enumerate(band_labels):
+        band_array[i] = label.encode('utf-8')
+
+    # Convert camera properties to ctypes array
+    props_array = (ctypes.c_float * len(camera_properties))(*camera_properties)
+
+    helios_lib.addRadiationCameraVec3(radiation_model, camera_encoded, band_array, len(band_labels),
+                                     ctypes.c_float(position_x), ctypes.c_float(position_y), ctypes.c_float(position_z),
+                                     ctypes.c_float(lookat_x), ctypes.c_float(lookat_y), ctypes.c_float(lookat_z),
+                                     props_array, ctypes.c_uint(antialiasing_samples))
+
+def addRadiationCameraSpherical(radiation_model, camera_label: str, band_labels: List[str],
+                               position_x: float, position_y: float, position_z: float,
+                               radius: float, elevation: float, azimuth: float,
+                               camera_properties: List[float], antialiasing_samples: int):
+    """Add radiation camera with position and spherical viewing direction"""
+    if not _RADIATION_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError("RadiationModel functions are not available. Native library missing or radiation plugin not enabled.")
+    if radiation_model is None:
+        raise ValueError("RadiationModel instance is None. Cannot add radiation camera.")
+
+    if not band_labels:
+        raise ValueError("At least one band label is required")
+    if len(camera_properties) != 6:
+        raise ValueError("camera_properties must contain exactly 6 values: [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]")
+
+    # Encode camera label
+    camera_encoded = camera_label.encode('utf-8')
+
+    # Convert band labels to ctypes array
+    band_array = (ctypes.c_char_p * len(band_labels))()
+    for i, label in enumerate(band_labels):
+        band_array[i] = label.encode('utf-8')
+
+    # Convert camera properties to ctypes array
+    props_array = (ctypes.c_float * len(camera_properties))(*camera_properties)
+
+    helios_lib.addRadiationCameraSpherical(radiation_model, camera_encoded, band_array, len(band_labels),
+                                          ctypes.c_float(position_x), ctypes.c_float(position_y), ctypes.c_float(position_z),
+                                          ctypes.c_float(radius), ctypes.c_float(elevation), ctypes.c_float(azimuth),
+                                          props_array, ctypes.c_uint(antialiasing_samples))
 

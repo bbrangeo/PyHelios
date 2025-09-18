@@ -13,7 +13,7 @@
 
 extern "C" {
     // WeberPennTree C interface functions
-    WeberPennTree* createWeberPennTree(helios::Context* context) {
+    PYHELIOS_API WeberPennTree* createWeberPennTree(helios::Context* context) {
         try {
             clearError();
             return new WeberPennTree(context);
@@ -26,7 +26,7 @@ extern "C" {
         }
     }
     
-    WeberPennTree* createWeberPennTreeWithBuildPluginRootDirectory(helios::Context* context, const char* buildDirectory) {
+    PYHELIOS_API WeberPennTree* createWeberPennTreeWithBuildPluginRootDirectory(helios::Context* context, const char* buildDirectory) {
         try {
             clearError();
             WeberPennTree* wpt = new WeberPennTree(context);
@@ -43,11 +43,11 @@ extern "C" {
         }
     }
     
-    void destroyWeberPennTree(WeberPennTree* wpt) {
+    PYHELIOS_API void destroyWeberPennTree(WeberPennTree* wpt) {
         delete wpt;
     }
     
-    unsigned int buildTree(WeberPennTree* wpt, const char* treename, float* origin) {
+    PYHELIOS_API unsigned int buildTree(WeberPennTree* wpt, const char* treename, float* origin) {
         try {
             clearError();
             helios::vec3 origin_vec(origin[0], origin[1], origin[2]);
@@ -61,7 +61,7 @@ extern "C" {
         }
     }
     
-    unsigned int buildTreeWithScale(WeberPennTree* wpt, const char* treename, float* origin, float scale) {
+    PYHELIOS_API unsigned int buildTreeWithScale(WeberPennTree* wpt, const char* treename, float* origin, float scale) {
         try {
             clearError();
             helios::vec3 origin_vec(origin[0], origin[1], origin[2]);
@@ -75,99 +75,99 @@ extern "C" {
         }
     }
     
-    unsigned int* getWeberPennTreeTrunkUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
+    PYHELIOS_API unsigned int* getWeberPennTreeTrunkUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
         try {
             clearError();
             std::vector<unsigned int> uuids = wpt->getTrunkUUIDs(treeID);
             *size = uuids.size();
             
-            static std::vector<unsigned int> uuid_buffer;
+            static thread_local std::vector<unsigned int> uuid_buffer;
             uuid_buffer = uuids;
             
             return uuid_buffer.data();
         } catch (const std::exception& e) {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (WeberPennTree::getTrunkUUIDs): ") + e.what());
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (WeberPennTree::getTrunkUUIDs): Unknown error getting trunk UUIDs.");
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         }
     }
     
-    unsigned int* getWeberPennTreeBranchUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
+    PYHELIOS_API unsigned int* getWeberPennTreeBranchUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
         try {
             clearError();
             std::vector<unsigned int> uuids = wpt->getBranchUUIDs(treeID);
             *size = uuids.size();
             
-            static std::vector<unsigned int> uuid_buffer;
+            static thread_local std::vector<unsigned int> uuid_buffer;
             uuid_buffer = uuids;
             
             return uuid_buffer.data();
         } catch (const std::exception& e) {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (WeberPennTree::getBranchUUIDs): ") + e.what());
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (WeberPennTree::getBranchUUIDs): Unknown error getting branch UUIDs.");
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         }
     }
     
-    unsigned int* getWeberPennTreeLeafUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
+    PYHELIOS_API unsigned int* getWeberPennTreeLeafUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
         try {
             clearError();
             std::vector<unsigned int> uuids = wpt->getLeafUUIDs(treeID);
             *size = uuids.size();
             
-            static std::vector<unsigned int> uuid_buffer;
+            static thread_local std::vector<unsigned int> uuid_buffer;
             uuid_buffer = uuids;
             
             return uuid_buffer.data();
         } catch (const std::exception& e) {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (WeberPennTree::getLeafUUIDs): ") + e.what());
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (WeberPennTree::getLeafUUIDs): Unknown error getting leaf UUIDs.");
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         }
     }
     
-    unsigned int* getWeberPennTreeAllUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
+    PYHELIOS_API unsigned int* getWeberPennTreeAllUUIDs(WeberPennTree* wpt, unsigned int treeID, unsigned int* size) {
         try {
             clearError();
             std::vector<unsigned int> uuids = wpt->getAllUUIDs(treeID);
             *size = uuids.size();
             
-            static std::vector<unsigned int> uuid_buffer;
+            static thread_local std::vector<unsigned int> uuid_buffer;
             uuid_buffer = uuids;
             
             return uuid_buffer.data();
         } catch (const std::exception& e) {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (WeberPennTree::getAllUUIDs): ") + e.what());
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (WeberPennTree::getAllUUIDs): Unknown error getting all UUIDs.");
             *size = 0;
-            static unsigned int error_result[1] = {0};
+            static thread_local unsigned int error_result[1] = {0};
             return error_result;
         }
     }
     
-    void setBranchRecursionLevel(WeberPennTree* wpt, unsigned int level) {
+    PYHELIOS_API void setBranchRecursionLevel(WeberPennTree* wpt, unsigned int level) {
         try {
             clearError();
             wpt->setBranchRecursionLevel(level);
@@ -178,7 +178,7 @@ extern "C" {
         }
     }
     
-    void setTrunkSegmentResolution(WeberPennTree* wpt, unsigned int trunk_segs) {
+    PYHELIOS_API void setTrunkSegmentResolution(WeberPennTree* wpt, unsigned int trunk_segs) {
         try {
             clearError();
             wpt->setTrunkSegmentResolution(trunk_segs);
@@ -189,7 +189,7 @@ extern "C" {
         }
     }
     
-    void setBranchSegmentResolution(WeberPennTree* wpt, unsigned int branch_segs) {
+    PYHELIOS_API void setBranchSegmentResolution(WeberPennTree* wpt, unsigned int branch_segs) {
         try {
             clearError();
             wpt->setBranchSegmentResolution(branch_segs);
@@ -200,7 +200,7 @@ extern "C" {
         }
     }
     
-    void setLeafSubdivisions(WeberPennTree* wpt, unsigned int leaf_segs_x, unsigned int leaf_segs_y) {
+    PYHELIOS_API void setLeafSubdivisions(WeberPennTree* wpt, unsigned int leaf_segs_x, unsigned int leaf_segs_y) {
         try {
             clearError();
             helios::int2 leaf_segs(leaf_segs_x, leaf_segs_y);

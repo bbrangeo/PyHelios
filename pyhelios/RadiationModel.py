@@ -24,6 +24,7 @@ from .validation.plugin_decorators import (
     validate_min_scatter_energy_params
 )
 from .Context import Context
+from .assets import get_asset_manager
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,6 @@ def _radiation_working_directory():
     """
     # Find the build directory containing RadiationModel assets
     # Try asset manager first (works for both development and wheel installations)
-    from .assets import get_asset_manager
-    
     asset_manager = get_asset_manager()
     working_dir = asset_manager._get_helios_build_path()
     
@@ -90,6 +89,74 @@ def _radiation_working_directory():
 class RadiationModelError(Exception):
     """Raised when RadiationModel operations fail."""
     pass
+
+
+class CameraProperties:
+    """
+    Camera properties for radiation model cameras.
+
+    This class encapsulates the properties needed to configure a radiation camera,
+    providing sensible defaults and validation for camera parameters.
+    """
+
+    def __init__(self, camera_resolution=None, focal_plane_distance=1.0, lens_diameter=0.05,
+                 HFOV=20.0, FOV_aspect_ratio=1.0):
+        """
+        Initialize camera properties with defaults matching C++ CameraProperties.
+
+        Args:
+            camera_resolution: Camera resolution as (width, height) tuple or list. Default: (512, 512)
+            focal_plane_distance: Distance from viewing plane to focal plane. Default: 1.0
+            lens_diameter: Diameter of camera lens (0 = pinhole camera). Default: 0.05
+            HFOV: Horizontal field of view in degrees. Default: 20.0
+            FOV_aspect_ratio: Ratio of horizontal to vertical field of view. Default: 1.0
+        """
+        # Set camera resolution with validation
+        if camera_resolution is None:
+            self.camera_resolution = (512, 512)
+        else:
+            if isinstance(camera_resolution, (list, tuple)) and len(camera_resolution) == 2:
+                self.camera_resolution = (int(camera_resolution[0]), int(camera_resolution[1]))
+            else:
+                raise ValueError("camera_resolution must be a tuple or list of 2 integers")
+
+        # Validate and set other properties
+        if focal_plane_distance <= 0:
+            raise ValueError("focal_plane_distance must be greater than 0")
+        if lens_diameter < 0:
+            raise ValueError("lens_diameter must be non-negative")
+        if HFOV <= 0 or HFOV > 180:
+            raise ValueError("HFOV must be between 0 and 180 degrees")
+        if FOV_aspect_ratio <= 0:
+            raise ValueError("FOV_aspect_ratio must be greater than 0")
+
+        self.focal_plane_distance = float(focal_plane_distance)
+        self.lens_diameter = float(lens_diameter)
+        self.HFOV = float(HFOV)
+        self.FOV_aspect_ratio = float(FOV_aspect_ratio)
+
+    def to_array(self):
+        """
+        Convert to array format expected by C++ interface.
+
+        Returns:
+            List of 6 float values: [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]
+        """
+        return [
+            float(self.camera_resolution[0]),  # resolution_x
+            float(self.camera_resolution[1]),  # resolution_y
+            self.focal_plane_distance,
+            self.lens_diameter,
+            self.HFOV,
+            self.FOV_aspect_ratio
+        ]
+
+    def __repr__(self):
+        return (f"CameraProperties(camera_resolution={self.camera_resolution}, "
+                f"focal_plane_distance={self.focal_plane_distance}, "
+                f"lens_diameter={self.lens_diameter}, "
+                f"HFOV={self.HFOV}, "
+                f"FOV_aspect_ratio={self.FOV_aspect_ratio})")
 
 
 class RadiationModel:
@@ -456,10 +523,100 @@ class RadiationModel:
     #=============================================================================
     # Camera and Image Functions (v1.3.47)
     #=============================================================================
-    
+
+    @require_plugin('radiation', 'add radiation camera')
+    def addRadiationCamera(self, camera_label: str, band_labels: List[str], position, lookat_or_direction,
+                          camera_properties=None, antialiasing_samples: int = 100):
+        """
+        Add a radiation camera to the simulation.
+
+        Args:
+            camera_label: Unique label string for the camera
+            band_labels: List of radiation band labels for the camera
+            position: Camera position as vec3 object
+            lookat_or_direction: Either:
+                - Lookat point as vec3 object
+                - SphericalCoord for viewing direction
+            camera_properties: CameraProperties instance or None for defaults
+            antialiasing_samples: Number of antialiasing samples (default: 100)
+
+        Raises:
+            ValidationError: If parameters are invalid or have wrong types
+            RadiationModelError: If camera creation fails
+
+        Example:
+            >>> from pyhelios import vec3, CameraProperties
+            >>> # Create camera looking at origin from above
+            >>> camera_props = CameraProperties(camera_resolution=(1024, 1024))
+            >>> radiation_model.addRadiationCamera("main_camera", ["red", "green", "blue"],
+            ...                                   position=vec3(0, 0, 5), lookat_or_direction=vec3(0, 0, 0),
+            ...                                   camera_properties=camera_props)
+        """
+        # Import here to avoid circular imports
+        from .wrappers import URadiationModelWrapper as radiation_wrapper
+        from .wrappers.DataTypes import SphericalCoord, vec3, make_vec3
+        from .validation.plugins import validate_camera_label, validate_band_labels_list, validate_antialiasing_samples
+
+        # Validate basic parameters
+        validated_label = validate_camera_label(camera_label, "camera_label", "addRadiationCamera")
+        validated_bands = validate_band_labels_list(band_labels, "band_labels", "addRadiationCamera")
+        validated_samples = validate_antialiasing_samples(antialiasing_samples, "antialiasing_samples", "addRadiationCamera")
+
+        # Validate position (must be vec3)
+        if not (hasattr(position, 'x') and hasattr(position, 'y') and hasattr(position, 'z')):
+            raise TypeError("position must be a vec3 object. Use vec3(x, y, z) to create one.")
+        validated_position = position
+
+        # Validate lookat_or_direction (must be vec3 or SphericalCoord)
+        if hasattr(lookat_or_direction, 'radius') and hasattr(lookat_or_direction, 'elevation'):
+            validated_direction = lookat_or_direction  # SphericalCoord
+        elif hasattr(lookat_or_direction, 'x') and hasattr(lookat_or_direction, 'y') and hasattr(lookat_or_direction, 'z'):
+            validated_direction = lookat_or_direction  # vec3
+        else:
+            raise TypeError("lookat_or_direction must be a vec3 or SphericalCoord object. Use vec3(x, y, z) or SphericalCoord to create one.")
+
+        # Set up camera properties
+        if camera_properties is None:
+            camera_properties = CameraProperties()
+
+        # Call appropriate wrapper function based on direction type
+        try:
+            if hasattr(validated_direction, 'radius') and hasattr(validated_direction, 'elevation'):
+                # SphericalCoord case
+                direction_coords = validated_direction.to_list()
+                if len(direction_coords) >= 3:
+                    # Use only radius, elevation, azimuth (first 3 elements)
+                    radius, elevation, azimuth = direction_coords[0], direction_coords[1], direction_coords[2]
+                else:
+                    raise ValueError("SphericalCoord must have at least radius, elevation, and azimuth")
+
+                radiation_wrapper.addRadiationCameraSpherical(
+                    self.radiation_model,
+                    validated_label,
+                    validated_bands,
+                    validated_position.x, validated_position.y, validated_position.z,
+                    radius, elevation, azimuth,
+                    camera_properties.to_array(),
+                    validated_samples
+                )
+            else:
+                # vec3 case
+                radiation_wrapper.addRadiationCameraVec3(
+                    self.radiation_model,
+                    validated_label,
+                    validated_bands,
+                    validated_position.x, validated_position.y, validated_position.z,
+                    validated_direction.x, validated_direction.y, validated_direction.z,
+                    camera_properties.to_array(),
+                    validated_samples
+                )
+
+        except Exception as e:
+            raise RadiationModelError(f"Failed to add radiation camera '{validated_label}': {e}")
+
     @require_plugin('radiation', 'write camera images')
-    def write_camera_image(self, camera: str, bands: List[str], imagefile_base: str, 
-                          image_path: str = "./", frame: int = -1, 
+    def writeCameraImage(self, camera: str, bands: List[str], imagefile_base: str,
+                          image_path: str = "./", frame: int = -1,
                           flux_to_pixel_conversion: float = 1.0) -> str:
         """
         Write camera image to file and return output filename.
@@ -503,7 +660,7 @@ class RadiationModel:
         return filename
     
     @require_plugin('radiation', 'write normalized camera images')
-    def write_norm_camera_image(self, camera: str, bands: List[str], imagefile_base: str, 
+    def writeNormCameraImage(self, camera: str, bands: List[str], imagefile_base: str,
                                image_path: str = "./", frame: int = -1) -> str:
         """
         Write normalized camera image to file and return output filename.
@@ -543,7 +700,7 @@ class RadiationModel:
         return filename
     
     @require_plugin('radiation', 'write camera image data')
-    def write_camera_image_data(self, camera: str, band: str, imagefile_base: str, 
+    def writeCameraImageData(self, camera: str, band: str, imagefile_base: str,
                                image_path: str = "./", frame: int = -1):
         """
         Write camera image data to file (ASCII format).
@@ -577,10 +734,10 @@ class RadiationModel:
         logger.info(f"Camera image data written for camera {camera}, band {band}")
     
     @require_plugin('radiation', 'write image bounding boxes')
-    def write_image_bounding_boxes(self, camera_label: str, 
+    def writeImageBoundingBoxes(self, camera_label: str,
                                   primitive_data_labels=None, object_data_labels=None,
                                   object_class_ids=None, image_file: str = "",
-                                  classes_txt_file: str = "classes.txt", 
+                                  classes_txt_file: str = "classes.txt",
                                   image_path: str = "./"):
         """
         Write image bounding boxes for object detection training.
@@ -677,7 +834,7 @@ class RadiationModel:
                 raise TypeError("object_data_labels must be a string or list of strings")
     
     @require_plugin('radiation', 'write image segmentation masks')
-    def write_image_segmentation_masks(self, camera_label: str, 
+    def writeImageSegmentationMasks(self, camera_label: str,
                                       primitive_data_labels=None, object_data_labels=None,
                                       object_class_ids=None, json_filename: str = "",
                                       image_file: str = "", append_file: bool = False):
@@ -776,10 +933,10 @@ class RadiationModel:
                 raise TypeError("object_data_labels must be a string or list of strings")
     
     @require_plugin('radiation', 'auto-calibrate camera image')
-    def auto_calibrate_camera_image(self, camera_label: str, red_band_label: str, 
+    def autoCalibrateCameraImage(self, camera_label: str, red_band_label: str,
                                    green_band_label: str, blue_band_label: str,
-                                   output_file_path: str, print_quality_report: bool = False, 
-                                   algorithm: str = "MATRIX_3X3_AUTO", 
+                                   output_file_path: str, print_quality_report: bool = False,
+                                   algorithm: str = "MATRIX_3X3_AUTO",
                                    ccm_export_file_path: str = "") -> str:
         """
         Auto-calibrate camera image with color correction and return output filename.

@@ -7,7 +7,7 @@ Automatically detects platform and loads appropriate library files.
 
 import os
 import logging
-from .loader import load_helios_library, get_library_info, is_native_library_available
+from .loader import load_helios_library, get_library_info, is_native_library_available, detect_available_plugins
 
 # Configure logging for plugin loading
 logger = logging.getLogger(__name__)
@@ -44,6 +44,7 @@ def get_plugin_info():
     """Get information about loaded plugins and libraries."""
     info = get_library_info()
     info['native_available'] = is_native_library_available()
+    info['available_plugins'] = detect_available_plugins()
     return info
 
 def print_plugin_status():

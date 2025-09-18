@@ -32,7 +32,7 @@ jobs:
       env:
         CMAKE_RC_COMPILER: ""
       run: |
-        python build_scripts/build_helios.py --buildmode release --plugins visualizer,weberpenntree --verbose
+        python build_scripts/build_helios.py --buildmode release --nogpu --verbose
         
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -67,7 +67,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        
+        # Remove pytest-forked on Windows (doesn't support fork())
+        pip uninstall -y pytest-forked
+
     - name: Run pytest
       run: |
-        pytest -v
+        # Create Windows-compatible pytest.ini without --forked flag
+        (Get-Content pytest.ini) -replace '    --forked', '' | Set-Content pytest-windows.ini
+        # Run pytest with Windows-compatible configuration
+        pytest -c pytest-windows.ini -v

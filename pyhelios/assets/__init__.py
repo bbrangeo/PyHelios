@@ -21,30 +21,30 @@ logger = logging.getLogger(__name__)
 
 class AssetPathManager:
     """Manages dynamic resolution of asset paths for PyHelios plugins."""
-    
+
     def __init__(self):
         self._helios_core_path: Optional[Path] = None
         self._initialized = False
-        
+
     def _find_helios_core(self) -> Optional[Path]:
         """
         Find the helios-core directory relative to PyHelios package.
-        
+
         Returns:
             Path to helios-core directory, or None if not found
         """
         if self._helios_core_path is not None:
             return self._helios_core_path
-            
+
         # Start from the PyHelios package directory
         pyhelios_root = Path(__file__).parent.parent.parent
-        
+
         # Look for helios-core as a subdirectory
         helios_core_candidates = [
             pyhelios_root / 'helios-core',
             pyhelios_root.parent / 'helios-core',  # In case PyHelios is in a subdirectory
         ]
-        
+
         for candidate in helios_core_candidates:
             if candidate.exists() and candidate.is_dir():
                 # Verify it's actually the helios-core by checking for key directories
@@ -52,52 +52,60 @@ class AssetPathManager:
                     self._helios_core_path = candidate
                     logger.info(f"Found helios-core at: {candidate}")
                     return candidate
-        
+
         # In wheel installations, helios-core directory is not expected to exist
+        # Assets are packaged separately in wheel distributions
         if not self._is_wheel_install():
-            logger.warning("helios-core directory not found - asset paths may not work correctly")
+            # Check if we have packaged assets available before warning
+            package_root = Path(__file__).parent
+            packaged_build = package_root / 'build'
+            if packaged_build.exists() and (packaged_build / 'lib' / 'images').exists():
+                logger.debug("helios-core directory not found, but packaged assets are available")
+            else:
+                logger.warning("helios-core directory not found - asset paths may not work correctly")
         return None
-    
+
     def get_helios_core_path(self) -> Optional[Path]:
         """Get the path to the helios-core directory."""
         return self._find_helios_core()
-    
+
     def _is_wheel_install(self) -> bool:
         """
         Detect if we're running from an installed wheel package.
-        
+
         Returns:
             True if running from wheel installation, False otherwise
         """
         package_root = Path(__file__).parent
         pyhelios_parent = package_root.parent.parent  # Go up to site-packages level
-        
+
         # Look for .dist-info directory which indicates wheel installation
-        return any(pyhelios_parent.glob('pyhelios-*.dist-info'))
-    
+        # The package is distributed as 'pyhelios3d' but the Python module is 'pyhelios'
+        return any(pyhelios_parent.glob('pyhelios3d-*.dist-info')) or any(pyhelios_parent.glob('pyhelios-*.dist-info'))
+
     def _get_helios_build_path(self) -> Optional[Path]:
         """
         Find the HELIOS_BUILD directory containing assets.
-        
+
         This searches for the directory structure that Helios C++ expects:
         - lib/images/ (core textures)
         - plugins/ (plugin assets)
-        
+
         Search priority ensures pip-installed users get the correct packaged assets
         even if they have incomplete development directories.
-        
+
         Returns:
             Path to build directory, or None if not found
         """
         package_root = Path(__file__).parent
         packaged_build = package_root / 'build'  # pyhelios/assets/build/
-        
+
         # Check if we're in a wheel installation
         is_wheel_install = self._is_wheel_install()
-        
+
         if is_wheel_install:
             # WHEEL INSTALL: Only check packaged assets location
-            if (packaged_build.exists() and 
+            if (packaged_build.exists() and
                 (packaged_build / 'lib' / 'images').exists() and
                 len(list((packaged_build / 'lib' / 'images').glob('*'))) > 0):
                 logger.debug(f"Using wheel-installed assets: {packaged_build}")
@@ -109,16 +117,16 @@ class AssetPathManager:
                     f"This indicates a packaging error. Expected structure:\n"
                     f"  {packaged_build / 'lib' / 'images'} with image files"
                 )
-        
+
         # DEVELOPMENT INSTALL: Check packaged assets first, then development paths
-        
+
         # PRIORITY 1: Check for packaged assets (even in development)
-        if (packaged_build.exists() and 
+        if (packaged_build.exists() and
             (packaged_build / 'lib' / 'images').exists() and
             len(list((packaged_build / 'lib' / 'images').glob('*'))) > 0):
             logger.debug(f"Using development packaged assets: {packaged_build}")
             return packaged_build
-        
+
         # Log diagnostic information if packaged assets are missing or incomplete
         if packaged_build.exists():
             logger.debug(f"Packaged assets directory exists but incomplete: {packaged_build}")
@@ -129,7 +137,7 @@ class AssetPathManager:
                 logger.debug(f"  Found {image_count} images (need > 0 for validation)")
         else:
             logger.debug(f"Packaged assets directory does not exist: {packaged_build}")
-        
+
         # PRIORITY 2: For development, look for pyhelios_build/build directory
         # Only used if pip-installed assets are not available
         helios_core = self.get_helios_core_path()
@@ -139,26 +147,26 @@ class AssetPathManager:
                 project_root / 'pyhelios_build' / 'build',
                 project_root / 'build',  # Alternative build location
             ]
-            
+
             for build_path in dev_build_paths:
-                if (build_path.exists() and 
+                if (build_path.exists() and
                     (build_path / 'lib' / 'images').exists() and
                     len(list((build_path / 'lib' / 'images').glob('*'))) > 0):
                     logger.debug(f"Using development build assets: {build_path}")
                     return build_path
-        
+
         # PRIORITY 3: Fallback to helios-core source directory
         # This works for some assets but may not have all compiled assets
         if helios_core and (helios_core / 'core' / 'lib' / 'images').exists():
             logger.debug("Using helios-core directory as fallback HELIOS_BUILD path")
             return helios_core
-            
+
         return None
-    
+
     def get_weberpenntree_assets_path(self) -> Optional[str]:
         """
         Get the path to WeberPennTree plugin assets.
-        
+
         Returns:
             Absolute path to weberpenntree assets directory, or None if not found
         """
@@ -168,23 +176,23 @@ class AssetPathManager:
             wpt_path = build_path / 'plugins' / 'weberpenntree'
             if wpt_path.exists():
                 return str(wpt_path)
-        
+
         # Fallback to helios-core directory (for development)
         helios_core = self.get_helios_core_path()
         if helios_core:
             wpt_path = helios_core / 'plugins' / 'weberpenntree'
             if wpt_path.exists():
                 return str(wpt_path)
-            
+
             if not self._is_wheel_install():
                 logger.warning(f"WeberPennTree assets not found at: {wpt_path}")
-        
+
         return None
-    
+
     def get_visualizer_assets_path(self) -> Optional[str]:
         """
         Get the path to Visualizer plugin assets.
-        
+
         Returns:
             Absolute path to visualizer assets directory, or None if not found
         """
@@ -194,24 +202,24 @@ class AssetPathManager:
             visualizer_path = build_path / 'plugins' / 'visualizer'
             if visualizer_path.exists():
                 return str(visualizer_path)
-        
+
         # Fallback to helios-core directory (for development)
         helios_core = self.get_helios_core_path()
         if helios_core:
             visualizer_path = helios_core / 'plugins' / 'visualizer'
             if visualizer_path.exists():
                 return str(visualizer_path)
-            
+
             if not self._is_wheel_install():
                 logger.warning(f"Visualizer assets not found at: {visualizer_path}")
-        
+
         return None
-    
-    
+
+
     def get_radiation_assets_path(self) -> Optional[str]:
         """
         Get the path to Radiation plugin assets.
-        
+
         Returns:
             Absolute path to radiation assets directory, or None if not found
         """
@@ -221,23 +229,23 @@ class AssetPathManager:
             radiation_path = build_path / 'plugins' / 'radiation'
             if radiation_path.exists():
                 return str(radiation_path)
-        
+
         # Fallback to helios-core directory (for development)
         helios_core = self.get_helios_core_path()
         if helios_core:
             radiation_path = helios_core / 'plugins' / 'radiation'
             if radiation_path.exists():
                 return str(radiation_path)
-            
+
             if not self._is_wheel_install():
                 logger.warning(f"Radiation assets not found at: {radiation_path}")
-        
+
         return None
-    
+
     def get_all_asset_paths(self) -> Dict[str, Optional[str]]:
         """
         Get all available plugin asset paths.
-        
+
         Returns:
             Dictionary mapping plugin names to their asset directory paths
         """
@@ -246,11 +254,11 @@ class AssetPathManager:
             'visualizer': self.get_visualizer_assets_path(),
             'radiation': self.get_radiation_assets_path(),
         }
-    
+
     def set_environment_variables(self) -> None:
         """
         Set environment variables for C++ plugins to find their assets.
-        
+
         This method sets the following environment variables:
         - HELIOS_BUILD: Path to build directory with assets (REQUIRED by Helios C++)
         - HELIOS_ASSET_ROOT: Path to helios-core directory
@@ -262,7 +270,7 @@ class AssetPathManager:
         if helios_core:
             os.environ['HELIOS_ASSET_ROOT'] = str(helios_core)
             logger.debug(f"Set HELIOS_ASSET_ROOT = {helios_core}")
-            
+
             # CRITICAL: Set HELIOS_BUILD environment variable
             # This is REQUIRED by Helios C++ core for asset discovery
             helios_build_path = self._get_helios_build_path()
@@ -271,9 +279,9 @@ class AssetPathManager:
                 logger.debug(f"Set HELIOS_BUILD = {helios_build_path}")
             else:
                 self._log_helios_build_error()
-        
+
         asset_paths = self.get_all_asset_paths()
-        
+
         for plugin_name, path in asset_paths.items():
             if path is not None:
                 env_var = f"HELIOS_{plugin_name.upper()}_PATH"
@@ -281,17 +289,17 @@ class AssetPathManager:
                 logger.debug(f"Set {env_var} = {path}")
             else:
                 logger.warning(f"Could not set asset path for plugin: {plugin_name}")
-    
+
     def initialize(self) -> bool:
         """
         Initialize the asset path manager and set up environment variables.
-        
+
         Returns:
             True if initialization was successful, False otherwise
         """
         if self._initialized:
             return True
-            
+
         try:
             self.set_environment_variables()
             self._initialized = True
@@ -300,17 +308,17 @@ class AssetPathManager:
         except Exception as e:
             logger.error(f"Failed to initialize asset path manager: {e}")
             return False
-    
+
     def validate_assets(self) -> Dict[str, Dict[str, Any]]:
         """
         Validate that all expected asset directories and files exist.
-        
+
         Returns:
             Dictionary with validation results for each plugin
         """
         results = {}
         asset_paths = self.get_all_asset_paths()
-        
+
         for plugin_name, base_path in asset_paths.items():
             result = {
                 'base_path': base_path,
@@ -318,28 +326,28 @@ class AssetPathManager:
                 'subdirectories': {},
                 'files_found': 0
             }
-            
+
             if base_path and Path(base_path).exists():
                 result['exists'] = True
                 base_dir = Path(base_path)
-                
+
                 # Check for expected subdirectories based on plugin
                 expected_subdirs = self._get_expected_subdirectories(plugin_name)
-                
+
                 for subdir in expected_subdirs:
                     subdir_path = base_dir / subdir
                     result['subdirectories'][subdir] = {
                         'exists': subdir_path.exists(),
                         'files': list(subdir_path.glob('*')) if subdir_path.exists() else []
                     }
-                    
+
                     if subdir_path.exists():
                         result['files_found'] += len(list(subdir_path.glob('*')))
-            
+
             results[plugin_name] = result
-        
+
         return results
-    
+
     def _get_expected_subdirectories(self, plugin_name: str) -> list:
         """Get expected subdirectories for a given plugin."""
         subdirs_map = {
@@ -348,14 +356,14 @@ class AssetPathManager:
             'radiation': ['spectral_data']
         }
         return subdirs_map.get(plugin_name, [])
-    
+
     def _log_helios_build_error(self) -> None:
         """Log actionable error message when HELIOS_BUILD directory is not found."""
         # Try to determine installation context for better error messages
         package_root = Path(__file__).parent
         packaged_build = package_root / 'build'
         helios_core = self.get_helios_core_path()
-        
+
         if packaged_build.exists():
             # Assets directory exists but missing required structure
             logger.error(
@@ -395,10 +403,10 @@ def get_asset_manager() -> AssetPathManager:
 def initialize_asset_paths() -> bool:
     """
     Initialize asset paths for all PyHelios plugins.
-    
+
     This function should be called during PyHelios package initialization
     to set up environment variables that C++ plugins can use to find their assets.
-    
+
     Returns:
         True if initialization was successful, False otherwise
     """
@@ -414,8 +422,6 @@ def get_weberpenntree_assets() -> Optional[str]:
 def get_visualizer_assets() -> Optional[str]:
     """Get the path to Visualizer plugin assets."""
     return get_asset_manager().get_visualizer_assets_path()
-
-
 
 
 def get_radiation_assets() -> Optional[str]:
@@ -436,10 +442,10 @@ def validate_assets() -> Dict[str, Dict[str, Any]]:
 def print_asset_status():
     """Print comprehensive asset status information."""
     manager = get_asset_manager()
-    
+
     print("PyHelios Asset Status")
     print("=" * 21)
-    
+
     helios_core = manager.get_helios_core_path()
     if helios_core:
         print(f"Helios Core: {helios_core}")
@@ -447,14 +453,14 @@ def print_asset_status():
         print("Helios Core: NOT FOUND")
         print("⚠️  Asset paths may not work correctly")
         return
-    
+
     print()
     validation_results = manager.validate_assets()
-    
+
     for plugin_name, result in validation_results.items():
         status_icon = "✓" if result['exists'] else "✗"
         print(f"{status_icon} {plugin_name.title()}: {result['base_path']}")
-        
+
         if result['exists']:
             print(f"  Files found: {result['files_found']}")
             for subdir, info in result['subdirectories'].items():
@@ -464,13 +470,13 @@ def print_asset_status():
         else:
             print("  Directory not found")
         print()
-    
+
     # Print environment variables
     print("Environment Variables:")
     print("-" * 21)
-    env_vars = ['HELIOS_ASSET_ROOT', 'HELIOS_WEBERPENNTREE_PATH', 
+    env_vars = ['HELIOS_ASSET_ROOT', 'HELIOS_WEBERPENNTREE_PATH',
                 'HELIOS_VISUALIZER_PATH', 'HELIOS_RADIATION_PATH']
-    
+
     for var in env_vars:
         value = os.environ.get(var, 'Not set')
         print(f"{var}: {value}")

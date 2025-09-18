@@ -18,7 +18,7 @@ extern "C" {
     // PhotosynthesisModel Lifecycle
     //=============================================================================
     
-    PhotosynthesisModel* createPhotosynthesisModel(helios::Context* context) {
+    PYHELIOS_API PhotosynthesisModel* createPhotosynthesisModel(helios::Context* context) {
         try {
             clearError();
             if (!context) {
@@ -40,7 +40,7 @@ extern "C" {
         }
     }
     
-    void destroyPhotosynthesisModel(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void destroyPhotosynthesisModel(PhotosynthesisModel* photosynthesis_model) {
         if (photosynthesis_model) {
             delete photosynthesis_model;
         }
@@ -50,7 +50,7 @@ extern "C" {
     // Model Type Configuration
     //=============================================================================
     
-    void setPhotosynthesisModelTypeEmpirical(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void setPhotosynthesisModelTypeEmpirical(PhotosynthesisModel* photosynthesis_model) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -67,7 +67,7 @@ extern "C" {
         }
     }
     
-    void setPhotosynthesisModelTypeFarquhar(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void setPhotosynthesisModelTypeFarquhar(PhotosynthesisModel* photosynthesis_model) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -88,7 +88,7 @@ extern "C" {
     // Model Execution
     //=============================================================================
     
-    void runPhotosynthesisModel(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void runPhotosynthesisModel(PhotosynthesisModel* photosynthesis_model) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -105,7 +105,7 @@ extern "C" {
         }
     }
     
-    void runPhotosynthesisModelForUUIDs(PhotosynthesisModel* photosynthesis_model, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void runPhotosynthesisModelForUUIDs(PhotosynthesisModel* photosynthesis_model, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -135,7 +135,7 @@ extern "C" {
     // Species Library Integration
     //=============================================================================
     
-    void setFarquharCoefficientsFromLibrary(PhotosynthesisModel* photosynthesis_model, const char* species) {
+    PYHELIOS_API void setFarquharCoefficientsFromLibrary(PhotosynthesisModel* photosynthesis_model, const char* species) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -156,7 +156,7 @@ extern "C" {
         }
     }
     
-    void setFarquharCoefficientsFromLibraryForUUIDs(PhotosynthesisModel* photosynthesis_model, const char* species, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharCoefficientsFromLibraryForUUIDs(PhotosynthesisModel* photosynthesis_model, const char* species, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -186,7 +186,7 @@ extern "C" {
         }
     }
     
-    void getFarquharCoefficientsFromLibrary(PhotosynthesisModel* photosynthesis_model, const char* species, float* coefficients, unsigned int coeff_size) {
+    PYHELIOS_API void getFarquharCoefficientsFromLibrary(PhotosynthesisModel* photosynthesis_model, const char* species, float* coefficients, unsigned int coeff_size) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -247,7 +247,7 @@ extern "C" {
     // Model Parameter Configuration - Empirical Model
     //=============================================================================
     
-    void setEmpiricalModelCoefficients(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count) {
+    PYHELIOS_API void setEmpiricalModelCoefficients(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -285,7 +285,7 @@ extern "C" {
         }
     }
     
-    void setEmpiricalModelCoefficientsForUUIDs(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setEmpiricalModelCoefficientsForUUIDs(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -336,7 +336,7 @@ extern "C" {
     // Model Parameter Configuration - Farquhar Model
     //=============================================================================
     
-    void setFarquharModelCoefficients(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count) {
+    PYHELIOS_API void setFarquharModelCoefficients(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -386,7 +386,7 @@ extern "C" {
         }
     }
     
-    void setFarquharModelCoefficientsForUUIDs(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharModelCoefficientsForUUIDs(PhotosynthesisModel* photosynthesis_model, const float* coefficients, unsigned int coeff_count, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -449,7 +449,7 @@ extern "C" {
     // Individual Farquhar Parameter Setters with Temperature Response
     //=============================================================================
     
-    void setFarquharVcmax(PhotosynthesisModel* photosynthesis_model, float vcmax_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharVcmax(PhotosynthesisModel* photosynthesis_model, float vcmax_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -500,7 +500,7 @@ extern "C" {
         }
     }
     
-    void setFarquharJmax(PhotosynthesisModel* photosynthesis_model, float jmax_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharJmax(PhotosynthesisModel* photosynthesis_model, float jmax_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -550,7 +550,7 @@ extern "C" {
         }
     }
     
-    void setFarquharRd(PhotosynthesisModel* photosynthesis_model, float rd_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharRd(PhotosynthesisModel* photosynthesis_model, float rd_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -600,7 +600,7 @@ extern "C" {
         }
     }
     
-    void setFarquharQuantumEfficiency(PhotosynthesisModel* photosynthesis_model, float alpha_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharQuantumEfficiency(PhotosynthesisModel* photosynthesis_model, float alpha_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -650,7 +650,7 @@ extern "C" {
         }
     }
     
-    void setFarquharLightResponseCurvature(PhotosynthesisModel* photosynthesis_model, float theta_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void setFarquharLightResponseCurvature(PhotosynthesisModel* photosynthesis_model, float theta_at_25c, float dha, float topt, float dhd, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -704,7 +704,7 @@ extern "C" {
     // Parameter Getters
     //=============================================================================
     
-    void getEmpiricalModelCoefficients(PhotosynthesisModel* photosynthesis_model, unsigned int uuid, float* coefficients, unsigned int coeff_size) {
+    PYHELIOS_API void getEmpiricalModelCoefficients(PhotosynthesisModel* photosynthesis_model, unsigned int uuid, float* coefficients, unsigned int coeff_size) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -741,7 +741,7 @@ extern "C" {
         }
     }
     
-    void getFarquharModelCoefficients(PhotosynthesisModel* photosynthesis_model, unsigned int uuid, float* coefficients, unsigned int coeff_size) {
+    PYHELIOS_API void getFarquharModelCoefficients(PhotosynthesisModel* photosynthesis_model, unsigned int uuid, float* coefficients, unsigned int coeff_size) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -797,7 +797,7 @@ extern "C" {
     // Model Configuration and Utilities
     //=============================================================================
     
-    void enablePhotosynthesisMessages(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void enablePhotosynthesisMessages(PhotosynthesisModel* photosynthesis_model) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -814,7 +814,7 @@ extern "C" {
         }
     }
     
-    void disablePhotosynthesisMessages(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void disablePhotosynthesisMessages(PhotosynthesisModel* photosynthesis_model) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -831,7 +831,7 @@ extern "C" {
         }
     }
     
-    void optionalOutputPhotosynthesisPrimitiveData(PhotosynthesisModel* photosynthesis_model, const char* label) {
+    PYHELIOS_API void optionalOutputPhotosynthesisPrimitiveData(PhotosynthesisModel* photosynthesis_model, const char* label) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -852,7 +852,7 @@ extern "C" {
         }
     }
     
-    void printPhotosynthesisDefaultValueReport(PhotosynthesisModel* photosynthesis_model) {
+    PYHELIOS_API void printPhotosynthesisDefaultValueReport(PhotosynthesisModel* photosynthesis_model) {
         try {
             clearError();
             if (!photosynthesis_model) {
@@ -869,7 +869,7 @@ extern "C" {
         }
     }
     
-    void printPhotosynthesisDefaultValueReportForUUIDs(PhotosynthesisModel* photosynthesis_model, const unsigned int* uuids, unsigned int uuid_count) {
+    PYHELIOS_API void printPhotosynthesisDefaultValueReportForUUIDs(PhotosynthesisModel* photosynthesis_model, const unsigned int* uuids, unsigned int uuid_count) {
         try {
             clearError();
             if (!photosynthesis_model) {

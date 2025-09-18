@@ -97,7 +97,7 @@ class TestTreeStructureQueries:
     
     def test_getTrunkUUIDs(self, weber_penn_tree):
         """Test getting trunk UUIDs."""
-        tree_id = weber_penn_tree.buildTree(WPTType.LEMON)
+        tree_id = weber_penn_tree.buildTree(WPTType.APPLE)
         trunk_uuids = weber_penn_tree.getTrunkUUIDs(tree_id)
         
         assert isinstance(trunk_uuids, list)
@@ -146,17 +146,19 @@ class TestTreeStructureQueries:
     def test_invalid_tree_id_queries(self, weber_penn_tree):
         """Test queries with invalid tree ID."""
         invalid_tree_id = 99999
-        
-        # Should return empty lists or handle gracefully
-        trunk_uuids = weber_penn_tree.getTrunkUUIDs(invalid_tree_id)
-        branch_uuids = weber_penn_tree.getBranchUUIDs(invalid_tree_id)
-        leaf_uuids = weber_penn_tree.getLeafUUIDs(invalid_tree_id)
-        all_uuids = weber_penn_tree.getAllUUIDs(invalid_tree_id)
-        
-        assert isinstance(trunk_uuids, list)
-        assert isinstance(branch_uuids, list)
-        assert isinstance(leaf_uuids, list)
-        assert isinstance(all_uuids, list)
+
+        # Should raise HeliosRuntimeError for invalid tree ID (fail-fast behavior)
+        with pytest.raises(pyhelios.exceptions.HeliosRuntimeError, match="Tree ID 99999 does not exist"):
+            weber_penn_tree.getTrunkUUIDs(invalid_tree_id)
+
+        with pytest.raises(pyhelios.exceptions.HeliosRuntimeError, match="Tree ID 99999 does not exist"):
+            weber_penn_tree.getBranchUUIDs(invalid_tree_id)
+
+        with pytest.raises(pyhelios.exceptions.HeliosRuntimeError, match="Tree ID 99999 does not exist"):
+            weber_penn_tree.getLeafUUIDs(invalid_tree_id)
+
+        with pytest.raises(pyhelios.exceptions.HeliosRuntimeError, match="Tree ID 99999 does not exist"):
+            weber_penn_tree.getAllUUIDs(invalid_tree_id)
 
 
 @pytest.mark.native_only

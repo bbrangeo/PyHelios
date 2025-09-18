@@ -18,6 +18,7 @@ from .plugins.registry import get_plugin_registry, graceful_plugin_fallback
 from .validation.plugins import validate_wpt_parameters
 from .validation.datatypes import validate_vec3
 from .validation.core import validate_positive_value
+from .assets import get_asset_manager
 from .validation.plugin_decorators import (
     validate_tree_uuid_params, validate_recursion_params, validate_trunk_segment_params,
     validate_branch_segment_params, validate_leaf_subdivisions_params
@@ -61,8 +62,6 @@ def _weberpenntree_working_directory():
     """
     # Find the build directory containing WeberPennTree assets
     # Try asset manager first (works for both development and wheel installations)
-    from .assets import get_asset_manager
-    
     asset_manager = get_asset_manager()
     working_dir = asset_manager._get_helios_build_path()
     
@@ -142,8 +141,6 @@ class WeberPennTree:
             print("Tree generation functionality may be limited or unavailable")
         
         # Find build directory for asset loading using asset manager
-        from .assets import get_asset_manager
-        
         asset_manager = get_asset_manager()
         build_dir = asset_manager._get_helios_build_path()
         
@@ -167,11 +164,16 @@ class WeberPennTree:
                         f"Run: python build_scripts/build_helios.py --plugins weberpenntree"
                     )
         
-        # Use working directory context manager during WeberPennTree creation
-        with _weberpenntree_working_directory():
+        # Use the same build_dir for working directory as we use for C++ interface
+        # This ensures consistency between Python working directory and C++ asset paths
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(build_dir)
             self.wpt = wpt_wrapper.createWeberPennTreeWithBuildPluginRootDirectory(
                 context.getNativePtr(), str(build_dir)
             )
+        finally:
+            os.chdir(original_cwd)
     
     def __enter__(self):
         return self

@@ -32,7 +32,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     endif()
 endif()
 
-#-------- DO NOT MODIFY ---------#
+#-------- HELIOS INTEGRATION ---------#
+# Include Helios core build system
+# This will create the executable target ${EXECUTABLE_NAME} automatically
 include( "${BASE_DIRECTORY}/core/CMake_project.cmake" )
 
 #-------- CUDA SETUP FOR RADIATION PLUGIN ---------#
@@ -82,86 +84,119 @@ if("stomatalconductance" IN_LIST PLUGINS)
     list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_stomatalconductance.cpp)
 endif()
 
-add_library(pyhelios_interface STATIC ${PYHELIOS_WRAPPER_SOURCES})
+# Only build static library if not building for wheels
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    add_library(pyhelios_interface STATIC ${PYHELIOS_WRAPPER_SOURCES})
 
-# Add include directories for plugin headers
-target_include_directories(pyhelios_interface PRIVATE
-    ${BASE_DIRECTORY}/core/include
-    ../native/include
-)
-
-# Add plugin-specific include directories only if plugins are selected
-if("visualizer" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/visualizer/include
-        ${BASE_DIRECTORY}/plugins/visualizer/lib/glfw-3.3.2/include
-        ${BASE_DIRECTORY}/plugins/visualizer/lib/glm
-    )
-endif()
-
-if("weberpenntree" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/weberpenntree/include
-    )
-endif()
-
-if("radiation" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/radiation/include
-        ${BASE_DIRECTORY}/plugins/radiation/lib/json
-    )
-endif()
-
-if("energybalance" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/energybalance/include
-    )
-endif()
-
-if("photosynthesis" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/photosynthesis/include
-    )
-endif()
-
-if("solarposition" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/solarposition/include
-    )
-endif()
-
-if("stomatalconductance" IN_LIST PLUGINS)
-    target_include_directories(pyhelios_interface PRIVATE
-        ${BASE_DIRECTORY}/plugins/stomatalconductance/include
-    )
-endif()
-
-# Add platform-specific OptiX include directories for radiation plugin
-if("radiation" IN_LIST PLUGINS)
+    # Add Windows-specific compile definitions for static library
     if(WIN32)
+        target_compile_definitions(pyhelios_interface PRIVATE BUILDING_PYHELIOS_DLL)
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    # Add include directories for plugin headers
+    target_include_directories(pyhelios_interface PRIVATE
+        ${BASE_DIRECTORY}/core/include
+        ../native/include
+    )
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    # Add plugin-specific include directories only if plugins are selected
+    if("visualizer" IN_LIST PLUGINS)
         target_include_directories(pyhelios_interface PRIVATE
-            ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-6.5.0/include
-        )
-    else()
-        target_include_directories(pyhelios_interface PRIVATE
-            ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/linux64-6.5.0/include
+            ${BASE_DIRECTORY}/plugins/visualizer/include
+            ${BASE_DIRECTORY}/plugins/visualizer/lib/glfw-3.3.2/include
+            ${BASE_DIRECTORY}/plugins/visualizer/lib/glm
         )
     endif()
 endif()
 
-# Add CUDA include directories if CUDA toolkit was found and radiation plugin is selected
-if("radiation" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
-    target_include_directories(pyhelios_interface PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("weberpenntree" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/weberpenntree/include
+        )
+    endif()
 endif()
 
-# Link interface to helios library
-target_link_libraries(pyhelios_interface PUBLIC helios)
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("radiation" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/radiation/include
+            ${BASE_DIRECTORY}/plugins/radiation/lib/json
+        )
+    endif()
+endif()
 
-# Set output directory to lib so it's found by build script
-set_target_properties(pyhelios_interface PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-    ARCHIVE_OUTPUT_NAME "pyhelios_interface"
-)
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("energybalance" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/energybalance/include
+        )
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("photosynthesis" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/photosynthesis/include
+        )
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("solarposition" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/solarposition/include
+        )
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("stomatalconductance" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/stomatalconductance/include
+        )
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    # Add platform-specific OptiX include directories for radiation plugin
+    if("radiation" IN_LIST PLUGINS)
+        if(WIN32)
+            target_include_directories(pyhelios_interface PRIVATE
+                ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-6.5.0/include
+            )
+        else()
+            target_include_directories(pyhelios_interface PRIVATE
+                ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/linux64-6.5.0/include
+            )
+        endif()
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    # Add CUDA include directories if CUDA toolkit was found and radiation plugin is selected
+    if("radiation" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
+        target_include_directories(pyhelios_interface PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    # Link interface to helios library using keyword signature for compatibility
+    # Must match the signature style used in Helios core CMake_project.cmake (PUBLIC)
+    target_link_libraries(pyhelios_interface PUBLIC helios)
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    # Set output directory to lib so it's found by build script
+    set_target_properties(pyhelios_interface PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        ARCHIVE_OUTPUT_NAME "pyhelios_interface"
+    )
+endif()
 
 #-------- PYHELIOS SHARED LIBRARY ---------#
 # Create the PyHelios shared library for Python ctypes interface
@@ -239,7 +274,7 @@ if("radiation" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
     target_include_directories(pyhelios_shared PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 endif()
 
-# Link to helios library and all selected plugins
+# Link to helios library and all selected plugins using keyword signature for compatibility
 target_link_libraries(pyhelios_shared PUBLIC helios)
 
 # Link to plugins based on plugin configuration
@@ -266,7 +301,7 @@ if(WIN32)
     )
     
     # Static link system libraries to avoid missing DLL dependencies
-    target_link_libraries(pyhelios_shared PRIVATE
+    target_link_libraries(pyhelios_shared PUBLIC
         kernel32 user32 gdi32 winspool shell32 ole32 oleaut32 uuid comdlg32 advapi32
     )
     
@@ -288,6 +323,27 @@ else() # Linux
     set_target_properties(pyhelios_shared PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         OUTPUT_NAME "helios"
+    )
+endif()
+
+# Copy OptiX DLL to lib directory for Windows wheel packaging
+if("radiation" IN_LIST PLUGINS AND WIN32)
+    # Determine OptiX version and DLL name
+    if(OPTIX_VERSION_LEGACY)
+        set(OPTIX_PATH ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-5.1.1/)
+        set(OPTIX_DLL "optix.51.dll")
+    else()
+        set(OPTIX_PATH ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-6.5.0/)
+        set(OPTIX_DLL "optix.6.5.0.dll")
+    endif()
+
+    # Copy OptiX DLL to lib directory for wheel packaging
+    # The radiation plugin already copies it to CMAKE_BINARY_DIR, we just move it to lib/
+    add_custom_command(TARGET pyhelios_shared POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_BINARY_DIR}/${OPTIX_DLL}"
+        "${CMAKE_BINARY_DIR}/lib/${OPTIX_DLL}"
+        COMMENT "Moving OptiX DLL to lib directory for wheel packaging"
     )
 endif()
 

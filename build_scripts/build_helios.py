@@ -88,15 +88,16 @@ class HeliosBuilder:
         }
     }
     
-    def __init__(self, helios_root, output_dir, plugins=None, buildmode='release'):
+    def __init__(self, helios_root, output_dir, plugins=None, buildmode='release', explicitly_requested_plugins=None):
         """
         Initialize the Helios builder.
-        
+
         Args:
             helios_root: Path to helios-core directory
             output_dir: Directory where built libraries should be placed
             plugins: List of plugins to build
             buildmode: Build mode ('debug', 'release', 'relwithdebinfo')
+            explicitly_requested_plugins: List of plugins explicitly requested by user (for fail-fast behavior)
         """
         self.helios_root = Path(helios_root)
         self.output_dir = Path(output_dir)
@@ -120,6 +121,7 @@ class HeliosBuilder:
         
         # Set plugins
         self.selected_plugins = plugins if plugins else []
+        self.explicitly_requested_plugins = explicitly_requested_plugins if explicitly_requested_plugins else []
         self.dependency_resolver = PluginDependencyResolver()
     
     def _detect_architecture(self) -> str:
@@ -385,7 +387,30 @@ class HeliosBuilder:
             else:
                 # x86_64 Linux (default)
                 print("Configuring for x86_64 Linux")
-    
+
+    def get_optix_path(self) -> Optional[Path]:
+        """Get platform-specific OptiX path."""
+        optix_base = self.helios_root / 'plugins' / 'radiation' / 'lib' / 'OptiX'
+
+        system = platform.system()
+        if system == "Windows":
+            # Check for Windows OptiX versions (prefer newer)
+            for version in ["windows64-6.5.0", "windows64-5.1.1"]:
+                optix_path = optix_base / version
+                if optix_path.exists():
+                    return optix_path
+        elif system == "Linux":
+            # Check for Linux OptiX versions (prefer newer)
+            for version in ["linux64-6.5.0", "linux64-5.1.0"]:
+                optix_path = optix_base / version
+                if optix_path.exists():
+                    return optix_path
+        elif system == "Darwin":
+            # macOS does not support NVIDIA GPUs - no OptiX support
+            return None
+
+        return None
+
     def clean_build_artifacts(self) -> None:
         """
         Clean all build artifacts for a fresh build.
@@ -430,12 +455,8 @@ class HeliosBuilder:
             shutil.rmtree(packaged_assets)
             cleaned_items.append("packaged assets")
         
-        # Remove stub extension file if it exists (created for wheel building)
-        stub_file = repo_root / 'pyhelios' / '_stub.c'
-        if stub_file.exists():
-            print(f"Removing stub extension: {stub_file}")
-            stub_file.unlink()
-            cleaned_items.append("stub extension")
+        # Note: _stub.c is a source file that should NOT be removed during cleaning
+        # It's required for wheel building and should be committed to the repository
         
         if cleaned_items:
             print(f"[OK] Cleaned: {', '.join(cleaned_items)}")
@@ -467,9 +488,10 @@ class HeliosBuilder:
         print(f"Resolving plugin dependencies for: {self.selected_plugins}")
         
         result = self.dependency_resolver.resolve_dependencies(
-            self.selected_plugins, 
-            include_optional=True, 
-            strict_mode=False
+            self.selected_plugins,
+            include_optional=True,
+            strict_mode=False,
+            explicitly_requested=self.explicitly_requested_plugins
         )
         
         if result.errors:
@@ -1083,7 +1105,7 @@ class HeliosBuilder:
                                 f'-I{self.helios_root}/core/lib/pugixml',
                                 f'-I{self.helios_root}/plugins/radiation/include',
                                 f'-I{self.helios_root}/plugins/radiation/lib/json',
-                                f'-I{self.helios_root}/plugins/radiation/lib/OptiX/linux64-6.5.0/include',
+                                f'-I{self.get_optix_path()}/include' if self.get_optix_path() else f'-I{self.helios_root}/plugins/radiation/lib/OptiX/linux64-6.5.0/include',
                                 '-DNDEBUG', '-O3',
                                 str(interface_src), '-o', str(interface_obj_pic_path)
                             ]
@@ -1129,31 +1151,65 @@ class HeliosBuilder:
                         cmd.extend(['-Wl,--whole-archive', str(radiation_lib_path), '-Wl,--no-whole-archive', '-Wl,--allow-multiple-definition'])
                         
                         # Add OptiX DYNAMIC linking (not static) - following RadiationServer approach
-                        optix_lib_path = self.helios_root / 'plugins' / 'radiation' / 'lib' / 'OptiX' / 'linux64-6.5.0' / 'lib64' / 'liboptix.so.6.5.0'
-                        optix_lib_dir = optix_lib_path.parent
-                        if optix_lib_path.exists():
-                            print(f"Found OptiX library: {optix_lib_path}")
-                            print("Adding OptiX shared library to link command")
-                            
-                            # Add OptiX library directly to link command
-                            cmd.append(str(optix_lib_path))
-                            
-                            # Set RPATH so runtime linker can find OptiX library
-                            cmd.extend([f'-Wl,-rpath,{self.output_dir}'])
-                            
-                            # Copy OptiX library to plugins directory for runtime loading
-                            optix_dest = self.output_dir / optix_lib_path.name
-                            shutil.copy2(optix_lib_path, optix_dest)
-                            print(f"Copied OptiX library to: {optix_dest}")
-                            
-                            # Also copy the symlink target
-                            optix_symlink = self.helios_root / 'plugins' / 'radiation' / 'lib' / 'OptiX' / 'linux64-6.5.0' / 'lib64' / 'liboptix.so'
-                            if optix_symlink.exists():
-                                optix_symlink_dest = self.output_dir / 'liboptix.so'
-                                shutil.copy2(optix_symlink, optix_symlink_dest)
-                                print(f"Copied OptiX symlink to: {optix_symlink_dest}")
+                        optix_path = self.get_optix_path()
+                        if optix_path:
+                            system = platform.system()
+                            if system == "Windows":
+                                # Windows OptiX import library
+                                optix_lib_path = optix_path / 'lib64' / 'optix.6.5.0.lib'
+                                optix_lib_alt = optix_path / 'lib64' / 'optix.lib'
+                                if optix_lib_path.exists():
+                                    optix_lib_to_use = optix_lib_path
+                                elif optix_lib_alt.exists():
+                                    optix_lib_to_use = optix_lib_alt
+                                else:
+                                    optix_lib_to_use = None
+                            else:
+                                # Linux/macOS OptiX library
+                                optix_lib_path = optix_path / 'lib64' / 'liboptix.so.6.5.0'
+                                optix_lib_alt = optix_path / 'lib64' / 'liboptix.so'
+                                if optix_lib_path.exists():
+                                    optix_lib_to_use = optix_lib_path
+                                elif optix_lib_alt.exists():
+                                    optix_lib_to_use = optix_lib_alt
+                                else:
+                                    optix_lib_to_use = None
                         else:
-                            print(f"OptiX library not found at: {optix_lib_path}")
+                            optix_lib_to_use = None
+
+                        if optix_lib_to_use and optix_lib_to_use.exists():
+                            print(f"Found OptiX library: {optix_lib_to_use}")
+                            print("Adding OptiX shared library to link command")
+
+                            # Add OptiX library directly to link command
+                            cmd.append(str(optix_lib_to_use))
+                            
+                            # Set RPATH so runtime linker can find OptiX library (Unix only)
+                            if system != "Windows":
+                                cmd.extend([f'-Wl,-rpath,{self.output_dir}'])
+                            
+                            # Copy OptiX runtime files to plugins directory
+                            if system == "Windows":
+                                # For Windows, we need to find and copy the DLL (separate from .lib)
+                                # OptiX DLLs are typically in system PATH or CUDA installation
+                                print("Windows OptiX: .lib file linked, DLL should be in system PATH")
+                            else:
+                                # Unix systems: copy the shared library
+                                optix_dest = self.output_dir / optix_lib_to_use.name
+                                shutil.copy2(optix_lib_to_use, optix_dest)
+                                print(f"Copied OptiX library to: {optix_dest}")
+
+                                # Also copy the symlink target for Unix systems
+                                optix_symlink = optix_path / 'lib64' / 'liboptix.so'
+                                if optix_symlink.exists():
+                                    optix_symlink_dest = self.output_dir / 'liboptix.so'
+                                    shutil.copy2(optix_symlink, optix_symlink_dest)
+                                    print(f"Copied OptiX symlink to: {optix_symlink_dest}")
+                        else:
+                            if optix_path:
+                                print(f"OptiX library not found in: {optix_path / 'lib64'}")
+                            else:
+                                print("No OptiX installation found for this platform")
                         
                         # Add CUDA library paths if CUDA_HOME is set
                         import os
@@ -1495,13 +1551,42 @@ class HeliosBuilder:
         # OptiX looks for PTX files in plugins/radiation/ relative to the working directory
         ptx_source_dir = self.build_dir / 'plugins' / 'radiation'
         if not ptx_source_dir.exists():
-            print("No PTX files found - radiation plugin not built with OptiX")
-            return
-            
+            if 'radiation' in self.selected_plugins:
+                raise RuntimeError(
+                    "CRITICAL: Radiation plugin was requested but OptiX PTX files not found!\n\n"
+                    "The radiation plugin requires OptiX for GPU acceleration.\n"
+                    "OptiX PTX files should be generated during CMake build.\n\n"
+                    "To fix this issue:\n"
+                    "1. Ensure CUDA toolkit is properly installed\n"
+                    "2. Verify OptiX is available in helios-core/plugins/radiation/lib/OptiX/\n"
+                    "3. Check CMake configuration enables OptiX compilation\n"
+                    "4. Run build with --clean to rebuild from scratch\n\n"
+                    f"Expected PTX directory: {ptx_source_dir}\n"
+                    "PyHelios follows fail-fast policy - builds must fail when dependencies are missing."
+                )
+            else:
+                # Radiation plugin not selected - this is expected
+                print("Radiation plugin not selected - skipping PTX file copy")
+                return
+
         ptx_files = list(ptx_source_dir.glob('*.ptx'))
         if not ptx_files:
-            print("No PTX files found in build directory")
-            return
+            if 'radiation' in self.selected_plugins:
+                raise RuntimeError(
+                    "CRITICAL: Radiation plugin build completed but no PTX files generated!\n\n"
+                    "This indicates OptiX compilation failed during CMake build.\n"
+                    "PTX files are required for GPU-accelerated ray tracing.\n\n"
+                    "To fix this issue:\n"
+                    "1. Check CMake build logs for OptiX compilation errors\n"
+                    "2. Verify CUDA nvcc compiler is available and working\n"
+                    "3. Ensure OptiX SDK is properly configured\n"
+                    "4. Run build with --verbose to see detailed compilation output\n\n"
+                    f"Build directory checked: {ptx_source_dir}\n"
+                    "PyHelios follows fail-fast policy - incomplete builds are not acceptable."
+                )
+            else:
+                print("Radiation plugin not selected - no PTX files expected")
+                return
             
         # Copy PTX files to PyHelios installation directory
         # RadiationModel will copy them to working directory as needed
@@ -1758,12 +1843,26 @@ def interactive_plugin_selection() -> List[str]:
             elif choice == "6":
                 print("\nAvailable plugins:")
                 compatible_plugins = get_platform_compatible_plugins()
+                integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance", "solarposition", "stomatalconductance", "photosynthesis"]
+
                 for plugin in sorted(get_all_plugin_names()):
                     metadata = PLUGIN_METADATA[plugin]
-                    compat = "+" if plugin in compatible_plugins else "-"
+
+                    # Plugin status indicators
+                    if plugin not in compatible_plugins:
+                        status = "-"  # Platform incompatible
+                    elif plugin not in integrated_plugins:
+                        status = "?"  # Available in helios-core but not integrated into PyHelios
+                    else:
+                        status = "+"  # Fully integrated and compatible
+
                     gpu = " (GPU)" if metadata.gpu_required else ""
                     vis = " (VIS)" if any(dep in ["opengl", "glfw", "imgui"] for dep in metadata.system_dependencies) else ""
-                    print(f"  {compat} {plugin}{gpu}{vis} - {metadata.description}")
+                    print(f"  {status} {plugin}{gpu}{vis} - {metadata.description}")
+                    if plugin not in integrated_plugins:
+                        print(f"      (Available in helios-core but not integrated into PyHelios)")
+
+                print("\nLegend: + Integrated, ? Not integrated, - Incompatible")
                 continue
             else:
                 print("Invalid choice. Please enter 1-6")
@@ -1807,7 +1906,7 @@ Build Examples:
     build_group.add_argument('--clean', action='store_true',
                             help='Clean all build artifacts before building (removes pyhelios_build/, pyhelios/plugins/, pyhelios/assets/build/)')
     build_group.add_argument('--nogpu', action='store_true',
-                            help='Exclude GPU-dependent plugins (radiation, aeriallidar, collisiondetection)')
+                            help='Exclude GPU-dependent plugins (radiation, energybalance, etc.)')
     build_group.add_argument('--novis', action='store_true', 
                             help='Exclude visualization plugins (visualizer, projectbuilder)')
     
@@ -1825,7 +1924,9 @@ Build Examples:
     # Information options
     info_group = parser.add_argument_group('Information')
     info_group.add_argument('--list-plugins', action='store_true',
-                           help='List all available plugins and exit')
+                           help='List PyHelios integrated plugins and exit')
+    info_group.add_argument('--list-all-plugins', action='store_true',
+                           help='List all helios-core plugins (including non-integrated) and exit')
     info_group.add_argument('--validate-config', action='store_true',
                            help='Validate configuration without building')
     info_group.add_argument('--discover', action='store_true',
@@ -1835,18 +1936,60 @@ Build Examples:
     
     # Handle information commands
     if args.list_plugins:
-        print("Available PyHelios Plugins:")
+        print("PyHelios Integrated Plugins:")
         print("=" * 30)
         compatible_plugins = get_platform_compatible_plugins()
+        integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance", "solarposition", "stomatalconductance", "photosynthesis"]
+
+        for plugin in sorted(integrated_plugins):
+            if plugin in PLUGIN_METADATA:
+                metadata = PLUGIN_METADATA[plugin]
+                status = "+" if plugin in compatible_plugins else "-"
+                gpu = " (GPU)" if metadata.gpu_required else ""
+                print(f"{status} {plugin}{gpu}")
+                print(f"  {metadata.description}")
+                if metadata.system_dependencies:
+                    print(f"  Dependencies: {', '.join(metadata.system_dependencies)}")
+                if plugin not in compatible_plugins:
+                    print("  Status: Not supported on this platform")
+                print()
+
+        print("Legend:")
+        print("  + Available and platform compatible")
+        print("  - Not supported on this platform")
+        print("\nUse --list-all-plugins to see all helios-core plugins (including non-integrated)")
+        return 0
+
+    if args.list_all_plugins:
+        print("All Helios-Core Plugins:")
+        print("=" * 25)
+        compatible_plugins = get_platform_compatible_plugins()
+        integrated_plugins = ["visualizer", "weberpenntree", "radiation", "energybalance", "solarposition", "stomatalconductance", "photosynthesis"]
+
         for plugin in sorted(get_all_plugin_names()):
             metadata = PLUGIN_METADATA[plugin]
-            compat = "+" if plugin in compatible_plugins else "-"
+
+            # Plugin status indicators
+            if plugin not in compatible_plugins:
+                status = "-"  # Platform incompatible
+            elif plugin not in integrated_plugins:
+                status = "?"  # Available in helios-core but not integrated into PyHelios
+            else:
+                status = "+"  # Fully integrated and compatible
+
             gpu = " (GPU)" if metadata.gpu_required else ""
-            print(f"{compat} {plugin}{gpu}")
+            print(f"{status} {plugin}{gpu}")
             print(f"  {metadata.description}")
             if metadata.system_dependencies:
                 print(f"  Dependencies: {', '.join(metadata.system_dependencies)}")
+            if plugin not in integrated_plugins:
+                print("  Status: Available in helios-core but not yet integrated into PyHelios")
             print()
+
+        print("Legend:")
+        print("  + Fully integrated and platform compatible")
+        print("  ? Available in helios-core but not integrated into PyHelios")
+        print("  - Platform incompatible")
         return 0
     
     if args.discover:
@@ -1922,9 +2065,22 @@ Build Examples:
     # Determine plugin selection
     if args.interactive:
         plugins = interactive_plugin_selection()
+        explicitly_requested_plugins = plugins.copy()  # Interactive selections are explicit
     else:
         plugins = parse_plugin_selection(args)
-    
+        # Track explicitly requested plugins (from --plugins argument)
+        if args.plugins:
+            explicitly_requested_plugins = []
+            for plugin_arg in args.plugins:
+                if ',' in plugin_arg:
+                    explicitly_requested_plugins.extend([p.strip() for p in plugin_arg.split(',')])
+                else:
+                    explicitly_requested_plugins.append(plugin_arg.strip())
+        else:
+            # FAIL-FAST: Default plugins should be treated as explicitly requested
+            # to prevent silent fallbacks when dependencies are missing
+            explicitly_requested_plugins = plugins.copy()  # Default plugins are explicitly requested
+
     # Apply exclusions
     if args.exclude:
         original_count = len(plugins)
@@ -1942,7 +2098,7 @@ Build Examples:
         args.output_dir = script_dir.parent / 'pyhelios_build' / 'build' / 'lib'
     
     try:
-        builder = HeliosBuilder(args.helios_root, args.output_dir, plugins, args.buildmode)
+        builder = HeliosBuilder(args.helios_root, args.output_dir, plugins, args.buildmode, explicitly_requested_plugins)
         
         # Handle clean option
         if args.clean:

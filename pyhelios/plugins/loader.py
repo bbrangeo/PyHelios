@@ -448,30 +448,15 @@ def detect_available_plugins() -> List[str]:
         loader = get_loader()
         library = loader.library
         
-        # Check for WeberPennTree plugin
-        if hasattr(library, 'buildTree') or hasattr(library, 'createWeberPennTree'):
-            available_plugins.append('weberpenntree')
-            
-        # Check for CanopyGenerator plugin  
-        if hasattr(library, 'buildCanopy') or hasattr(library, 'generateCanopy'):
-            available_plugins.append('canopygenerator')
-            
-        # Check for Visualizer plugin
-        if hasattr(library, 'createVisualizer') or hasattr(library, 'buildContextGeometry'):
-            available_plugins.append('visualizer')
-            
-        # Check for Radiation plugin
-        if hasattr(library, 'createRadiationModel') or hasattr(library, 'runRadiationBand'):
-            available_plugins.append('radiation')
-        
-        # Check for EnergyBalance plugin
-        if hasattr(library, 'createEnergyBalanceModel') or hasattr(library, 'runEnergyBalance'):
-            available_plugins.append('energybalance')
-            
-        # Check for additional plugins that might be compiled in
+        # Check for all plugins using the actual function names from wrappers
         plugin_checks = {
-            'photosynthesis': ['createPhotosynthesisModel', 'runPhotosynthesis'],
-            'leafoptics': ['createLeafOpticsModel', 'runLeafOptics'],
+            'weberpenntree': ['createWeberPennTree', 'buildTree'],
+            'canopygenerator': ['buildCanopy', 'generateCanopy'],
+            'visualizer': ['createVisualizer', 'createVisualizerWithAntialiasing'],
+            'radiation': ['createRadiationModel'],
+            'energybalance': ['createEnergyBalanceModel'],
+            'photosynthesis': ['createPhotosynthesisModel'],
+            'leafoptics': ['createLeafOpticsModel'],
             'stomatalconductance': ['createStomatalConductanceModel'],
             'boundarylayerconductance': ['createBoundaryLayerConductanceModel'],
             'planthydraulics': ['createPlantHydraulicsModel'],

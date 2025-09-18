@@ -117,6 +117,7 @@ class TestEnergyBalanceInterface:
 
 
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestEnergyBalanceFunctionality:
     """Test actual energy balance functionality with native library"""
     
@@ -349,6 +350,7 @@ class TestEnergyBalanceFunctionality:
 
 
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestEnergyBalanceIntegration:
     """Test energy balance integration with other PyHelios components"""
     
@@ -422,6 +424,7 @@ class TestEnergyBalancePerformance:
     """Performance tests for energy balance operations"""
     
     @pytest.mark.native_only
+    @pytest.mark.requires_gpu
     def test_large_geometry_performance(self):
         """Test energy balance performance with large geometry sets"""
         import time
@@ -449,6 +452,7 @@ class TestEnergyBalancePerformance:
                 assert elapsed < 30.0, f"Energy balance too slow for 1000 patches: {elapsed:.3f}s"
     
     @pytest.mark.native_only
+    @pytest.mark.requires_gpu
     def test_dynamic_simulation_performance(self):
         """Test performance of dynamic energy balance simulations"""
         import time
@@ -476,6 +480,7 @@ class TestEnergyBalancePerformance:
 
 
 @pytest.mark.native_only
+@pytest.mark.requires_gpu
 class TestEnergyBalanceEdgeCases:
     """Test edge cases and boundary conditions"""
     

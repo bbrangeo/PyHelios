@@ -859,3 +859,113 @@ def validate_temperature_response_params(value_at_25c: Any, dha: Any = None, top
             param_name=f"{param_prefix}_dHd",
             function_name=function_name
         )
+
+
+def validate_camera_label(label: str, param_name: str = "camera_label", function_name: str = None) -> str:
+    """Validate camera label for radiation camera operations."""
+    if not isinstance(label, str):
+        raise create_validation_error(
+            f"Camera label must be a string, got {type(label).__name__}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="str",
+            actual_value=label,
+            suggestion="Use a string label for the camera."
+        )
+
+    if not label or label.strip() == "":
+        raise create_validation_error(
+            "Camera label cannot be empty",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="non-empty string",
+            actual_value=label,
+            suggestion="Provide a non-empty string label for the camera."
+        )
+
+    return label.strip()
+
+
+def validate_band_labels_list(band_labels: List[str], param_name: str = "band_labels", function_name: str = None) -> List[str]:
+    """Validate list of band labels for camera operations."""
+    if not isinstance(band_labels, (list, tuple)):
+        raise create_validation_error(
+            f"Band labels must be a list or tuple, got {type(band_labels).__name__}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="List[str]",
+            actual_value=band_labels,
+            suggestion="Provide a list of string band labels."
+        )
+
+    if len(band_labels) == 0:
+        raise create_validation_error(
+            "Band labels list cannot be empty",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="non-empty list",
+            actual_value=band_labels,
+            suggestion="Provide at least one band label."
+        )
+
+    validated_labels = []
+    for i, label in enumerate(band_labels):
+        if not isinstance(label, str):
+            raise create_validation_error(
+                f"Band label at index {i} must be a string, got {type(label).__name__}",
+                param_name=f"{param_name}[{i}]",
+                function_name=function_name,
+                expected_type="str",
+                actual_value=label,
+                suggestion="All band labels must be strings."
+            )
+
+        if not label or label.strip() == "":
+            raise create_validation_error(
+                f"Band label at index {i} cannot be empty",
+                param_name=f"{param_name}[{i}]",
+                function_name=function_name,
+                expected_type="non-empty string",
+                actual_value=label,
+                suggestion="All band labels must be non-empty strings."
+            )
+
+        validated_labels.append(label.strip())
+
+    return validated_labels
+
+
+def validate_antialiasing_samples(samples: int, param_name: str = "antialiasing_samples", function_name: str = None) -> int:
+    """Validate antialiasing samples count."""
+    if not isinstance(samples, int):
+        raise create_validation_error(
+            f"Antialiasing samples must be an integer, got {type(samples).__name__}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="int",
+            actual_value=samples,
+            suggestion="Provide an integer number of antialiasing samples."
+        )
+
+    if samples <= 0:
+        raise create_validation_error(
+            f"Antialiasing samples must be positive, got {samples}",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="positive integer",
+            actual_value=samples,
+            suggestion="Use a positive number of antialiasing samples (typically 1-1000)."
+        )
+
+    # Practical upper limit check
+    if samples > 10000:
+        raise create_validation_error(
+            f"Antialiasing samples ({samples}) is very high and may cause performance issues",
+            param_name=param_name,
+            function_name=function_name,
+            expected_type="reasonable integer (1-10000)",
+            actual_value=samples,
+            suggestion="Consider using fewer antialiasing samples for better performance."
+        )
+
+    return samples

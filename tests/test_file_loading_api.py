@@ -146,22 +146,25 @@ class TestFileLoadingAPI:
         context = Context()
         
         # Test invalid parameter combinations for loadPLY
+        from tests.conftest import get_example_file_path
         try:
+            ply_path = get_example_file_path("suzanne.ply")
             with pytest.raises(ValueError, match="Invalid parameter combination"):
                 context.loadPLY(
-                    "docs/examples/models/suzanne.ply",
+                    ply_path,
                     origin=vec3(0, 0, 0),  # Only origin, missing height
                     rotation=SphericalCoord(1, 0, 0)
                 )
         except (RuntimeError, NotImplementedError):
             # Library not available, but parameter validation should still work
             pass
-        
+
         # Test invalid parameter combinations for loadOBJ
         try:
+            obj_path = get_example_file_path("suzanne.obj")
             with pytest.raises(ValueError, match="Invalid parameter combination"):
                 context.loadOBJ(
-                    "docs/examples/models/suzanne.obj",
+                    obj_path,
                     origin=vec3(0, 0, 0),  # Missing other required parameters
                     height=1.0
                 )

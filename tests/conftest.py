@@ -346,20 +346,86 @@ def pytest_runtest_setup(item):
     if "native_only" in item.keywords:
         if not is_native_library_available():
             pytest.skip("Skipping native_only test - native library not available")
-        
+
         # General plugin availability check for native tests
         required_plugins = _get_required_plugins_for_test(item)
         if required_plugins:
             all_available, missing_info = _check_plugin_availability(required_plugins)
             if not all_available:
                 pytest.skip(f"Skipping test - {missing_info['reason']}")
-    
+
+    # Skip GPU tests when GPU runtime is not available
+    if "requires_gpu" in item.keywords:
+        from pyhelios.runtime import is_gpu_runtime_available, get_gpu_runtime_info
+        if not is_gpu_runtime_available():
+            gpu_info = get_gpu_runtime_info()
+            error_msg = gpu_info.get('error_message', 'GPU hardware/drivers not available')
+            pytest.skip(f"Skipping GPU test - {error_msg}")
+
     # Platform-specific skips
     if "windows_only" in item.keywords and not is_windows():
         pytest.skip("Skipping Windows-only test on non-Windows platform")
-    
+
     if "macos_only" in item.keywords and not is_macos():
         pytest.skip("Skipping macOS-only test on non-macOS platform")
-    
+
     if "linux_only" in item.keywords and not is_linux():
         pytest.skip("Skipping Linux-only test on non-Linux platform")
+
+
+def example_file_exists(filename):
+    """
+    Check if an example file exists in the docs/examples/models directory.
+
+    Args:
+        filename: Name of the file to check (e.g., "Helios_logo.jpeg")
+
+    Returns:
+        bool: True if file exists, False otherwise
+    """
+    example_path = os.path.join("docs", "examples", "models", filename)
+    return os.path.exists(example_path)
+
+
+def get_example_file_path(filename):
+    """
+    Get the path to an example file, checking if it exists.
+
+    Args:
+        filename: Name of the file (e.g., "Helios_logo.jpeg")
+
+    Returns:
+        str: Path to the file if it exists
+
+    Raises:
+        pytest.skip: If the file doesn't exist (for wheel environments)
+    """
+    example_path = os.path.join("docs", "examples", "models", filename)
+    if not os.path.exists(example_path):
+        pytest.skip(f"Example file not available in wheel environment: {filename}")
+    return example_path
+
+
+def create_dummy_image_file(suffix=".jpeg"):
+    """
+    Create a minimal dummy image file for testing texture functionality.
+
+    Args:
+        suffix: File extension (e.g., ".jpeg", ".png")
+
+    Returns:
+        str: Path to the temporary file
+    """
+    import tempfile
+
+    # Create a minimal JPEG-like file (just headers, won't be valid but tests loading behavior)
+    dummy_content = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xaa\xff\xd9'
+
+    # Create temporary file
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    try:
+        os.write(fd, dummy_content)
+    finally:
+        os.close(fd)
+
+    return path

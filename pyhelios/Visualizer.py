@@ -18,6 +18,7 @@ from .wrappers import UVisualizerWrapper as visualizer_wrapper
 from .wrappers.DataTypes import vec3, RGBcolor, SphericalCoord
 from .Context import Context
 from .validation.plugin_decorators import validate_build_geometry_params, validate_print_window_params
+from .assets import get_asset_manager
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,6 @@ def _visualizer_working_directory():
     """
     # Find the build directory where assets are located
     # Try asset manager first (works for both development and wheel installations)
-    from .assets import get_asset_manager
-    
     asset_manager = get_asset_manager()
     working_dir = asset_manager._get_helios_build_path()
     
@@ -63,7 +62,6 @@ def _visualizer_working_directory():
     
     if not (visualizer_assets / 'shaders').exists():
         # Only warn in development environments, not wheel installations
-        from .assets import get_asset_manager
         asset_mgr = get_asset_manager()
         if not asset_mgr._is_wheel_install():
             logger.warning(f"Visualizer assets not found at: {visualizer_assets}")

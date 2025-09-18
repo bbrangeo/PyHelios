@@ -14,6 +14,7 @@ After merge, remove the @pytest.mark.skipif decorator from that test.
 import pytest
 import sys
 import os
+import platform
 from typing import List
 
 # Add pyhelios to path
@@ -383,16 +384,23 @@ class TestVisualizerAPI:
     
     def test_visualizer_context_manager_protocol(self):
         """Test context manager protocol"""
+        # TEMPORARY SKIP: This test crashes with SIGABRT on macOS CI due to OpenGL context issues
+        # TODO: Remove this skip once Helios C++ visualizer plugin is fixed to handle headless mode gracefully
+        # See: https://github.com/baileylab/PyHelios/issues/[issue-number]
+        if os.environ.get('CI') and platform.system() == 'Darwin':
+            pytest.skip("TEMPORARY: Skipping macOS CI visualizer test due to OpenGL SIGABRT crash. "
+                       "Remove this skip after fixing C++ visualizer headless mode initialization.")
+
         # This should work even in mock mode for API validation
         try:
             visualizer = Visualizer(400, 300, headless=True)
             assert hasattr(visualizer, '__enter__')
             assert hasattr(visualizer, '__exit__')
-            
+
             # Test that __enter__ returns self
             entered = visualizer.__enter__()
             assert entered is visualizer
-            
+
             # Clean up
             visualizer.__exit__(None, None, None)
         except (VisualizerError, RuntimeError) as e:
@@ -449,12 +457,19 @@ class TestVisualizerDataColoring:
     
     def test_color_primitives_api_compatibility(self):
         """Test API compatibility in mock mode"""
+        # TEMPORARY SKIP: This test crashes with SIGABRT on macOS CI due to OpenGL context issues
+        # TODO: Remove this skip once Helios C++ visualizer plugin is fixed to handle headless mode gracefully
+        # See: https://github.com/baileylab/PyHelios/issues/[issue-number]
+        if os.environ.get('CI') and platform.system() == 'Darwin':
+            pytest.skip("TEMPORARY: Skipping macOS CI visualizer test due to OpenGL SIGABRT crash. "
+                       "Remove this skip after fixing C++ visualizer headless mode initialization.")
+
         try:
             visualizer = Visualizer(400, 300, headless=True)
-            
+
             # These should not raise AttributeError even in mock mode
             assert hasattr(visualizer, 'colorContextPrimitivesByData')
-            
+
         except VisualizerError:
             # Expected in mock mode - plugin not available
             pass

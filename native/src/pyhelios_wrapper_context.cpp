@@ -7,32 +7,34 @@
 #include <string>
 #include <exception>
 #include <cstring>
+#include <cstdio>
+#include <atomic>
 
 extern "C" {
     // Context management - core functionality required by PyHelios
-    helios::Context* createContext() {
+    PYHELIOS_API helios::Context* createContext() {
         return new helios::Context();
     }
     
-    void destroyContext(helios::Context* context) {
+    PYHELIOS_API void destroyContext(helios::Context* context) {
         delete context;
     }
     
     // Context state management
-    void markGeometryClean(helios::Context* context) {
+    PYHELIOS_API void markGeometryClean(helios::Context* context) {
         context->markGeometryClean();
     }
     
-    void markGeometryDirty(helios::Context* context) {
+    PYHELIOS_API void markGeometryDirty(helios::Context* context) {
         context->markGeometryDirty();
     }
     
-    bool isGeometryDirty(helios::Context* context) {
+    PYHELIOS_API bool isGeometryDirty(helios::Context* context) {
         return context->isGeometryDirty();
     }
     
     // Basic primitive creation
-    unsigned int addPatch(helios::Context* context) {
+    PYHELIOS_API unsigned int addPatch(helios::Context* context) {
         try {
             clearError(); // Clear any previous error
             return context->addPatch();
@@ -51,7 +53,7 @@ extern "C" {
         }
     }
     
-    unsigned int addPatchWithCenterAndSize(helios::Context* context, float* center, float* size) {
+    PYHELIOS_API unsigned int addPatchWithCenterAndSize(helios::Context* context, float* center, float* size) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 center_vec(center[0], center[1], center[2]);
@@ -72,7 +74,7 @@ extern "C" {
         }
     }
     
-    unsigned int addPatchWithCenterSizeAndRotation(helios::Context* context, float* center, float* size, float* rotation) {
+    PYHELIOS_API unsigned int addPatchWithCenterSizeAndRotation(helios::Context* context, float* center, float* size, float* rotation) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 center_vec(center[0], center[1], center[2]);
@@ -95,7 +97,7 @@ extern "C" {
         }
     }
     
-    unsigned int addPatchWithCenterSizeRotationAndColor(helios::Context* context, float* center, float* size, float* rotation, float* color) {
+    PYHELIOS_API unsigned int addPatchWithCenterSizeRotationAndColor(helios::Context* context, float* center, float* size, float* rotation, float* color) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 center_vec(center[0], center[1], center[2]);
@@ -119,7 +121,7 @@ extern "C" {
         }
     }
     
-    unsigned int addPatchWithCenterSizeRotationAndColorRGBA(helios::Context* context, float* center, float* size, float* rotation, float* color) {
+    PYHELIOS_API unsigned int addPatchWithCenterSizeRotationAndColorRGBA(helios::Context* context, float* center, float* size, float* rotation, float* color) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 center_vec(center[0], center[1], center[2]);
@@ -144,7 +146,7 @@ extern "C" {
     }
     
     // Triangle creation functions
-    unsigned int addTriangle(helios::Context* context, float* vertex0, float* vertex1, float* vertex2) {
+    PYHELIOS_API unsigned int addTriangle(helios::Context* context, float* vertex0, float* vertex1, float* vertex2) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 v0(vertex0[0], vertex0[1], vertex0[2]);
@@ -166,7 +168,7 @@ extern "C" {
         }
     }
     
-    unsigned int addTriangleWithColor(helios::Context* context, float* vertex0, float* vertex1, float* vertex2, float* color) {
+    PYHELIOS_API unsigned int addTriangleWithColor(helios::Context* context, float* vertex0, float* vertex1, float* vertex2, float* color) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 v0(vertex0[0], vertex0[1], vertex0[2]);
@@ -189,7 +191,7 @@ extern "C" {
         }
     }
     
-    unsigned int addTriangleWithColorRGBA(helios::Context* context, float* vertex0, float* vertex1, float* vertex2, float* color) {
+    PYHELIOS_API unsigned int addTriangleWithColorRGBA(helios::Context* context, float* vertex0, float* vertex1, float* vertex2, float* color) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 v0(vertex0[0], vertex0[1], vertex0[2]);
@@ -212,7 +214,7 @@ extern "C" {
         }
     }
     
-    unsigned int addTriangleWithTexture(helios::Context* context, float* vertex0, float* vertex1, float* vertex2, const char* texture_file, float* uv0, float* uv1, float* uv2) {
+    PYHELIOS_API unsigned int addTriangleWithTexture(helios::Context* context, float* vertex0, float* vertex1, float* vertex2, const char* texture_file, float* uv0, float* uv1, float* uv2) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 v0(vertex0[0], vertex0[1], vertex0[2]);
@@ -342,7 +344,7 @@ extern "C" {
     // Compound geometry creation functions - return arrays of UUIDs
     
     // addTile functions
-    unsigned int* addTile(helios::Context* context, float* center, float* size, float* rotation, int* subdiv, unsigned int* count) {
+    PYHELIOS_API unsigned int* addTile(helios::Context* context, float* center, float* size, float* rotation, int* subdiv, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -379,7 +381,7 @@ extern "C" {
         }
     }
     
-    unsigned int* addTileWithColor(helios::Context* context, float* center, float* size, float* rotation, int* subdiv, float* color, unsigned int* count) {
+    PYHELIOS_API unsigned int* addTileWithColor(helios::Context* context, float* center, float* size, float* rotation, int* subdiv, float* color, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -418,7 +420,7 @@ extern "C" {
     }
     
     // addSphere functions
-    unsigned int* addSphere(helios::Context* context, unsigned int ndivs, float* center, float radius, unsigned int* count) {
+    PYHELIOS_API unsigned int* addSphere(helios::Context* context, unsigned int ndivs, float* center, float radius, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -452,7 +454,7 @@ extern "C" {
         }
     }
     
-    unsigned int* addSphereWithColor(helios::Context* context, unsigned int ndivs, float* center, float radius, float* color, unsigned int* count) {
+    PYHELIOS_API unsigned int* addSphereWithColor(helios::Context* context, unsigned int ndivs, float* center, float radius, float* color, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -488,7 +490,7 @@ extern "C" {
     }
     
     // addTube functions
-    unsigned int* addTube(helios::Context* context, unsigned int ndivs, float* nodes, unsigned int node_count, float* radii, unsigned int* count) {
+    PYHELIOS_API unsigned int* addTube(helios::Context* context, unsigned int ndivs, float* nodes, unsigned int node_count, float* radii, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -532,7 +534,7 @@ extern "C" {
         }
     }
     
-    unsigned int* addTubeWithColor(helios::Context* context, unsigned int ndivs, float* nodes, unsigned int node_count, float* radii, float* colors, unsigned int* count) {
+    PYHELIOS_API unsigned int* addTubeWithColor(helios::Context* context, unsigned int ndivs, float* nodes, unsigned int node_count, float* radii, float* colors, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -584,7 +586,7 @@ extern "C" {
     }
     
     // addBox functions
-    unsigned int* addBox(helios::Context* context, float* center, float* size, int* subdiv, unsigned int* count) {
+    PYHELIOS_API unsigned int* addBox(helios::Context* context, float* center, float* size, int* subdiv, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -620,7 +622,7 @@ extern "C" {
         }
     }
     
-    unsigned int* addBoxWithColor(helios::Context* context, float* center, float* size, int* subdiv, float* color, unsigned int* count) {
+    PYHELIOS_API unsigned int* addBoxWithColor(helios::Context* context, float* center, float* size, int* subdiv, float* color, unsigned int* count) {
         try {
             clearError();
             if (!context) {
@@ -658,7 +660,7 @@ extern "C" {
     }
     
     // Primitive query functions
-    unsigned int getPrimitiveType(helios::Context* context, unsigned int uuid) {
+    PYHELIOS_API unsigned int getPrimitiveType(helios::Context* context, unsigned int uuid) {
         try {
             clearError(); // Clear any previous error
             return (unsigned int)context->getPrimitiveType(uuid);
@@ -677,7 +679,7 @@ extern "C" {
         }
     }
     
-    float getPrimitiveArea(helios::Context* context, unsigned int uuid) {
+    PYHELIOS_API float getPrimitiveArea(helios::Context* context, unsigned int uuid) {
         try {
             clearError(); // Clear any previous error
             return context->getPrimitiveArea(uuid);
@@ -696,7 +698,7 @@ extern "C" {
         }
     }
     
-    float* getPrimitiveNormal(helios::Context* context, unsigned int uuid) {
+    PYHELIOS_API float* getPrimitiveNormal(helios::Context* context, unsigned int uuid) {
         try {
             clearError(); // Clear any previous error
             helios::vec3 normal = context->getPrimitiveNormal(uuid);
@@ -723,11 +725,11 @@ extern "C" {
         }
     }
     
-    unsigned int getPrimitiveCount(helios::Context* context) {
+    PYHELIOS_API unsigned int getPrimitiveCount(helios::Context* context) {
         return context->getPrimitiveCount();
     }
     
-    float* getPrimitiveVertices(helios::Context* context, unsigned int uuid, unsigned int* size) {
+    PYHELIOS_API float* getPrimitiveVertices(helios::Context* context, unsigned int uuid, unsigned int* size) {
         try {
             clearError(); // Clear any previous error
             std::vector<helios::vec3> vertices = context->getPrimitiveVertices(uuid);
@@ -767,7 +769,7 @@ extern "C" {
         }
     }
     
-    float* getPrimitiveColor(helios::Context* context, unsigned int uuid) {
+    PYHELIOS_API float* getPrimitiveColor(helios::Context* context, unsigned int uuid) {
         try {
             clearError(); // Clear any previous error
             helios::RGBcolor color = context->getPrimitiveColor(uuid);
@@ -794,7 +796,7 @@ extern "C" {
         }
     }
     
-    float* getPrimitiveColorRGB(helios::Context* context, unsigned int uuid) {
+    PYHELIOS_API float* getPrimitiveColorRGB(helios::Context* context, unsigned int uuid) {
         try {
             clearError(); // Clear any previous error
             helios::RGBcolor color = context->getPrimitiveColorRGB(uuid);
@@ -821,7 +823,7 @@ extern "C" {
         }
     }
     
-    float* getPrimitiveColorRGBA(helios::Context* context, unsigned int uuid) {
+    PYHELIOS_API float* getPrimitiveColorRGBA(helios::Context* context, unsigned int uuid) {
         try {
             clearError(); // Clear any previous error
             helios::RGBAcolor color = context->getPrimitiveColorRGBA(uuid);
@@ -849,7 +851,7 @@ extern "C" {
         }
     }
     
-    unsigned int* getAllUUIDs(helios::Context* context, unsigned int* size) {
+    PYHELIOS_API unsigned int* getAllUUIDs(helios::Context* context, unsigned int* size) {
         try {
             clearError(); // Clear any previous error
             std::vector<unsigned int> uuids = context->getAllUUIDs();
@@ -876,11 +878,11 @@ extern "C" {
     }
     
     // Object functions
-    unsigned int getObjectCount(helios::Context* context) {
+    PYHELIOS_API unsigned int getObjectCount(helios::Context* context) {
         return context->getObjectCount();
     }
     
-    unsigned int* getAllObjectIDs(helios::Context* context, unsigned int* size) {
+    PYHELIOS_API unsigned int* getAllObjectIDs(helios::Context* context, unsigned int* size) {
         try {
             clearError(); // Clear any previous error
             std::vector<unsigned int> object_ids = context->getAllObjectIDs();
@@ -905,7 +907,7 @@ extern "C" {
         }
     }
     
-    unsigned int* getObjectPrimitiveUUIDs(helios::Context* context, unsigned int object_id, unsigned int* size) {
+    PYHELIOS_API unsigned int* getObjectPrimitiveUUIDs(helios::Context* context, unsigned int object_id, unsigned int* size) {
         try {
             clearError(); // Clear any previous error
             std::vector<unsigned int> uuids = context->getObjectPrimitiveUUIDs(object_id);
@@ -936,7 +938,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadPLY(helios::Context* context, const char* filename, float* origin, float height, const char* upaxis, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadPLY(helios::Context* context, const char* filename, float* origin, float height, const char* upaxis, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -987,7 +989,7 @@ extern "C" {
     }
 
     // Missing loadPLY overloads
-    unsigned int* loadPLYBasic(helios::Context* context, const char* filename, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadPLYBasic(helios::Context* context, const char* filename, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1023,7 +1025,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadPLYWithOriginHeightRotation(helios::Context* context, const char* filename, float* origin, float height, float* rotation, const char* upaxis, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadPLYWithOriginHeightRotation(helios::Context* context, const char* filename, float* origin, float height, float* rotation, const char* upaxis, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1078,7 +1080,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadPLYWithOriginHeightColor(helios::Context* context, const char* filename, float* origin, float height, float* color, const char* upaxis, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadPLYWithOriginHeightColor(helios::Context* context, const char* filename, float* origin, float height, float* color, const char* upaxis, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1133,7 +1135,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadPLYWithOriginHeightRotationColor(helios::Context* context, const char* filename, float* origin, float height, float* rotation, float* color, const char* upaxis, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadPLYWithOriginHeightRotationColor(helios::Context* context, const char* filename, float* origin, float height, float* rotation, float* color, const char* upaxis, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1195,7 +1197,7 @@ extern "C" {
     }
 
     // loadOBJ functions
-    unsigned int* loadOBJ(helios::Context* context, const char* filename, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadOBJ(helios::Context* context, const char* filename, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1231,7 +1233,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadOBJWithOriginHeightRotationColor(helios::Context* context, const char* filename, float* origin, float height, float* rotation, float* color, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadOBJWithOriginHeightRotationColor(helios::Context* context, const char* filename, float* origin, float height, float* rotation, float* color, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1286,7 +1288,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadOBJWithOriginHeightRotationColorUpaxis(helios::Context* context, const char* filename, float* origin, float height, float* rotation, float* color, const char* upaxis, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadOBJWithOriginHeightRotationColorUpaxis(helios::Context* context, const char* filename, float* origin, float height, float* rotation, float* color, const char* upaxis, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1346,7 +1348,7 @@ extern "C" {
         }
     }
 
-    unsigned int* loadOBJWithOriginScaleRotationColorUpaxis(helios::Context* context, const char* filename, float* origin, float* scale, float* rotation, float* color, const char* upaxis, bool silent, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadOBJWithOriginScaleRotationColorUpaxis(helios::Context* context, const char* filename, float* origin, float* scale, float* rotation, float* color, const char* upaxis, bool silent, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1413,7 +1415,7 @@ extern "C" {
     }
 
     // loadXML function
-    unsigned int* loadXML(helios::Context* context, const char* filename, bool quiet, unsigned int* size) {
+    PYHELIOS_API unsigned int* loadXML(helios::Context* context, const char* filename, bool quiet, unsigned int* size) {
         try {
             clearError();
             if (!context) {
@@ -1453,9 +1455,10 @@ extern "C" {
     // Primitive Data Functions
     //=============================================================================
 
-    void setPrimitiveDataFloat(helios::Context* context, unsigned int uuid, const char* label, float value) {
+    PYHELIOS_API void setPrimitiveDataFloat(helios::Context* context, unsigned int uuid, const char* label, float value) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1472,9 +1475,9 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataInt(helios::Context* context, unsigned int uuid, const char* label, int value) {
+    PYHELIOS_API void setPrimitiveDataInt(helios::Context* context, unsigned int uuid, const char* label, int value) {
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1483,7 +1486,9 @@ extern "C" {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Label is null");
                 return;
             }
+
             context->setPrimitiveData(uuid, label, value);
+
         } catch (const std::exception& e) {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (Context::setPrimitiveData): ") + e.what());
         } catch (...) {
@@ -1491,9 +1496,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataString(helios::Context* context, unsigned int uuid, const char* label, const char* value) {
+    PYHELIOS_API void setPrimitiveDataString(helios::Context* context, unsigned int uuid, const char* label, const char* value) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1511,9 +1517,10 @@ extern "C" {
         }
     }
 
-    float getPrimitiveDataFloat(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API float getPrimitiveDataFloat(helios::Context* context, unsigned int uuid, const char* label) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return 0.0f;
@@ -1534,9 +1541,10 @@ extern "C" {
         }
     }
 
-    int getPrimitiveDataInt(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API int getPrimitiveDataInt(helios::Context* context, unsigned int uuid, const char* label) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return 0;
@@ -1557,9 +1565,10 @@ extern "C" {
         }
     }
 
-    int getPrimitiveDataString(helios::Context* context, unsigned int uuid, const char* label, char* buffer, int buffer_size) {
+    PYHELIOS_API int getPrimitiveDataString(helios::Context* context, unsigned int uuid, const char* label, char* buffer, int buffer_size) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return 0;
@@ -1586,9 +1595,9 @@ extern "C" {
         }
     }
 
-    bool doesPrimitiveDataExist(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API bool doesPrimitiveDataExist(helios::Context* context, unsigned int uuid, const char* label) {
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return false;
@@ -1597,7 +1606,9 @@ extern "C" {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Label is null");
                 return false;
             }
+
             return context->doesPrimitiveDataExist(uuid, label);
+
         } catch (const std::exception& e) {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (Context::doesPrimitiveDataExist): ") + e.what());
             return false;
@@ -1607,9 +1618,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataVec3(helios::Context* context, unsigned int uuid, const char* label, float x, float y, float z) {
+    PYHELIOS_API void setPrimitiveDataVec3(helios::Context* context, unsigned int uuid, const char* label, float x, float y, float z) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1627,9 +1639,10 @@ extern "C" {
         }
     }
 
-    void getPrimitiveDataVec3(helios::Context* context, unsigned int uuid, const char* label, float* x, float* y, float* z) {
+    PYHELIOS_API void getPrimitiveDataVec3(helios::Context* context, unsigned int uuid, const char* label, float* x, float* y, float* z) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1650,9 +1663,10 @@ extern "C" {
         }
     }
 
-    int getPrimitiveDataType(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API int getPrimitiveDataType(helios::Context* context, unsigned int uuid, const char* label) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return -1;
@@ -1671,9 +1685,10 @@ extern "C" {
         }
     }
 
-    int getPrimitiveDataSize(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API int getPrimitiveDataSize(helios::Context* context, unsigned int uuid, const char* label) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return 0;
@@ -1692,9 +1707,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataUInt(helios::Context* context, unsigned int uuid, const char* label, unsigned int value) {
+    PYHELIOS_API void setPrimitiveDataUInt(helios::Context* context, unsigned int uuid, const char* label, unsigned int value) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1711,9 +1727,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataDouble(helios::Context* context, unsigned int uuid, const char* label, double value) {
+    PYHELIOS_API void setPrimitiveDataDouble(helios::Context* context, unsigned int uuid, const char* label, double value) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1730,7 +1747,7 @@ extern "C" {
         }
     }
 
-    int getPrimitiveDataGeneric(helios::Context* context, unsigned int uuid, const char* label, void* result_buffer, int max_buffer_size) {
+    PYHELIOS_API int getPrimitiveDataGeneric(helios::Context* context, unsigned int uuid, const char* label, void* result_buffer, int max_buffer_size) {
         try {
             clearError();
             if (!context) {
@@ -1754,9 +1771,10 @@ extern "C" {
     }
 
     // Extended primitive data functions - Vec2 and Vec4 variants
-    void setPrimitiveDataVec2(helios::Context* context, unsigned int uuid, const char* label, float x, float y) {
+    PYHELIOS_API void setPrimitiveDataVec2(helios::Context* context, unsigned int uuid, const char* label, float x, float y) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1774,9 +1792,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataVec4(helios::Context* context, unsigned int uuid, const char* label, float x, float y, float z, float w) {
+    PYHELIOS_API void setPrimitiveDataVec4(helios::Context* context, unsigned int uuid, const char* label, float x, float y, float z, float w) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1794,9 +1813,10 @@ extern "C" {
         }
     }
 
-    void getPrimitiveDataVec2(helios::Context* context, unsigned int uuid, const char* label, float* x, float* y) {
+    PYHELIOS_API void getPrimitiveDataVec2(helios::Context* context, unsigned int uuid, const char* label, float* x, float* y) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1816,9 +1836,10 @@ extern "C" {
         }
     }
 
-    void getPrimitiveDataVec4(helios::Context* context, unsigned int uuid, const char* label, float* x, float* y, float* z, float* w) {
+    PYHELIOS_API void getPrimitiveDataVec4(helios::Context* context, unsigned int uuid, const char* label, float* x, float* y, float* z, float* w) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1841,9 +1862,10 @@ extern "C" {
     }
 
     // Extended primitive data functions - Int2, Int3, Int4 variants
-    void setPrimitiveDataInt2(helios::Context* context, unsigned int uuid, const char* label, int x, int y) {
+    PYHELIOS_API void setPrimitiveDataInt2(helios::Context* context, unsigned int uuid, const char* label, int x, int y) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1861,9 +1883,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataInt3(helios::Context* context, unsigned int uuid, const char* label, int x, int y, int z) {
+    PYHELIOS_API void setPrimitiveDataInt3(helios::Context* context, unsigned int uuid, const char* label, int x, int y, int z) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1881,9 +1904,10 @@ extern "C" {
         }
     }
 
-    void setPrimitiveDataInt4(helios::Context* context, unsigned int uuid, const char* label, int x, int y, int z, int w) {
+    PYHELIOS_API void setPrimitiveDataInt4(helios::Context* context, unsigned int uuid, const char* label, int x, int y, int z, int w) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1901,9 +1925,10 @@ extern "C" {
         }
     }
 
-    void getPrimitiveDataInt2(helios::Context* context, unsigned int uuid, const char* label, int* x, int* y) {
+    PYHELIOS_API void getPrimitiveDataInt2(helios::Context* context, unsigned int uuid, const char* label, int* x, int* y) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1923,9 +1948,10 @@ extern "C" {
         }
     }
 
-    void getPrimitiveDataInt3(helios::Context* context, unsigned int uuid, const char* label, int* x, int* y, int* z) {
+    PYHELIOS_API void getPrimitiveDataInt3(helios::Context* context, unsigned int uuid, const char* label, int* x, int* y, int* z) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1946,9 +1972,10 @@ extern "C" {
         }
     }
 
-    void getPrimitiveDataInt4(helios::Context* context, unsigned int uuid, const char* label, int* x, int* y, int* z, int* w) {
+    PYHELIOS_API void getPrimitiveDataInt4(helios::Context* context, unsigned int uuid, const char* label, int* x, int* y, int* z, int* w) {
+        // Clear error state before any operation to prevent contamination from previous calls
+        clearError();
         try {
-            clearError();
             if (!context) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
                 return;
@@ -1971,7 +1998,7 @@ extern "C" {
     }
 
     // Extended primitive data functions - UInt and Double getters
-    unsigned int getPrimitiveDataUInt(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API unsigned int getPrimitiveDataUInt(helios::Context* context, unsigned int uuid, const char* label) {
         try {
             clearError();
             if (!context) {
@@ -1994,7 +2021,7 @@ extern "C" {
         }
     }
 
-    double getPrimitiveDataDouble(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API double getPrimitiveDataDouble(helios::Context* context, unsigned int uuid, const char* label) {
         try {
             clearError();
             if (!context) {
@@ -2018,7 +2045,7 @@ extern "C" {
     }
 
     // Auto-detection primitive data getter - detects type and returns appropriate value
-    int getPrimitiveDataAuto(helios::Context* context, unsigned int uuid, const char* label) {
+    PYHELIOS_API int getPrimitiveDataAuto(helios::Context* context, unsigned int uuid, const char* label) {
         try {
             clearError();
             if (!context) {
@@ -2088,7 +2115,7 @@ extern "C" {
         }
     }
 
-    void colorPrimitiveByDataPseudocolor(helios::Context* context, unsigned int* uuids, size_t num_uuids, const char* primitive_data, const char* colormap, unsigned int ncolors) {
+    PYHELIOS_API void colorPrimitiveByDataPseudocolor(helios::Context* context, unsigned int* uuids, size_t num_uuids, const char* primitive_data, const char* colormap, unsigned int ncolors) {
         if (context == nullptr) {
             setError(PYHELIOS_ERROR_INVALID_PARAMETER, "ERROR (colorPrimitiveByDataPseudocolor): Context pointer is null.");
             return;
@@ -2128,7 +2155,7 @@ extern "C" {
         }
     }
 
-    void colorPrimitiveByDataPseudocolorWithRange(helios::Context* context, unsigned int* uuids, size_t num_uuids, const char* primitive_data, const char* colormap, unsigned int ncolors, float data_min, float data_max) {
+    PYHELIOS_API void colorPrimitiveByDataPseudocolorWithRange(helios::Context* context, unsigned int* uuids, size_t num_uuids, const char* primitive_data, const char* colormap, unsigned int ncolors, float data_min, float data_max) {
         if (context == nullptr) {
             setError(PYHELIOS_ERROR_INVALID_PARAMETER, "ERROR (colorPrimitiveByDataPseudocolorWithRange): Context pointer is null.");
             return;
@@ -2173,7 +2200,7 @@ extern "C" {
     }
 
     // Context time/date management functions for solar position integration
-    void setTime_HourMinute(helios::Context* context, int hour, int minute) {
+    PYHELIOS_API void setTime_HourMinute(helios::Context* context, int hour, int minute) {
         try {
             clearError();
             if (!context) {
@@ -2200,7 +2227,7 @@ extern "C" {
         }
     }
     
-    void setTime_HourMinuteSecond(helios::Context* context, int hour, int minute, int second) {
+    PYHELIOS_API void setTime_HourMinuteSecond(helios::Context* context, int hour, int minute, int second) {
         try {
             clearError();
             if (!context) {
@@ -2231,7 +2258,7 @@ extern "C" {
         }
     }
     
-    void setDate_DayMonthYear(helios::Context* context, int day, int month, int year) {
+    PYHELIOS_API void setDate_DayMonthYear(helios::Context* context, int day, int month, int year) {
         try {
             clearError();
             if (!context) {
@@ -2262,7 +2289,7 @@ extern "C" {
         }
     }
     
-    void setDate_JulianDay(helios::Context* context, int julian_day, int year) {
+    PYHELIOS_API void setDate_JulianDay(helios::Context* context, int julian_day, int year) {
         try {
             clearError();
             if (!context) {
@@ -2289,7 +2316,7 @@ extern "C" {
         }
     }
     
-    void getTime(helios::Context* context, int* hour, int* minute, int* second) {
+    PYHELIOS_API void getTime(helios::Context* context, int* hour, int* minute, int* second) {
         try {
             clearError();
             if (!context) {
@@ -2315,7 +2342,7 @@ extern "C" {
         }
     }
     
-    void getDate(helios::Context* context, int* day, int* month, int* year) {
+    PYHELIOS_API void getDate(helios::Context* context, int* day, int* month, int* year) {
         try {
             clearError();
             if (!context) {
@@ -2338,6 +2365,157 @@ extern "C" {
             setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getDate): ") + e.what());
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getDate): Unknown error");
+        }
+    }
+
+    //=============================================================================
+    // File Export Functions
+    //=============================================================================
+
+    PYHELIOS_API void writePLY(helios::Context* context, const char* filename) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!filename) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Filename is null");
+                return;
+            }
+
+            context->writePLY(filename);
+
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, std::string("ERROR (Context::writePLY): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (Context::writePLY): Unknown error writing PLY file.");
+        }
+    }
+
+    PYHELIOS_API void writePLYWithUUIDs(helios::Context* context, const char* filename, unsigned int* uuids, unsigned int count) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!filename) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Filename is null");
+                return;
+            }
+            if (!uuids && count > 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "UUIDs array is null but count > 0");
+                return;
+            }
+
+            // Convert C array to vector
+            std::vector<unsigned int> uuid_vector(uuids, uuids + count);
+
+            context->writePLY(filename, uuid_vector);
+
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, std::string("ERROR (Context::writePLY): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (Context::writePLY): Unknown error writing PLY file.");
+        }
+    }
+
+    PYHELIOS_API void writeOBJ(helios::Context* context, const char* filename, bool write_normals, bool silent) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!filename) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Filename is null");
+                return;
+            }
+
+            context->writeOBJ(filename, write_normals, silent);
+
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, std::string("ERROR (Context::writeOBJ): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (Context::writeOBJ): Unknown error writing OBJ file.");
+        }
+    }
+
+    PYHELIOS_API void writeOBJWithUUIDs(helios::Context* context, const char* filename, unsigned int* uuids, unsigned int count, bool write_normals, bool silent) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!filename) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Filename is null");
+                return;
+            }
+            if (!uuids && count > 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "UUIDs array is null but count > 0");
+                return;
+            }
+
+            // Convert C array to vector
+            std::vector<unsigned int> uuid_vector(uuids, uuids + count);
+
+            context->writeOBJ(filename, uuid_vector, write_normals, silent);
+
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, std::string("ERROR (Context::writeOBJ): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (Context::writeOBJ): Unknown error writing OBJ file.");
+        }
+    }
+
+    PYHELIOS_API void writeOBJWithPrimitiveData(helios::Context* context, const char* filename, unsigned int* uuids, unsigned int count, const char** data_fields, unsigned int field_count, bool write_normals, bool silent) {
+        try {
+            clearError();
+            if (!context) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Context pointer is null");
+                return;
+            }
+            if (!filename) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Filename is null");
+                return;
+            }
+            if (!uuids && count > 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "UUIDs array is null but count > 0");
+                return;
+            }
+            if (!data_fields && field_count > 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Data fields array is null but field_count > 0");
+                return;
+            }
+
+            // Convert C arrays to vectors
+            std::vector<unsigned int> uuid_vector(uuids, uuids + count);
+            std::vector<std::string> field_vector;
+
+            for (unsigned int i = 0; i < field_count; i++) {
+                if (data_fields[i]) {
+                    field_vector.push_back(std::string(data_fields[i]));
+                }
+            }
+
+            context->writeOBJ(filename, uuid_vector, field_vector, write_normals, silent);
+
+        } catch (const std::runtime_error& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, e.what());
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_FILE_IO, std::string("ERROR (Context::writeOBJ): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (Context::writeOBJ): Unknown error writing OBJ file.");
         }
     }
 

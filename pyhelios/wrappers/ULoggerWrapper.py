@@ -2,6 +2,16 @@ import ctypes
 from typing import List
 
 from ..plugins import helios_lib
+from ..exceptions import check_helios_error
+
+# Error checking callback
+def _check_error(result, func, args):
+    """
+    Errcheck callback that automatically checks for Helios errors after each logger function call.
+    This ensures that C++ exceptions are properly converted to Python exceptions.
+    """
+    check_helios_error(helios_lib.getLastErrorCode, helios_lib.getLastErrorMessage)
+    return result
 
 # Check if logger functions are available (they may not be in all builds)
 _has_logger = hasattr(helios_lib, 'createLogger')
@@ -9,12 +19,15 @@ _has_logger = hasattr(helios_lib, 'createLogger')
 if _has_logger:
     helios_lib.createLogger.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
     helios_lib.createLogger.restype = None
+    helios_lib.createLogger.errcheck = _check_error
 
     helios_lib.destroyLogger.argtypes = []
     helios_lib.destroyLogger.restype = None
+    # Note: destroyLogger doesn't need errcheck as it typically doesn't fail
 
     helios_lib.writeLog.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
     helios_lib.writeLog.restype = None
+    helios_lib.writeLog.errcheck = _check_error
 
 def createLogger(logFileName: str, logFileLocation: str) -> None:
     if _has_logger:

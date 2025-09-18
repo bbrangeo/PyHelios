@@ -21,7 +21,14 @@ class TestNativeBuild:
         # Get the project root directory
         test_dir = Path(__file__).parent
         project_root = test_dir.parent
-        
+
+        # Check if we're in a wheel testing environment (build_scripts doesn't exist)
+        build_script = project_root / "build_scripts" / "build_helios.py"
+        if not build_script.exists():
+            # We're likely in a wheel testing environment - skip native build tests
+            pytest.skip("Native build tests not available in wheel testing environment "
+                       "(build_scripts/build_helios.py not found)")
+
         # Check if library already exists (use .dylib on macOS, .so on Linux, .dll on Windows)
         import platform
         if platform.system() == "Darwin":
@@ -31,29 +38,26 @@ class TestNativeBuild:
         else:
             lib_name = "libhelios.dll"
         lib_path = project_root / "pyhelios_build" / "build" / "lib" / lib_name
-        
+
         # Build the library if it doesn't exist or if we want to force rebuild
         if not lib_path.exists():
             print(f"\nBuilding Helios native library...")
-            
-            # Run the build script
-            build_script = project_root / "build_scripts" / "build_helios.py"
-            
+
             result = subprocess.run([
                 sys.executable, str(build_script)
             ], cwd=project_root, capture_output=True, text=True)
-            
+
             if result.returncode != 0:
                 pytest.fail(f"Failed to build Helios library:\n"
                           f"STDOUT: {result.stdout}\n"
                           f"STDERR: {result.stderr}")
-            
+
             print(f"Build completed successfully")
-        
+
         # Verify the library exists
         if not lib_path.exists():
             pytest.fail(f"Helios library not found at {lib_path} after build")
-        
+
         return lib_path
     
     def test_library_can_be_built(self, built_library_path):

@@ -5,3 +5,33 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "pyhelios/_version.py"
 local_scheme = "no-local-version"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["helios-core", ".git", ".pytest_cache", "__pycache__", "*.egg-info", "build", "dist"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--forked"
+]
+markers = [
+    "unit: Unit tests for individual components (work with mocks)",
+    "integration: Integration tests with Helios C++ library (require native libraries)",
+    "slow: Tests that take more than a few seconds",
+    "native_only: Tests that require native Helios library (not mock mode)",
+    "windows_only: Tests that require Windows platform",
+    "macos_only: Tests that require macOS platform",
+    "linux_only: Tests that require Linux platform",
+    "cross_platform: Tests that work across all platforms",
+    "mock_mode: Tests specifically for mock mode functionality",
+    "forked_required: Tests that require subprocess isolation to prevent ctypes contamination",
+    "requires_gpu: Tests that require actual GPU hardware and drivers at runtime"
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]

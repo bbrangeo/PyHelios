@@ -4,6 +4,7 @@
 #include "../include/pyhelios_wrapper_common.h"
 #include <string>
 #include <exception>
+#include <cstdio>
 
 // Global error state for thread-safe error handling - matches PyHelios error codes
 static thread_local std::string last_error_message;
@@ -21,15 +22,15 @@ extern "C" {
     // Error Handling Functions
     //=============================================================================
     
-    int getLastErrorCode() {
+    PYHELIOS_API int getLastErrorCode() {
         return last_error_code;
     }
-    
-    const char* getLastErrorMessage() {
+
+    PYHELIOS_API const char* getLastErrorMessage() {
         return last_error_message.c_str();
     }
     
-    void clearError() {
+    PYHELIOS_API void clearError() {
         last_error_code = PYHELIOS_SUCCESS;
         last_error_message.clear();
     }

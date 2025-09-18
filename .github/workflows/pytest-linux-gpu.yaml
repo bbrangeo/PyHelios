@@ -45,7 +45,7 @@ jobs:
       - name: Build PyHelios with all plugins (GPU included)
         run: |
           # Build with all available plugins including GPU-accelerated ones
-          ./build_scripts/build_helios --clean --plugins radiation,visualizer,weberpenntree
+          ./build_scripts/build_helios --clean
       
       - name: Check plugin status
         run: |

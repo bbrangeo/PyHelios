@@ -47,9 +47,9 @@ def get_asset_files():
         'pyhelios/assets/build',  # For pip packaging
         'build'  # Alternative location
     ]
-    
+
     asset_patterns = []
-    
+
     for build_dir in build_dirs:
         if os.path.exists(build_dir):
             # Core assets
@@ -58,16 +58,17 @@ def get_asset_files():
                 asset_patterns.extend([
                     'assets/build/lib/images/*'
                 ])
-            
+
             # Plugin assets - comprehensive patterns matching prepare_wheel.py
             plugins_dir = os.path.join(build_dir, 'plugins')
             if os.path.exists(plugins_dir):
-                asset_patterns.extend([
+                # Base patterns for all platforms
+                base_patterns = [
                     # Shader files - all graphics shader types
                     'assets/build/plugins/*/shaders/*.glsl',
                     'assets/build/plugins/*/shaders/*.vert',
                     'assets/build/plugins/*/shaders/*.frag',
-                    'assets/build/plugins/*/shaders/*.geom', 
+                    'assets/build/plugins/*/shaders/*.geom',
                     'assets/build/plugins/*/shaders/*.comp',
                     # Font files - all font formats
                     'assets/build/plugins/*/fonts/*.ttf',
@@ -89,10 +90,6 @@ def get_asset_files():
                     'assets/build/plugins/*/wood/*.ply',
                     # XML configuration files
                     'assets/build/plugins/*/xml/*.xml',
-                    # Spectral data - all data formats
-                    'assets/build/plugins/*/spectral_data/*.csv',
-                    'assets/build/plugins/*/spectral_data/*.txt',
-                    'assets/build/plugins/*/spectral_data/*.dat',
                     # Generic data files
                     'assets/build/plugins/*/data/*.csv',
                     'assets/build/plugins/*/data/*.txt',
@@ -105,11 +102,23 @@ def get_asset_files():
                     'assets/build/plugins/*/shaders/**/*',
                     'assets/build/plugins/*/fonts/**/*',
                     'assets/build/plugins/*/textures/**/*',
-                    'assets/build/plugins/*/spectral_data/**/*',
                     'assets/build/plugins/*/data/**/*',
-                ])
+                ]
+                asset_patterns.extend(base_patterns)
+
+                # Platform-specific assets: Radiation spectral data only on Windows/Linux
+                # Exclude radiation assets on macOS (consistent with prepare_wheel.py)
+                if platform.system() != 'Darwin':
+                    radiation_patterns = [
+                        # Spectral data - all data formats (radiation plugin)
+                        'assets/build/plugins/*/spectral_data/*.csv',
+                        'assets/build/plugins/*/spectral_data/*.txt',
+                        'assets/build/plugins/*/spectral_data/*.dat',
+                        'assets/build/plugins/*/spectral_data/**/*',
+                    ]
+                    asset_patterns.extend(radiation_patterns)
             break  # Use first found build directory
-    
+
     return asset_patterns
 
 def get_long_description():
@@ -123,7 +132,7 @@ def get_long_description():
 def get_extensions():
     """
     Create a stub extension to force setuptools to create platform-specific wheels.
-    
+
     This is necessary because setuptools only creates platform-specific wheels when
     it detects compiled extensions. Since PyHelios includes pre-built native libraries
     via package_data, we need this stub to signal that the wheel is platform-specific.
@@ -172,7 +181,7 @@ setup(
     author='Pranav Ghate',
     author_email='pghate@ucdavis.edu',
     url='https://github.com/PlantSimulationLab/PyHelios',
-    packages=find_packages(exclude=('tests', 'docs', 'build_scripts', '*.build*', 'pyhelios_build*', '*.assets.build*')),
+    packages=find_packages(exclude=('tests', 'docs', 'build_scripts', 'pyhelios_build*')),
     package_data=package_data,
     include_package_data=True,
     ext_modules=get_extensions(),  # Force platform-specific wheels

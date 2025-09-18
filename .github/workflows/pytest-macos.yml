@@ -31,7 +31,7 @@ jobs:
         
     - name: Build native libraries
       run: |
-        python build_scripts/build_helios.py --buildmode release --plugins visualizer,weberpenntree --verbose
+        python build_scripts/build_helios.py --buildmode release --nogpu --verbose
         
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

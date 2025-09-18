@@ -17,7 +17,7 @@ extern "C" {
     // Visualizer Functions
     //=============================================================================
 
-    Visualizer* createVisualizer(unsigned int width, unsigned int height, bool headless) {
+    PYHELIOS_API Visualizer* createVisualizer(unsigned int width, unsigned int height, bool headless) {
         try {
             clearError();
             // Enable window decorations by default (true), headless parameter controls window visibility
@@ -31,7 +31,7 @@ extern "C" {
         }
     }
     
-    Visualizer* createVisualizerWithAntialiasing(unsigned int width, unsigned int height, unsigned int samples, bool headless) {
+    PYHELIOS_API Visualizer* createVisualizerWithAntialiasing(unsigned int width, unsigned int height, unsigned int samples, bool headless) {
         try {
             clearError();
             // Enable window decorations by default (true), headless parameter controls window visibility  
@@ -45,59 +45,59 @@ extern "C" {
         }
     }
     
-    void destroyVisualizer(Visualizer* visualizer) {
+    PYHELIOS_API void destroyVisualizer(Visualizer* visualizer) {
         delete visualizer;
     }
     
-    void buildContextGeometry(Visualizer* visualizer, helios::Context* context) {
+    PYHELIOS_API void buildContextGeometry(Visualizer* visualizer, helios::Context* context) {
         visualizer->buildContextGeometry(context);
     }
     
-    void buildContextGeometryUUIDs(Visualizer* visualizer, helios::Context* context, unsigned int* uuids, unsigned int count) {
+    PYHELIOS_API void buildContextGeometryUUIDs(Visualizer* visualizer, helios::Context* context, unsigned int* uuids, unsigned int count) {
         std::vector<unsigned int> uuid_vector(uuids, uuids + count);
         visualizer->buildContextGeometry(context, uuid_vector);
     }
     
-    void plotInteractive(Visualizer* visualizer) {
+    PYHELIOS_API void plotInteractive(Visualizer* visualizer) {
         visualizer->plotInteractive();
     }
     
-    void plotUpdate(Visualizer* visualizer) {
+    PYHELIOS_API void plotUpdate(Visualizer* visualizer) {
         visualizer->plotUpdate();
     }
     
-    void printWindow(Visualizer* visualizer, const char* filename) {
+    PYHELIOS_API void printWindow(Visualizer* visualizer, const char* filename) {
         visualizer->printWindow(filename);
     }
     
-    void closeWindow(Visualizer* visualizer) {
+    PYHELIOS_API void closeWindow(Visualizer* visualizer) {
         visualizer->closeWindow();
     }
     
-    void setBackgroundColor(Visualizer* visualizer, float* color) {
+    PYHELIOS_API void setBackgroundColor(Visualizer* visualizer, float* color) {
         helios::RGBcolor bg_color(color[0], color[1], color[2]);
         visualizer->setBackgroundColor(bg_color);
     }
     
-    void setLightDirection(Visualizer* visualizer, float* direction) {
+    PYHELIOS_API void setLightDirection(Visualizer* visualizer, float* direction) {
         helios::vec3 light_dir(direction[0], direction[1], direction[2]);
         visualizer->setLightDirection(light_dir);
     }
     
-    void setCameraPosition(Visualizer* visualizer, float* position, float* lookat) {
+    PYHELIOS_API void setCameraPosition(Visualizer* visualizer, float* position, float* lookat) {
         helios::vec3 camera_pos(position[0], position[1], position[2]);
         helios::vec3 look_at(lookat[0], lookat[1], lookat[2]);
         visualizer->setCameraPosition(camera_pos, look_at);
     }
     
-    void setCameraPositionSpherical(Visualizer* visualizer, float* angle, float* lookat) {
+    PYHELIOS_API void setCameraPositionSpherical(Visualizer* visualizer, float* angle, float* lookat) {
         // angle array: [radius, elevation, azimuth] - create SphericalCoord properly
         helios::SphericalCoord camera_angle = helios::make_SphericalCoord(angle[0], angle[1], angle[2]);
         helios::vec3 look_at(lookat[0], lookat[1], lookat[2]);
         visualizer->setCameraPosition(camera_angle, look_at);
     }
     
-    void setLightingModel(Visualizer* visualizer, unsigned int model) {
+    PYHELIOS_API void setLightingModel(Visualizer* visualizer, unsigned int model) {
         Visualizer::LightingModel lighting_model;
         
         switch (model) {
@@ -119,12 +119,12 @@ extern "C" {
         visualizer->setLightingModel(lighting_model);
     }
     
-    bool validateTextureFile(const char* texture_file) {
+    PYHELIOS_API bool validateTextureFile(const char* texture_file) {
         std::string filename(texture_file);
         return ::validateTextureFile(filename);
     }
     
-    void colorContextPrimitivesByData(Visualizer* visualizer, const char* data_name) {
+    PYHELIOS_API void colorContextPrimitivesByData(Visualizer* visualizer, const char* data_name) {
         try {
             clearError();
             if (!visualizer) {
@@ -145,7 +145,7 @@ extern "C" {
         }
     }
     
-    void colorContextPrimitivesByDataUUIDs(Visualizer* visualizer, const char* data_name, unsigned int* uuids, unsigned int count) {
+    PYHELIOS_API void colorContextPrimitivesByDataUUIDs(Visualizer* visualizer, const char* data_name, unsigned int* uuids, unsigned int count) {
         try {
             clearError();
             if (!visualizer) {
@@ -172,7 +172,7 @@ extern "C" {
     }
 
     // Camera Control Functions
-    void setCameraFieldOfView(Visualizer* visualizer, float angle_FOV) {
+    PYHELIOS_API void setCameraFieldOfView(Visualizer* visualizer, float angle_FOV) {
         try {
             clearError();
             if (!visualizer) {
@@ -187,7 +187,7 @@ extern "C" {
         }
     }
 
-    void getCameraPosition(Visualizer* visualizer, float* camera_position, float* look_at_point) {
+    PYHELIOS_API void getCameraPosition(Visualizer* visualizer, float* camera_position, float* look_at_point) {
         try {
             clearError();
             if (!visualizer) {
@@ -217,7 +217,7 @@ extern "C" {
         }
     }
 
-    void getBackgroundColor(Visualizer* visualizer, float* color) {
+    PYHELIOS_API void getBackgroundColor(Visualizer* visualizer, float* color) {
         try {
             clearError();
             if (!visualizer) {
@@ -241,7 +241,7 @@ extern "C" {
     }
 
     // Lighting Control Functions
-    void setLightIntensityFactor(Visualizer* visualizer, float intensity_factor) {
+    PYHELIOS_API void setLightIntensityFactor(Visualizer* visualizer, float intensity_factor) {
         try {
             clearError();
             if (!visualizer) {
@@ -257,7 +257,7 @@ extern "C" {
     }
 
     // Window and Display Functions
-    void getWindowSize(Visualizer* visualizer, unsigned int* width, unsigned int* height) {
+    PYHELIOS_API void getWindowSize(Visualizer* visualizer, unsigned int* width, unsigned int* height) {
         try {
             clearError();
             if (!visualizer) {
@@ -280,7 +280,7 @@ extern "C" {
         }
     }
 
-    void getFramebufferSize(Visualizer* visualizer, unsigned int* width, unsigned int* height) {
+    PYHELIOS_API void getFramebufferSize(Visualizer* visualizer, unsigned int* width, unsigned int* height) {
         try {
             clearError();
             if (!visualizer) {
@@ -303,7 +303,7 @@ extern "C" {
         }
     }
 
-    void printWindowDefault(Visualizer* visualizer) {
+    PYHELIOS_API void printWindowDefault(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -318,7 +318,7 @@ extern "C" {
         }
     }
 
-    void displayImageFromPixels(Visualizer* visualizer, unsigned char* pixel_data, unsigned int width_pixels, unsigned int height_pixels) {
+    PYHELIOS_API void displayImageFromPixels(Visualizer* visualizer, unsigned char* pixel_data, unsigned int width_pixels, unsigned int height_pixels) {
         try {
             clearError();
             if (!visualizer) {
@@ -346,7 +346,7 @@ extern "C" {
         }
     }
 
-    void displayImageFromFile(Visualizer* visualizer, const char* file_name) {
+    PYHELIOS_API void displayImageFromFile(Visualizer* visualizer, const char* file_name) {
         try {
             clearError();
             if (!visualizer) {
@@ -368,7 +368,7 @@ extern "C" {
     }
 
     // Window Data Access Functions
-    void getWindowPixelsRGB(Visualizer* visualizer, unsigned int* buffer) {
+    PYHELIOS_API void getWindowPixelsRGB(Visualizer* visualizer, unsigned int* buffer) {
         try {
             clearError();
             if (!visualizer) {
@@ -388,7 +388,7 @@ extern "C" {
         }
     }
 
-    void getDepthMap(Visualizer* visualizer, float** depth_pixels, unsigned int* width_pixels, unsigned int* height_pixels, unsigned int* buffer_size) {
+    PYHELIOS_API void getDepthMap(Visualizer* visualizer, float** depth_pixels, unsigned int* width_pixels, unsigned int* height_pixels, unsigned int* buffer_size) {
         try {
             clearError();
             if (!visualizer) {
@@ -426,7 +426,7 @@ extern "C" {
         }
     }
 
-    void plotDepthMap(Visualizer* visualizer) {
+    PYHELIOS_API void plotDepthMap(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -442,7 +442,7 @@ extern "C" {
     }
 
     // Geometry Management Functions
-    void clearGeometry(Visualizer* visualizer) {
+    PYHELIOS_API void clearGeometry(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -457,7 +457,7 @@ extern "C" {
         }
     }
 
-    void clearContextGeometry(Visualizer* visualizer) {
+    PYHELIOS_API void clearContextGeometry(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -472,7 +472,7 @@ extern "C" {
         }
     }
 
-    void deleteGeometry(Visualizer* visualizer, unsigned int geometry_id) {
+    PYHELIOS_API void deleteGeometry(Visualizer* visualizer, unsigned int geometry_id) {
         try {
             clearError();
             if (!visualizer) {
@@ -487,7 +487,7 @@ extern "C" {
         }
     }
 
-    void updateContextPrimitiveColors(Visualizer* visualizer) {
+    PYHELIOS_API void updateContextPrimitiveColors(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -503,7 +503,7 @@ extern "C" {
     }
 
     // Coordinate Axes and Grid Functions
-    void addCoordinateAxes(Visualizer* visualizer) {
+    PYHELIOS_API void addCoordinateAxes(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -518,7 +518,7 @@ extern "C" {
         }
     }
 
-    void addCoordinateAxesCustom(Visualizer* visualizer, float* origin, float* length, const char* sign_string) {
+    PYHELIOS_API void addCoordinateAxesCustom(Visualizer* visualizer, float* origin, float* length, const char* sign_string) {
         try {
             clearError();
             if (!visualizer) {
@@ -542,7 +542,7 @@ extern "C" {
         }
     }
 
-    void disableCoordinateAxes(Visualizer* visualizer) {
+    PYHELIOS_API void disableCoordinateAxes(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -557,7 +557,7 @@ extern "C" {
         }
     }
 
-    void addGridWireFrame(Visualizer* visualizer, float* center, float* size, int* subdivisions) {
+    PYHELIOS_API void addGridWireFrame(Visualizer* visualizer, float* center, float* size, int* subdivisions) {
         try {
             clearError();
             if (!visualizer) {
@@ -582,7 +582,7 @@ extern "C" {
     }
 
     // Colorbar Control Functions
-    void enableColorbar(Visualizer* visualizer) {
+    PYHELIOS_API void enableColorbar(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -597,7 +597,7 @@ extern "C" {
         }
     }
 
-    void disableColorbar(Visualizer* visualizer) {
+    PYHELIOS_API void disableColorbar(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -612,7 +612,7 @@ extern "C" {
         }
     }
 
-    void setColorbarPosition(Visualizer* visualizer, float* position) {
+    PYHELIOS_API void setColorbarPosition(Visualizer* visualizer, float* position) {
         try {
             clearError();
             if (!visualizer) {
@@ -633,7 +633,7 @@ extern "C" {
         }
     }
 
-    void setColorbarSize(Visualizer* visualizer, float* size) {
+    PYHELIOS_API void setColorbarSize(Visualizer* visualizer, float* size) {
         try {
             clearError();
             if (!visualizer) {
@@ -654,7 +654,7 @@ extern "C" {
         }
     }
 
-    void setColorbarRange(Visualizer* visualizer, float min_val, float max_val) {
+    PYHELIOS_API void setColorbarRange(Visualizer* visualizer, float min_val, float max_val) {
         try {
             clearError();
             if (!visualizer) {
@@ -669,7 +669,7 @@ extern "C" {
         }
     }
 
-    void setColorbarTicks(Visualizer* visualizer, float* ticks, unsigned int count) {
+    PYHELIOS_API void setColorbarTicks(Visualizer* visualizer, float* ticks, unsigned int count) {
         try {
             clearError();
             if (!visualizer) {
@@ -693,7 +693,7 @@ extern "C" {
         }
     }
 
-    void setColorbarTitle(Visualizer* visualizer, const char* title) {
+    PYHELIOS_API void setColorbarTitle(Visualizer* visualizer, const char* title) {
         try {
             clearError();
             if (!visualizer) {
@@ -713,7 +713,7 @@ extern "C" {
         }
     }
 
-    void setColorbarFontColor(Visualizer* visualizer, float* color) {
+    PYHELIOS_API void setColorbarFontColor(Visualizer* visualizer, float* color) {
         try {
             clearError();
             if (!visualizer) {
@@ -734,7 +734,7 @@ extern "C" {
         }
     }
 
-    void setColorbarFontSize(Visualizer* visualizer, unsigned int font_size) {
+    PYHELIOS_API void setColorbarFontSize(Visualizer* visualizer, unsigned int font_size) {
         try {
             clearError();
             if (!visualizer) {
@@ -750,7 +750,7 @@ extern "C" {
     }
 
     // Colormap Functions
-    void setColormap(Visualizer* visualizer, unsigned int colormap_id) {
+    PYHELIOS_API void setColormap(Visualizer* visualizer, unsigned int colormap_id) {
         try {
             clearError();
             if (!visualizer) {
@@ -779,7 +779,7 @@ extern "C" {
         }
     }
 
-    void setCustomColormap(Visualizer* visualizer, float* colors, float* divisions, unsigned int count) {
+    PYHELIOS_API void setCustomColormap(Visualizer* visualizer, float* colors, float* divisions, unsigned int count) {
         try {
             clearError();
             if (!visualizer) {
@@ -815,7 +815,7 @@ extern "C" {
     }
 
     // Object/Primitive Coloring Functions
-    void colorContextPrimitivesByObjectData(Visualizer* visualizer, const char* data_name) {
+    PYHELIOS_API void colorContextPrimitivesByObjectData(Visualizer* visualizer, const char* data_name) {
         try {
             clearError();
             if (!visualizer) {
@@ -835,7 +835,7 @@ extern "C" {
         }
     }
 
-    void colorContextPrimitivesByObjectDataIDs(Visualizer* visualizer, const char* data_name, unsigned int* obj_ids, unsigned int count) {
+    PYHELIOS_API void colorContextPrimitivesByObjectDataIDs(Visualizer* visualizer, const char* data_name, unsigned int* obj_ids, unsigned int count) {
         try {
             clearError();
             if (!visualizer) {
@@ -863,7 +863,7 @@ extern "C" {
         }
     }
 
-    void colorContextPrimitivesRandomly(Visualizer* visualizer, unsigned int* uuids, unsigned int count) {
+    PYHELIOS_API void colorContextPrimitivesRandomly(Visualizer* visualizer, unsigned int* uuids, unsigned int count) {
         try {
             clearError();
             if (!visualizer) {
@@ -889,7 +889,7 @@ extern "C" {
         }
     }
 
-    void colorContextObjectsRandomly(Visualizer* visualizer, unsigned int* obj_ids, unsigned int count) {
+    PYHELIOS_API void colorContextObjectsRandomly(Visualizer* visualizer, unsigned int* obj_ids, unsigned int count) {
         try {
             clearError();
             if (!visualizer) {
@@ -915,7 +915,7 @@ extern "C" {
         }
     }
 
-    void clearColor(Visualizer* visualizer) {
+    PYHELIOS_API void clearColor(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -931,7 +931,7 @@ extern "C" {
     }
 
     // Watermark Control Functions
-    void hideWatermark(Visualizer* visualizer) {
+    PYHELIOS_API void hideWatermark(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -946,7 +946,7 @@ extern "C" {
         }
     }
 
-    void showWatermark(Visualizer* visualizer) {
+    PYHELIOS_API void showWatermark(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -961,7 +961,7 @@ extern "C" {
         }
     }
 
-    void updateWatermark(Visualizer* visualizer) {
+    PYHELIOS_API void updateWatermark(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -977,7 +977,7 @@ extern "C" {
     }
 
     // Performance and Utility Functions
-    void enableMessages(Visualizer* visualizer) {
+    PYHELIOS_API void enableMessages(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -992,7 +992,7 @@ extern "C" {
         }
     }
 
-    void disableMessages(Visualizer* visualizer) {
+    PYHELIOS_API void disableMessages(Visualizer* visualizer) {
         try {
             clearError();
             if (!visualizer) {
@@ -1007,7 +1007,7 @@ extern "C" {
         }
     }
 
-    void plotOnce(Visualizer* visualizer, bool get_keystrokes) {
+    PYHELIOS_API void plotOnce(Visualizer* visualizer, bool get_keystrokes) {
         try {
             clearError();
             if (!visualizer) {
@@ -1022,7 +1022,7 @@ extern "C" {
         }
     }
 
-    void plotUpdateWithVisibility(Visualizer* visualizer, bool hide_window) {
+    PYHELIOS_API void plotUpdateWithVisibility(Visualizer* visualizer, bool hide_window) {
         try {
             clearError();
             if (!visualizer) {

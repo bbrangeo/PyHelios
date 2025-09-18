@@ -21,7 +21,7 @@ enum class ColorCorrectionAlgorithm {
 extern "C" {
     // RadiationModel C interface functions
     
-    RadiationModel* createRadiationModel(helios::Context* context) {
+    PYHELIOS_API RadiationModel* createRadiationModel(helios::Context* context) {
         try {
             clearError();
             if (!context) {
@@ -38,7 +38,7 @@ extern "C" {
         }
     }
     
-    void destroyRadiationModel(RadiationModel* radiation_model) {
+    PYHELIOS_API void destroyRadiationModel(RadiationModel* radiation_model) {
         try {
             clearError();
             if (radiation_model != nullptr) {
@@ -51,7 +51,7 @@ extern "C" {
         }
     }
     
-    void disableRadiationMessages(RadiationModel* radiation_model) {
+    PYHELIOS_API void disableRadiationMessages(RadiationModel* radiation_model) {
         try {
             clearError();
             if (!radiation_model) {
@@ -66,7 +66,7 @@ extern "C" {
         }
     }
     
-    void enableRadiationMessages(RadiationModel* radiation_model) {
+    PYHELIOS_API void enableRadiationMessages(RadiationModel* radiation_model) {
         try {
             clearError();
             if (!radiation_model) {
@@ -81,7 +81,7 @@ extern "C" {
         }
     }
     
-    void addRadiationBand(RadiationModel* radiation_model, const char* label) {
+    PYHELIOS_API void addRadiationBand(RadiationModel* radiation_model, const char* label) {
         try {
             clearError();
             if (!radiation_model) {
@@ -100,7 +100,7 @@ extern "C" {
         }
     }
     
-    void addRadiationBandWithWavelengths(RadiationModel* radiation_model, const char* label, float wavelength_min, float wavelength_max) {
+    PYHELIOS_API void addRadiationBandWithWavelengths(RadiationModel* radiation_model, const char* label, float wavelength_min, float wavelength_max) {
         try {
             clearError();
             if (!radiation_model) {
@@ -119,7 +119,7 @@ extern "C" {
         }
     }
     
-    void copyRadiationBand(RadiationModel* radiation_model, const char* old_label, const char* new_label) {
+    PYHELIOS_API void copyRadiationBand(RadiationModel* radiation_model, const char* old_label, const char* new_label) {
         try {
             clearError();
             if (!radiation_model) {
@@ -138,7 +138,7 @@ extern "C" {
         }
     }
     
-    unsigned int addCollimatedRadiationSourceDefault(RadiationModel* radiation_model) {
+    PYHELIOS_API unsigned int addCollimatedRadiationSourceDefault(RadiationModel* radiation_model) {
         try {
             clearError();
             if (!radiation_model) {
@@ -155,7 +155,7 @@ extern "C" {
         }
     }
     
-    unsigned int addCollimatedRadiationSourceVec3(RadiationModel* radiation_model, float x, float y, float z) {
+    PYHELIOS_API unsigned int addCollimatedRadiationSourceVec3(RadiationModel* radiation_model, float x, float y, float z) {
         try {
             clearError();
             if (!radiation_model) {
@@ -173,7 +173,7 @@ extern "C" {
         }
     }
     
-    unsigned int addCollimatedRadiationSourceSpherical(RadiationModel* radiation_model, float radius, float elevation, float azimuth) {
+    PYHELIOS_API unsigned int addCollimatedRadiationSourceSpherical(RadiationModel* radiation_model, float radius, float elevation, float azimuth) {
         try {
             clearError();
             if (!radiation_model) {
@@ -191,7 +191,7 @@ extern "C" {
         }
     }
     
-    unsigned int addSphereRadiationSource(RadiationModel* radiation_model, float x, float y, float z, float radius) {
+    PYHELIOS_API unsigned int addSphereRadiationSource(RadiationModel* radiation_model, float x, float y, float z, float radius) {
         try {
             clearError();
             if (!radiation_model) {
@@ -209,7 +209,7 @@ extern "C" {
         }
     }
     
-    unsigned int addSunSphereRadiationSource(RadiationModel* radiation_model, float radius, float zenith, float azimuth, float position_scaling, float angular_width, float flux_scaling) {
+    PYHELIOS_API unsigned int addSunSphereRadiationSource(RadiationModel* radiation_model, float radius, float zenith, float azimuth, float position_scaling, float angular_width, float flux_scaling) {
         try {
             clearError();
             if (!radiation_model) {
@@ -227,7 +227,7 @@ extern "C" {
         }
     }
     
-    void setDirectRayCount(RadiationModel* radiation_model, const char* label, size_t count) {
+    PYHELIOS_API void setDirectRayCount(RadiationModel* radiation_model, const char* label, size_t count) {
         try {
             clearError();
             if (!radiation_model) {
@@ -246,7 +246,7 @@ extern "C" {
         }
     }
     
-    void setDiffuseRayCount(RadiationModel* radiation_model, const char* label, size_t count) {
+    PYHELIOS_API void setDiffuseRayCount(RadiationModel* radiation_model, const char* label, size_t count) {
         try {
             clearError();
             if (!radiation_model) {
@@ -265,7 +265,7 @@ extern "C" {
         }
     }
     
-    void setDiffuseRadiationFlux(RadiationModel* radiation_model, const char* label, float flux) {
+    PYHELIOS_API void setDiffuseRadiationFlux(RadiationModel* radiation_model, const char* label, float flux) {
         try {
             clearError();
             if (!radiation_model) {
@@ -284,7 +284,7 @@ extern "C" {
         }
     }
     
-    void setSourceFlux(RadiationModel* radiation_model, unsigned int source_id, const char* label, float flux) {
+    PYHELIOS_API void setSourceFlux(RadiationModel* radiation_model, unsigned int source_id, const char* label, float flux) {
         try {
             clearError();
             if (!radiation_model) {
@@ -303,7 +303,7 @@ extern "C" {
         }
     }
     
-    void setSourceFluxMultiple(RadiationModel* radiation_model, unsigned int* source_ids, size_t count, const char* label, float flux) {
+    PYHELIOS_API void setSourceFluxMultiple(RadiationModel* radiation_model, unsigned int* source_ids, size_t count, const char* label, float flux) {
         try {
             clearError();
             if (!radiation_model) {
@@ -323,7 +323,7 @@ extern "C" {
         }
     }
     
-    float getSourceFlux(RadiationModel* radiation_model, unsigned int source_id, const char* label) {
+    PYHELIOS_API float getSourceFlux(RadiationModel* radiation_model, unsigned int source_id, const char* label) {
         try {
             clearError();
             if (!radiation_model) {
@@ -344,7 +344,7 @@ extern "C" {
         }
     }
     
-    void setScatteringDepth(RadiationModel* radiation_model, const char* label, unsigned int depth) {
+    PYHELIOS_API void setScatteringDepth(RadiationModel* radiation_model, const char* label, unsigned int depth) {
         try {
             clearError();
             if (!radiation_model) {
@@ -363,7 +363,7 @@ extern "C" {
         }
     }
     
-    void setMinScatterEnergy(RadiationModel* radiation_model, const char* label, float energy) {
+    PYHELIOS_API void setMinScatterEnergy(RadiationModel* radiation_model, const char* label, float energy) {
         try {
             clearError();
             if (!radiation_model) {
@@ -382,7 +382,7 @@ extern "C" {
         }
     }
     
-    void disableEmission(RadiationModel* radiation_model, const char* label) {
+    PYHELIOS_API void disableEmission(RadiationModel* radiation_model, const char* label) {
         try {
             clearError();
             if (!radiation_model) {
@@ -401,7 +401,7 @@ extern "C" {
         }
     }
     
-    void enableEmission(RadiationModel* radiation_model, const char* label) {
+    PYHELIOS_API void enableEmission(RadiationModel* radiation_model, const char* label) {
         try {
             clearError();
             if (!radiation_model) {
@@ -420,7 +420,7 @@ extern "C" {
         }
     }
     
-    void updateRadiationGeometry(RadiationModel* radiation_model) {
+    PYHELIOS_API void updateRadiationGeometry(RadiationModel* radiation_model) {
         try {
             clearError();
             if (!radiation_model) {
@@ -435,7 +435,7 @@ extern "C" {
         }
     }
     
-    void updateRadiationGeometryUUIDs(RadiationModel* radiation_model, unsigned int* uuids, size_t count) {
+    PYHELIOS_API void updateRadiationGeometryUUIDs(RadiationModel* radiation_model, unsigned int* uuids, size_t count) {
         try {
             clearError();
             if (!radiation_model) {
@@ -455,7 +455,7 @@ extern "C" {
         }
     }
     
-    void runRadiationBand(RadiationModel* radiation_model, const char* label) {
+    PYHELIOS_API void runRadiationBand(RadiationModel* radiation_model, const char* label) {
         try {
             clearError();
             if (!radiation_model) {
@@ -474,7 +474,7 @@ extern "C" {
         }
     }
     
-    void runRadiationBandMultiple(RadiationModel* radiation_model, const char** labels, size_t count) {
+    PYHELIOS_API void runRadiationBandMultiple(RadiationModel* radiation_model, const char** labels, size_t count) {
         try {
             clearError();
             if (!radiation_model) {
@@ -499,7 +499,7 @@ extern "C" {
         }
     }
     
-    float* getTotalAbsorbedFlux(RadiationModel* radiation_model, size_t* size) {
+    PYHELIOS_API float* getTotalAbsorbedFlux(RadiationModel* radiation_model, size_t* size) {
         try {
             clearError();
             if (!radiation_model) {
@@ -538,7 +538,7 @@ extern "C" {
     // Thread-local storage for string returns
     static thread_local std::string camera_image_filename;
     
-    const char* writeCameraImage(RadiationModel* radiation_model, const char* camera, 
+    PYHELIOS_API const char* writeCameraImage(RadiationModel* radiation_model, const char* camera, 
                                  const char** bands, size_t band_count,
                                  const char* imagefile_base, const char* image_path, 
                                  int frame, float flux_to_pixel_conversion) {
@@ -578,7 +578,7 @@ extern "C" {
         }
     }
     
-    const char* writeNormCameraImage(RadiationModel* radiation_model, const char* camera, 
+    PYHELIOS_API const char* writeNormCameraImage(RadiationModel* radiation_model, const char* camera, 
                                      const char** bands, size_t band_count,
                                      const char* imagefile_base, const char* image_path, int frame) {
         try {
@@ -616,7 +616,7 @@ extern "C" {
         }
     }
     
-    void writeCameraImageData(RadiationModel* radiation_model, const char* camera, const char* band,
+    PYHELIOS_API void writeCameraImageData(RadiationModel* radiation_model, const char* camera, const char* band,
                               const char* imagefile_base, const char* image_path, int frame) {
         try {
             clearError();
@@ -642,7 +642,7 @@ extern "C" {
     }
 
     // Bounding box functions - single primitive data label
-    void writeImageBoundingBoxes(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageBoundingBoxes(RadiationModel* radiation_model, const char* camera_label,
                                  const char* primitive_data_label, unsigned int object_class_id,
                                  const char* image_file, const char* classes_txt_file, const char* image_path) {
         try {
@@ -670,7 +670,7 @@ extern "C" {
     }
 
     // Bounding box functions - vector primitive data labels
-    void writeImageBoundingBoxesVector(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageBoundingBoxesVector(RadiationModel* radiation_model, const char* camera_label,
                                        const char** primitive_data_labels, size_t label_count,
                                        unsigned int* object_class_ids, const char* image_file,
                                        const char* classes_txt_file, const char* image_path) {
@@ -709,7 +709,7 @@ extern "C" {
     }
 
     // Bounding box functions - single object data label
-    void writeImageBoundingBoxes_ObjectData(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageBoundingBoxes_ObjectData(RadiationModel* radiation_model, const char* camera_label,
                                             const char* object_data_label, unsigned int object_class_id,
                                             const char* image_file, const char* classes_txt_file, const char* image_path) {
         try {
@@ -737,7 +737,7 @@ extern "C" {
     }
 
     // Bounding box functions - vector object data labels
-    void writeImageBoundingBoxes_ObjectDataVector(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageBoundingBoxes_ObjectDataVector(RadiationModel* radiation_model, const char* camera_label,
                                                   const char** object_data_labels, size_t label_count,
                                                   unsigned int* object_class_ids, const char* image_file,
                                                   const char* classes_txt_file, const char* image_path) {
@@ -776,7 +776,7 @@ extern "C" {
     }
 
     // Segmentation mask functions - single primitive data label
-    void writeImageSegmentationMasks(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageSegmentationMasks(RadiationModel* radiation_model, const char* camera_label,
                                      const char* primitive_data_label, unsigned int object_class_id,
                                      const char* json_filename, const char* image_file, int append_file) {
         try {
@@ -804,7 +804,7 @@ extern "C" {
     }
 
     // Segmentation mask functions - vector primitive data labels
-    void writeImageSegmentationMasksVector(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageSegmentationMasksVector(RadiationModel* radiation_model, const char* camera_label,
                                            const char** primitive_data_labels, size_t label_count,
                                            unsigned int* object_class_ids, const char* json_filename,
                                            const char* image_file, int append_file) {
@@ -843,7 +843,7 @@ extern "C" {
     }
 
     // Segmentation mask functions - single object data label
-    void writeImageSegmentationMasks_ObjectData(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageSegmentationMasks_ObjectData(RadiationModel* radiation_model, const char* camera_label,
                                                  const char* object_data_label, unsigned int object_class_id,
                                                  const char* json_filename, const char* image_file, int append_file) {
         try {
@@ -871,7 +871,7 @@ extern "C" {
     }
 
     // Segmentation mask functions - vector object data labels
-    void writeImageSegmentationMasks_ObjectDataVector(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API void writeImageSegmentationMasks_ObjectDataVector(RadiationModel* radiation_model, const char* camera_label,
                                                        const char** object_data_labels, size_t label_count,
                                                        unsigned int* object_class_ids, const char* json_filename,
                                                        const char* image_file, int append_file) {
@@ -910,7 +910,7 @@ extern "C" {
     }
 
     // Auto-calibration function
-    const char* autoCalibrateCameraImage(RadiationModel* radiation_model, const char* camera_label,
+    PYHELIOS_API const char* autoCalibrateCameraImage(RadiationModel* radiation_model, const char* camera_label,
                                          const char* red_band_label, const char* green_band_label, const char* blue_band_label,
                                          const char* output_file_path, int print_quality_report,
                                          int algorithm, const char* ccm_export_file_path) {
@@ -952,6 +952,108 @@ extern "C" {
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::autoCalibrateCameraImage): Unknown error auto-calibrating camera image.");
             return "";
+        }
+    }
+
+    // Camera Creation Functions
+
+    PYHELIOS_API void addRadiationCameraVec3(RadiationModel* radiation_model, const char* camera_label,
+                                             const char** band_labels, size_t band_count,
+                                             float position_x, float position_y, float position_z,
+                                             float lookat_x, float lookat_y, float lookat_z,
+                                             const float* camera_properties, unsigned int antialiasing_samples) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !band_labels || !camera_properties) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            if (band_count == 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "At least one band label is required");
+                return;
+            }
+
+            // Convert C arrays to vectors
+            std::vector<std::string> band_vector;
+            for (size_t i = 0; i < band_count; i++) {
+                if (band_labels[i]) {
+                    band_vector.push_back(std::string(band_labels[i]));
+                }
+            }
+
+            // Convert position and lookat parameters to vec3
+            helios::vec3 position(position_x, position_y, position_z);
+            helios::vec3 lookat(lookat_x, lookat_y, lookat_z);
+
+            // Convert camera properties array to CameraProperties struct
+            // Expected format: [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]
+            CameraProperties props;
+            props.camera_resolution = helios::make_int2((int)camera_properties[0], (int)camera_properties[1]);
+            props.focal_plane_distance = camera_properties[2];
+            props.lens_diameter = camera_properties[3];
+            props.HFOV = camera_properties[4];
+            props.FOV_aspect_ratio = camera_properties[5];
+
+            radiation_model->addRadiationCamera(std::string(camera_label), band_vector, position, lookat, props, antialiasing_samples);
+
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::addRadiationCamera): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::addRadiationCamera): Unknown error adding radiation camera.");
+        }
+    }
+
+    PYHELIOS_API void addRadiationCameraSpherical(RadiationModel* radiation_model, const char* camera_label,
+                                                  const char** band_labels, size_t band_count,
+                                                  float position_x, float position_y, float position_z,
+                                                  float radius, float elevation, float azimuth,
+                                                  const float* camera_properties, unsigned int antialiasing_samples) {
+        try {
+            clearError();
+            if (!radiation_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "RadiationModel pointer is null");
+                return;
+            }
+            if (!camera_label || !band_labels || !camera_properties) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Required parameters are null");
+                return;
+            }
+            if (band_count == 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "At least one band label is required");
+                return;
+            }
+
+            // Convert C arrays to vectors
+            std::vector<std::string> band_vector;
+            for (size_t i = 0; i < band_count; i++) {
+                if (band_labels[i]) {
+                    band_vector.push_back(std::string(band_labels[i]));
+                }
+            }
+
+            // Convert position to vec3 and viewing direction to SphericalCoord
+            helios::vec3 position(position_x, position_y, position_z);
+            helios::SphericalCoord viewing_direction = helios::make_SphericalCoord(radius, elevation, azimuth);
+
+            // Convert camera properties array to CameraProperties struct
+            // Expected format: [resolution_x, resolution_y, focal_distance, lens_diameter, HFOV, FOV_aspect_ratio]
+            CameraProperties props;
+            props.camera_resolution = helios::make_int2((int)camera_properties[0], (int)camera_properties[1]);
+            props.focal_plane_distance = camera_properties[2];
+            props.lens_diameter = camera_properties[3];
+            props.HFOV = camera_properties[4];
+            props.FOV_aspect_ratio = camera_properties[5];
+
+            radiation_model->addRadiationCamera(std::string(camera_label), band_vector, position, viewing_direction, props, antialiasing_samples);
+
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (RadiationModel::addRadiationCamera): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (RadiationModel::addRadiationCamera): Unknown error adding radiation camera.");
         }
     }
 

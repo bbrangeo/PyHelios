@@ -227,8 +227,14 @@ def createStomatalConductanceModel(context) -> ctypes.POINTER(UStomatalConductan
             "  - No GPU required\n"
             "  - No special dependencies"
         )
-    
-    return helios_lib.createStomatalConductanceModel(context)
+
+    # Explicit type coercion to fix Windows ctypes type identity issue
+    # Ensures context is properly cast to the expected ctypes.POINTER(UContext) type
+    if context is not None:
+        context_ptr = ctypes.cast(context, ctypes.POINTER(UContext))
+        return helios_lib.createStomatalConductanceModel(context_ptr)
+    else:
+        raise ValueError("Context cannot be None")
 
 
 def destroyStomatalConductanceModel(model: ctypes.POINTER(UStomatalConductanceModel)) -> None:
