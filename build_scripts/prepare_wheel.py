@@ -211,7 +211,7 @@ def copy_assets_for_packaging(project_root):
     # Only include plugins that are integrated with PyHelios
     plugin_asset_dirs = {
         'weberpenntree': ['leaves', 'wood', 'xml'],
-        'visualizer': ['textures', 'shaders'],
+        'visualizer': ['textures', 'shaders', 'fonts'],
         'plantarchitecture': ['assets/textures', 'assets/obj'],
         # NOTE: canopygenerator is not integrated with PyHelios - assets not needed
     }

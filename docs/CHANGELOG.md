@@ -1,5 +1,12 @@
 # Changelog
 
+# [v0.1.4] 2025-09-25
+
+- Updated helios-core to v1.3.51
+
+## Visualizer
+- Fixed issue where font assets were not being copied to the build directory
+
 # [v0.1.3] 2025-09-22
 
 🚨++ New Plug-in Integrated ++ 🚨

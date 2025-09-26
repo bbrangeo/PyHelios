@@ -2,7 +2,6 @@ name: Build Wheels
 
 on:
   push:
-    branches: [ master ]
     tags: ['v*','testing-v*']
   workflow_dispatch:
 
