@@ -9,15 +9,11 @@ build/
 *.egg-info/
 *.egg
 
-# Generated assets and libraries for wheel packaging (created by prepare_wheel.py)
-pyhelios/assets/build/
-# Track Python source files in plugins but ignore binary libraries
-pyhelios/plugins/*.so
-pyhelios/plugins/*.dll  
-pyhelios/plugins/*.dylib
-
 # Auto-generated version file (setuptools-scm)
 pyhelios/_version.py
+
+# Note: All other generated files (libraries, assets) are kept in pyhelios_build/
+# and are NOT in the source tree, so they don't need gitignore entries
 
 # Auto-generated documentation
 docs/generated/
@@ -47,3 +43,7 @@ docs/generated/
 
 # Auto-synced WeberPennTree resources (automatically maintained)
 /plugins/
+
+# MCP memory server files (local development only)
+.aim/
+.mcp.json

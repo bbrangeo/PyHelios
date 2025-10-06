@@ -1,5 +1,11 @@
 # Changelog
 
+# [v0.1.6] 2025-10-06
+
+- Reconfigured wheel builds to keep all generated files in `pyhelios_build` directory
+- Fixed README.md badge so wheel builds will show 'passing'
+- Added missing files in `pyhelios/runtime/` directory to git control
+
 # [v0.1.5] 2025-10-06
 
 🚨++ New Plug-in Integrated ++ 🚨

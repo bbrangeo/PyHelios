@@ -1,7 +1,10 @@
 from setuptools import setup, find_packages, Extension
+from setuptools.command.build_py import build_py
 import os
 import platform
 import glob
+import shutil
+from pathlib import Path
 
 # Read development requirements
 def read_dev_requirements():
@@ -12,112 +15,108 @@ def read_dev_requirements():
         return []
 
 def get_platform_libraries():
-    """Get platform-specific library files for packaging."""
-    plugins_dir = os.path.join('pyhelios', 'plugins')
-    if not os.path.exists(plugins_dir):
+    """Get platform-specific library files for packaging from build directory."""
+    # Look in build directory where prepare_wheel.py leaves them
+    build_lib_dir = os.path.join('pyhelios_build', 'build', 'lib')
+    if not os.path.exists(build_lib_dir):
         return []
-    
+
     system = platform.system()
     if system == 'Windows':
         patterns = ['*.dll']
     elif system == 'Darwin':  # macOS
-        patterns = ['*.dylib'] 
+        patterns = ['*.dylib']
     elif system == 'Linux':
         patterns = ['*.so', '*.so.*']
     else:
         # Include all possible library types
         patterns = ['*.dll', '*.dylib', '*.so', '*.so.*']
-    
+
     library_files = []
     for pattern in patterns:
-        found_files = glob.glob(os.path.join(plugins_dir, pattern))
+        found_files = glob.glob(os.path.join(build_lib_dir, pattern))
         # Only include files that exist and have non-zero size
         for f in found_files:
             if os.path.exists(f) and os.path.getsize(f) > 0:
                 library_files.append(f)
-    
-    # Return relative paths for package_data
-    return [os.path.basename(f) for f in library_files]
+
+    # Return paths relative to project root for data_files
+    return library_files
 
 def get_asset_files():
-    """Get asset files for packaging in wheels."""
-    # Look for build directory with assets
-    build_dirs = [
-        'pyhelios_build/build',
-        'pyhelios/assets/build',  # For pip packaging
-        'build'  # Alternative location
-    ]
+    """Get asset files for packaging in wheels from build directory."""
+    # Look for assets in the build directory where prepare_wheel.py organizes them
+    assets_dir = os.path.join('pyhelios_build', 'build', 'assets_for_wheel')
 
     asset_patterns = []
 
-    for build_dir in build_dirs:
+    if os.path.exists(assets_dir):
+        build_dir = assets_dir
         if os.path.exists(build_dir):
             # Core assets
             core_images = os.path.join(build_dir, 'lib', 'images')
             if os.path.exists(core_images):
-                asset_patterns.extend([
-                    'assets/build/lib/images/*'
-                ])
+                asset_patterns.append(os.path.join(assets_dir, 'lib', 'images', '*'))
 
             # Plugin assets - comprehensive patterns matching prepare_wheel.py
             plugins_dir = os.path.join(build_dir, 'plugins')
             if os.path.exists(plugins_dir):
-                # Base patterns for all platforms
+                # Base patterns for all platforms (relative to build directory)
                 base_patterns = [
                     # Shader files - all graphics shader types
-                    'assets/build/plugins/*/shaders/*.glsl',
-                    'assets/build/plugins/*/shaders/*.vert',
-                    'assets/build/plugins/*/shaders/*.frag',
-                    'assets/build/plugins/*/shaders/*.geom',
-                    'assets/build/plugins/*/shaders/*.comp',
+                    'plugins/*/shaders/*.glsl',
+                    'plugins/*/shaders/*.vert',
+                    'plugins/*/shaders/*.frag',
+                    'plugins/*/shaders/*.geom',
+                    'plugins/*/shaders/*.comp',
                     # Font files - all font formats
-                    'assets/build/plugins/*/fonts/*.ttf',
-                    'assets/build/plugins/*/fonts/*.otf',
-                    'assets/build/plugins/*/fonts/*.woff',
-                    'assets/build/plugins/*/fonts/*.woff2',
+                    'plugins/*/fonts/*.ttf',
+                    'plugins/*/fonts/*.otf',
+                    'plugins/*/fonts/*.woff',
+                    'plugins/*/fonts/*.woff2',
                     # Texture files - all image formats
-                    'assets/build/plugins/*/textures/*.png',
-                    'assets/build/plugins/*/textures/*.jpg',
-                    'assets/build/plugins/*/textures/*.jpeg',
-                    'assets/build/plugins/*/textures/*.tiff',
-                    'assets/build/plugins/*/textures/*.bmp',
+                    'plugins/*/textures/*.png',
+                    'plugins/*/textures/*.jpg',
+                    'plugins/*/textures/*.jpeg',
+                    'plugins/*/textures/*.tiff',
+                    'plugins/*/textures/*.bmp',
                     # WeberPennTree assets - leaves and wood
-                    'assets/build/plugins/*/leaves/*.xml',
-                    'assets/build/plugins/*/leaves/*.obj',
-                    'assets/build/plugins/*/leaves/*.ply',
-                    'assets/build/plugins/*/wood/*.xml',
-                    'assets/build/plugins/*/wood/*.obj',
-                    'assets/build/plugins/*/wood/*.ply',
+                    'plugins/*/leaves/*.xml',
+                    'plugins/*/leaves/*.obj',
+                    'plugins/*/leaves/*.ply',
+                    'plugins/*/wood/*.xml',
+                    'plugins/*/wood/*.obj',
+                    'plugins/*/wood/*.ply',
                     # XML configuration files
-                    'assets/build/plugins/*/xml/*.xml',
+                    'plugins/*/xml/*.xml',
                     # Generic data files
-                    'assets/build/plugins/*/data/*.csv',
-                    'assets/build/plugins/*/data/*.txt',
-                    'assets/build/plugins/*/data/*.dat',
-                    'assets/build/plugins/*/data/*.json',
+                    'plugins/*/data/*.csv',
+                    'plugins/*/data/*.txt',
+                    'plugins/*/data/*.dat',
+                    'plugins/*/data/*.json',
                     # Camera and light models
-                    'assets/build/plugins/*/camera_light_models/*.xml',
-                    'assets/build/plugins/*/camera_light_models/*.json',
+                    'plugins/*/camera_light_models/*.xml',
+                    'plugins/*/camera_light_models/*.json',
                     # Subdirectories recursively for complex asset structures
-                    'assets/build/plugins/*/shaders/**/*',
-                    'assets/build/plugins/*/fonts/**/*',
-                    'assets/build/plugins/*/textures/**/*',
-                    'assets/build/plugins/*/data/**/*',
+                    'plugins/*/shaders/**/*',
+                    'plugins/*/fonts/**/*',
+                    'plugins/*/textures/**/*',
+                    'plugins/*/data/**/*',
                 ]
-                asset_patterns.extend(base_patterns)
+                # Prepend the build directory path to each pattern
+                asset_patterns.extend([os.path.join(assets_dir, p) for p in base_patterns])
 
-                # Platform-specific assets: Radiation spectral data only on Windows/Linux
-                # Exclude radiation assets on macOS (consistent with prepare_wheel.py)
-                if platform.system() != 'Darwin':
-                    radiation_patterns = [
-                        # Spectral data - all data formats (radiation plugin)
-                        'assets/build/plugins/*/spectral_data/*.csv',
-                        'assets/build/plugins/*/spectral_data/*.txt',
-                        'assets/build/plugins/*/spectral_data/*.dat',
-                        'assets/build/plugins/*/spectral_data/**/*',
-                    ]
-                    asset_patterns.extend(radiation_patterns)
-            break  # Use first found build directory
+            # Platform-specific assets: Radiation spectral data only on Windows/Linux
+            # Exclude radiation assets on macOS (consistent with prepare_wheel.py)
+            if platform.system() != 'Darwin':
+                radiation_patterns = [
+                    # Spectral data - all data formats (radiation plugin)
+                    'plugins/*/spectral_data/*.csv',
+                    'plugins/*/spectral_data/*.txt',
+                    'plugins/*/spectral_data/*.dat',
+                    'plugins/*/spectral_data/**/*',
+                ]
+                asset_patterns.extend([os.path.join(assets_dir, p) for p in radiation_patterns])
 
     return asset_patterns
 
@@ -135,21 +134,21 @@ def get_extensions():
 
     This is necessary because setuptools only creates platform-specific wheels when
     it detects compiled extensions. Since PyHelios includes pre-built native libraries
-    via package_data, we need this stub to signal that the wheel is platform-specific.
+    via CustomBuildPy, we need this stub to signal that the wheel is platform-specific.
     """
-    # Check if we have actual binary libraries to justify platform wheel
-    plugins_dir = os.path.join('pyhelios', 'plugins')
+    # Check if we have actual binary libraries in the build directory
+    build_lib_dir = os.path.join('pyhelios_build', 'build', 'lib')
     has_binaries = False
-    
-    if os.path.exists(plugins_dir):
+
+    if os.path.exists(build_lib_dir):
         system = platform.system()
         if system == 'Windows':
-            has_binaries = bool(glob.glob(os.path.join(plugins_dir, '*.dll')))
+            has_binaries = bool(glob.glob(os.path.join(build_lib_dir, '*.dll')))
         elif system == 'Darwin':
-            has_binaries = bool(glob.glob(os.path.join(plugins_dir, '*.dylib')))
+            has_binaries = bool(glob.glob(os.path.join(build_lib_dir, '*.dylib')))
         else:  # Linux
-            has_binaries = bool(glob.glob(os.path.join(plugins_dir, '*.so*')))
-    
+            has_binaries = bool(glob.glob(os.path.join(build_lib_dir, '*.so*')))
+
     if has_binaries:
         # Create a minimal stub extension that signals binary content
         stub_extension = Extension(
@@ -162,15 +161,84 @@ def get_extensions():
         # No binaries found - allow pure Python wheel
         return []
 
-# Get platform-appropriate library files and assets
+class CustomBuildPy(build_py):
+    """
+    Custom build_py command that copies libraries and assets from build directory
+    into the package structure during wheel creation.
+
+    This keeps the source tree clean while ensuring wheels contain all necessary files.
+    """
+    def run(self):
+        # Run standard build_py first
+        super().run()
+
+        # Copy libraries from pyhelios_build/build/lib/ to build/lib/pyhelios/plugins/
+        build_lib_dir = Path('pyhelios_build') / 'build' / 'lib'
+        if build_lib_dir.exists():
+            # Determine target directory in build output
+            target_plugins_dir = Path(self.build_lib) / 'pyhelios' / 'plugins'
+            target_plugins_dir.mkdir(parents=True, exist_ok=True)
+
+            # Platform-specific library extensions
+            system = platform.system()
+            if system == 'Windows':
+                patterns = ['*.dll']
+            elif system == 'Darwin':
+                patterns = ['*.dylib']
+            else:
+                patterns = ['*.so', '*.so.*']
+
+            # Copy all matching libraries
+            copied = 0
+            for pattern in patterns:
+                for lib_file in build_lib_dir.glob(pattern):
+                    dest = target_plugins_dir / lib_file.name
+                    shutil.copy2(lib_file, dest)
+                    print(f"Copied library: {lib_file.name} -> {dest}")
+                    copied += 1
+
+            if copied > 0:
+                print(f"Copied {copied} libraries from build directory")
+
+        # Copy assets from pyhelios_build/build/assets_for_wheel/ to build/lib/pyhelios/assets/build/
+        assets_src_dir = Path('pyhelios_build') / 'build' / 'assets_for_wheel'
+        if assets_src_dir.exists():
+            target_assets_dir = Path(self.build_lib) / 'pyhelios' / 'assets' / 'build'
+
+            # Remove existing assets directory in build if it exists
+            if target_assets_dir.exists():
+                shutil.rmtree(target_assets_dir)
+
+            # Copy entire assets directory
+            shutil.copytree(assets_src_dir, target_assets_dir)
+            print(f"Copied assets from {assets_src_dir} to {target_assets_dir}")
+
+# Get platform-appropriate library files and assets for validation
 library_files = get_platform_libraries()
 asset_files = get_asset_files()
 
-if library_files:
-    package_data = {'pyhelios': [f'plugins/{f}' for f in library_files] + asset_files}
-else:
-    # Fallback - include common library extensions and assets
-    package_data = {'pyhelios': ['plugins/*.dll', 'plugins/*.so', 'plugins/*.dylib'] + asset_files}
+# Package data now includes patterns for files that will be copied during build
+# These patterns match what CustomBuildPy will copy
+package_data = {
+    'pyhelios': [
+        'plugins/*.dll',
+        'plugins/*.so',
+        'plugins/*.so.*',
+        'plugins/*.dylib',
+        'assets/build/lib/images/*',
+        'assets/build/plugins/*/shaders/*',
+        'assets/build/plugins/*/textures/*',
+        'assets/build/plugins/*/fonts/*',
+        'assets/build/plugins/*/leaves/*',
+        'assets/build/plugins/*/wood/*',
+        'assets/build/plugins/*/xml/*',
+        'assets/build/plugins/*/data/*',
+        'assets/build/plugins/*/spectral_data/*',
+        'assets/build/plugins/*/camera_light_models/*',
+        'assets/build/plugins/*/*',  # Nested structures
+        'assets/build/plugins/*/*/*',  # Deeply nested
+    ]
+}
 
 setup(
     name='pyhelios3d',
@@ -178,13 +246,16 @@ setup(
     description='Cross-platform Python bindings for Helios 3D plant simulation',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
-    author='Pranav Ghate',
-    author_email='pghate@ucdavis.edu',
+    author='Brian Bailey',
+    author_email='bnbailey@ucdavis.edu',
     url='https://github.com/PlantSimulationLab/PyHelios',
     packages=find_packages(exclude=('tests', 'docs', 'build_scripts', 'pyhelios_build*')),
     package_data=package_data,
     include_package_data=True,
     ext_modules=get_extensions(),  # Force platform-specific wheels
+    cmdclass={
+        'build_py': CustomBuildPy,  # Custom build to copy files from pyhelios_build/
+    },
     
     # Platform support
     classifiers=[

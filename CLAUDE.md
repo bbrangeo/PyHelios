@@ -83,9 +83,16 @@ PyHelios now supports flexible plugin selection for customized builds based on y
 
 #### Clean Helios-Style Project Structure
 
-Following standard Helios C++ project conventions:
-- **pyhelios_build/** - Source files (CMakeLists.txt, main.cpp, etc.)
-- **pyhelios_build/build/** - All generated build artifacts including shared libraries for Python import
+Following standard Helios C++ project conventions with strict separation of source and generated files:
+- **pyhelios_build/** - Build source files (CMakeLists.txt, main.cpp, etc.)
+- **pyhelios_build/build/** - ALL generated build artifacts (libraries, assets, CMake cache)
+- **pyhelios/** - Python source code ONLY (no generated files)
+
+**CRITICAL BUILD ARTIFACT POLICY:**
+- ALL generated files (libraries, compiled assets, build outputs) MUST remain in `pyhelios_build/`
+- NEVER copy generated files into the source tree (`pyhelios/`)
+- Wheel packaging uses custom build commands to copy from `pyhelios_build/` to temporary build directories
+- This prevents accidental deletion of source files and maintains clean git status
 
 #### Plugin Selection Options
 

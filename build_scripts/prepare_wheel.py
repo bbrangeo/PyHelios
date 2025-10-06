@@ -152,19 +152,21 @@ def find_windows_dll_dependencies(lib_path, project_root):
 
 def copy_assets_for_packaging(project_root):
     """
-    Copy Helios assets to pyhelios/assets/build for packaging in wheels.
-    
+    Organize Helios assets in pyhelios_build/build/assets_for_wheel for packaging in wheels.
+
+    This keeps all generated files in pyhelios_build/ and out of the source tree.
+
     Args:
         project_root: Path to project root directory
     """
-    print("\nCopying assets for packaging...")
-    
+    print("\nOrganizing assets for packaging...")
+
     # Source directories
     build_dir = project_root / 'pyhelios_build' / 'build'
     helios_core = project_root / 'helios-core'
-    
-    # Destination: pyhelios/assets/build
-    dest_assets_dir = project_root / 'pyhelios' / 'assets' / 'build'
+
+    # Destination: pyhelios_build/build/assets_for_wheel (keeps generated files out of source tree)
+    dest_assets_dir = project_root / 'pyhelios_build' / 'build' / 'assets_for_wheel'
     dest_assets_dir.mkdir(parents=True, exist_ok=True)
     
     total_copied = 0
@@ -310,9 +312,12 @@ def copy_assets_for_packaging(project_root):
     print(f"[OK] Assets packaged in {dest_assets_dir}")
 
 def build_and_prepare(build_args):
-    """Build native libraries and copy them to pyhelios/plugins for packaging."""
+    """Build native libraries and organize assets for wheel packaging.
+
+    All generated files remain in pyhelios_build/ - nothing is copied to source tree.
+    """
     print("Building native libraries for wheel...")
-    
+
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
     
@@ -355,43 +360,13 @@ def build_and_prepare(build_args):
             print(f"Build stderr: {e.stderr}")
         sys.exit(1)
     
-    # Copy built libraries to packaging location
+    # Validate built libraries exist (but don't copy them to source tree)
     build_lib_dir = project_root / 'pyhelios_build' / 'build' / 'lib'
-    plugins_dir = project_root / 'pyhelios' / 'plugins'
-    
+
     if not build_lib_dir.exists():
-        print(f"Warning: Build directory {build_lib_dir} does not exist")
-        return
-        
-    # Verify source plugins directory exists (should contain Python files)
-    if not plugins_dir.exists():
-        print(f"ERROR: Source plugins directory not found: {plugins_dir}")
-        print("The pyhelios/plugins/ directory with Python source files must exist")
+        print(f"ERROR: Build directory {build_lib_dir} does not exist")
         sys.exit(1)
-        
-    # Verify it has the required Python files
-    py_files = list(plugins_dir.glob('*.py'))
-    if not py_files:
-        print(f"ERROR: No Python files found in plugins directory: {plugins_dir}")
-        print("The plugins directory must contain __init__.py and other Python source files")
-        sys.exit(1)
-        
-    print(f"Found {len(py_files)} Python source files in plugins directory")
-    
-    # Remove any existing binary libraries from the source directory
-    # (These should not be there, but clean up just in case)
-    system = platform.system()
-    if system == 'Windows':
-        old_libs = list(plugins_dir.glob('*.dll'))
-    elif system == 'Darwin':
-        old_libs = list(plugins_dir.glob('*.dylib'))
-    else:
-        old_libs = list(plugins_dir.glob('*.so*'))
-        
-    for old_lib in old_libs:
-        print(f"Removing old library: {old_lib.name}")
-        old_lib.unlink()
-    
+
     # Platform-specific library extensions
     system = platform.system()
     if system == 'Windows':
@@ -400,13 +375,13 @@ def build_and_prepare(build_args):
         patterns = ['*.dylib']
     else:  # Linux and others
         patterns = ['*.so', '*.so.*']
-    
-    # Find and validate libraries
+
+    # Find and validate libraries (they stay in pyhelios_build/build/lib/)
     found_libraries = []
     for pattern in patterns:
         for lib_file in build_lib_dir.glob(pattern):
             found_libraries.append(lib_file)
-    
+
     if not found_libraries:
         print(f"ERROR: No libraries found matching patterns {patterns} in {build_lib_dir}")
         print("Available files in build directory:")
@@ -416,111 +391,38 @@ def build_and_prepare(build_args):
         except:
             print("  (cannot list directory contents)")
         sys.exit(1)
-    
-    # Copy and validate libraries
-    copied_count = 0
+
+    # Validate libraries (but keep them in build directory)
+    validated_count = 0
     failed_count = 0
-    
+
     for lib_file in found_libraries:
-        print(f"\nProcessing library: {lib_file.name}")
-        
-        # Validate library before copying
+        print(f"\nValidating library: {lib_file.name}")
+
+        # Validate library
         if not validate_library(lib_file):
-            print(f"[WARNING] Skipping invalid library: {lib_file.name}")
+            print(f"[WARNING] Invalid library: {lib_file.name}")
             failed_count += 1
             continue
-            
-        # Copy library
-        dest_file = plugins_dir / lib_file.name
-        try:
-            shutil.copy2(lib_file, dest_file)
-            print(f"[OK] Copied: {lib_file.name} -> {dest_file}")
-            
-            # Verify copied file
-            if not dest_file.exists() or dest_file.stat().st_size != lib_file.stat().st_size:
-                print(f"[ERROR] Copy verification failed for {lib_file.name}")
-                failed_count += 1
-                continue
-                
-            copied_count += 1
-            
-        except (OSError, PermissionError) as e:
-            print(f"[ERROR] Failed to copy {lib_file.name}: {e}")
-            failed_count += 1
-    
+
+        validated_count += 1
+
     # Summary
-    print(f"\n=== Library Copy Summary ===")
-    print(f"Found: {len(found_libraries)} libraries")
-    print(f"Copied: {copied_count} libraries")
+    print(f"\n=== Library Validation Summary ===")
+    print(f"Found: {len(found_libraries)} libraries in {build_lib_dir}")
+    print(f"Validated: {validated_count} libraries")
     print(f"Failed: {failed_count} libraries")
-    
-    if copied_count == 0:
-        print("ERROR: No libraries were successfully copied!")
+
+    if validated_count == 0:
+        print("ERROR: No valid libraries were found!")
         sys.exit(1)
     elif failed_count > 0:
-        print(f"WARNING: {failed_count} libraries could not be copied")
-        # Continue anyway - some failures might be acceptable
-    
-    print(f"[OK] Successfully prepared {copied_count} libraries for packaging")
+        print(f"WARNING: {failed_count} libraries could not be validated")
 
-    # Windows-specific: Bundle additional DLL dependencies
-    if system == 'Windows' and copied_count > 0:
-        print(f"\n=== Windows DLL Dependency Bundling ===")
+    print(f"[OK] Libraries remain in build directory for wheel packaging: {build_lib_dir}")
 
-        # Find the main library (usually libhelios.dll or helios.dll)
-        main_library = None
-        for lib_file in found_libraries:
-            if 'helios' in lib_file.name.lower() and lib_file.suffix == '.dll':
-                main_library = lib_file
-                break
-
-        if main_library:
-            # Find all required DLL dependencies
-            dependencies = find_windows_dll_dependencies(main_library, project_root)
-
-            dependency_copied = 0
-            dependency_failed = 0
-
-            for dep_dll in dependencies:
-                try:
-                    dest_dll = plugins_dir / dep_dll.name
-
-                    # Skip if already exists (avoid overwriting main libraries)
-                    if dest_dll.exists():
-                        print(f"[SKIP] Dependency already bundled: {dep_dll.name}")
-                        continue
-
-                    shutil.copy2(dep_dll, dest_dll)
-                    print(f"[OK] Bundled dependency: {dep_dll.name}")
-                    dependency_copied += 1
-
-                except (OSError, PermissionError) as e:
-                    print(f"[ERROR] Failed to bundle critical dependency {dep_dll.name}: {e}")
-                    print(f"This dependency is required for libhelios.dll to load properly on Windows systems")
-                    print(f"without development tools installed. The wheel will not work correctly.")
-                    dependency_failed += 1
-
-            print(f"\n=== Dependency Bundle Summary ===")
-            print(f"Found: {len(dependencies)} DLL dependencies")
-            print(f"Bundled: {dependency_copied} dependencies")
-            print(f"Failed: {dependency_failed} dependencies")
-
-            # Fail-fast: If critical dependencies are missing, the wheel is broken
-            if len(dependencies) > 0 and dependency_copied == 0:
-                print(f"[ERROR] CRITICAL: No Windows DLL dependencies were bundled!")
-                print(f"This means the wheel will fail to load on systems without development tools.")
-                print(f"Required dependencies: {[dep.name for dep in dependencies]}")
-                print(f"The wheel build cannot continue with missing critical dependencies.")
-                sys.exit(1)
-            elif dependency_failed > 0:
-                print(f"[ERROR] CRITICAL: {dependency_failed} critical dependencies could not be bundled!")
-                print(f"The wheel will not work properly on clean Windows systems.")
-                print(f"All dependencies must be bundled for the wheel to function correctly.")
-                sys.exit(1)
-            else:
-                print(f"[OK] All {dependency_copied} Windows DLL dependencies bundled successfully")
-        else:
-            print(f"[WARNING] Could not find main Helios library for dependency analysis")
+    # Note: Windows DLL dependencies will be handled by setup.py during wheel packaging
+    # No need to copy them to source tree
 
     # Copy assets for packaging
     copy_assets_for_packaging(project_root)
@@ -538,9 +440,10 @@ def main():
         print()
         print("This script:")
         print("  1. Calls build_scripts/build_helios.py with the provided arguments")
-        print("  2. Copies built libraries to pyhelios/plugins/ for wheel packaging")
-        print("  3. Copies required assets to pyhelios/assets/build/")
-        print("  4. Validates libraries can be loaded properly")
+        print("  2. Validates built libraries in pyhelios_build/build/lib/")
+        print("  3. Organizes assets in pyhelios_build/build/assets_for_wheel/")
+        print("  4. ALL files remain in pyhelios_build/ (NOT copied to source tree)")
+        print("  5. setup.py copies files from pyhelios_build/ during wheel creation")
         print()
         print("Common build arguments:")
         print("  --buildmode {debug,release,relwithdebinfo}  CMake build type")

@@ -995,9 +995,11 @@ plugin_asset_dirs = {
 - **Exclude**: Source files (`.blend`, development tools, documentation)
 - **Verify**: Check helios-core/plugins/yourplugin/assets/ for directory structure
 
-**Why This Is Required**: The working directory context manager looks for assets via the asset manager, which searches multiple paths including `pyhelios/assets/build/plugins/yourplugin/`. During wheel builds, assets must be copied to this location by `prepare_wheel.py` or the plugin will fail with "assets not found" errors.
+**Why This Is Required**: The working directory context manager looks for assets via the asset manager. During wheel builds, `prepare_wheel.py` organizes assets in `pyhelios_build/build/assets_for_wheel/`, then `setup.py`'s custom build command copies them into the wheel. This keeps the source tree (`pyhelios/`) clean of all generated files.
 
 **INTEGRATION RULE**: New plugins should follow the **Stage 1 pattern** (CMake + working directory context manager) like WeberPennTree, Visualizer, and PlantArchitecture, **AND** must be added to `plugin_asset_dirs` in `prepare_wheel.py` for wheel distribution.
+
+**BUILD ARTIFACT POLICY**: All generated files (libraries, assets, build outputs) remain in `pyhelios_build/` and are NEVER copied to the source tree. Wheel packaging uses custom build commands to copy from `pyhelios_build/build/` to temporary build directories.
 
 ### 6.4 Plugin-Specific Asset Considerations
 
