@@ -664,32 +664,209 @@ static thread_local std::vector<unsigned int> static_result;  // Not just static
 - Purpose: persist structured facts and relationships about this repo, projects, and collaborators using the knowledge-graph memory tools.
 - Safety: summarize what you plan to store before writing; do not store secrets or API keys.
 
+### **CRITICAL: How MCP Search Actually Works**
+
+MCP memory uses **simple case-insensitive substring matching** - NOT semantic search or AI understanding. It searches for your query string within entity names, types, and observations using basic `toLowerCase().includes()`.
+
+**Key Implications:**
+- Query "test crash" searches for the EXACT phrase "test crash" as a substring
+- Query "boundary-layer conductance test failure" WON'T match unless that exact phrase exists
+- NO fuzzy matching, NO synonyms, NO semantic understanding
+- Case-insensitive: "Test" finds "test", "TEST", "testing"
+- Substring matching: "conduct" finds "conductance", "conductor", "semiconductor"
+
+### Search Strategy (MANDATORY)
+
+**✅ GOOD Query Patterns:**
+```python
+# Single keyword queries work best
+mcp__memory__search_nodes(query="radiation")
+mcp__memory__search_nodes(query="conductance")
+mcp__memory__search_nodes(query="pytest")
+
+# Short phrases that appear verbatim
+mcp__memory__search_nodes(query="energy balance")
+mcp__memory__search_nodes(query="ctypes wrapper")
+
+# Word stems for broader matching
+mcp__memory__search_nodes(query="visual")  # finds "visualizer", "visualization"
+mcp__memory__search_nodes(query="test")    # finds "test", "testing", "pytest"
+```
+
+**❌ BAD Query Patterns:**
+```python
+# Complex multi-term queries (searches for EXACT phrase)
+mcp__memory__search_nodes(query="boundary-layer conductance test failure exit crash")
+
+# Natural language questions (no semantic understanding)
+mcp__memory__search_nodes(query="what causes the radiation plugin to crash?")
+
+# Multiple disconnected concepts (won't match unless exact phrase exists)
+mcp__memory__search_nodes(query="CMake plugin shader visualization error")
+```
+
+**Query Refinement Strategy:**
+1. **Start broad, then narrow**: "test" → "pytest" → "pytest crash" → "pytest contamination"
+2. **Use word stems**: "visual" instead of "visualizing", "optim" instead of "optimization"
+3. **Multiple simple searches** over one complex search: Do 3 searches with ["radiation", "crash", "GPU"] instead of one "radiation plugin GPU crash"
+4. **Search by entity type** if you know it: "technical_issue", "solution", "pattern"
+
 ### When to write memory
 Trigger a write when any of the following occur:
 1. A new project, module, or dataset is introduced.
 2. A design decision or convention is finalized.
-3. A collaborator’s role, preference, or responsibility is clarified.
+3. A collaborator's role, preference, or responsibility is clarified.
+4. A technical issue is discovered and solved.
+5. An integration pattern or architectural insight is learned.
 
 ### How to write memory
-Use the server’s tools rather than free-form text. Prefer the smallest useful graph entries.
 
-1. Create entities  
-Run the MCP tool `create_entities` with fields `name`, `entityType`, and `observations`. Example:
-- “Create an entity for the library ‘Helios EnergyBalanceModel’ with observation summarizing the inputs, outputs, and key files.”
+**Entity Naming Standards (MANDATORY):**
+- Use underscores for multi-word names: `RadiationModel_Plugin`, `pytest_forked_fix`
+- Be specific but concise (3-5 words max): `boundary_layer_conductance_integration`
+- Include dates for time-sensitive items: `shader_fix_2025_10_06`
+- Use consistent casing: Choose `snake_case` or `CamelCase` and stick with it
+- Make names searchable: Include keywords you'd search for
 
-2. Add relations  
-Run `create_relations` to connect entities. Example:
-- “Link ‘Helios EnergyBalanceModel’ to ‘SurfaceEnergyBalance’ with relationType ‘implements’.”
+**Atomic Observation Principle:**
+One observation = one fact. Break compound statements into separate observations.
 
-3. Update or annotate  
-Use `append_observations` to add a brief dated note when behavior or conventions change.
+✅ **GOOD Observations:**
+```python
+observations = [
+    "Requires OptiX 7.3 or higher",
+    "GPU acceleration optional via --enable-gpu flag",
+    "Shader files must be copied to build/shaders/",
+    "Fixed in commit 7833202 on 2025-09-25",
+    "Located in pyhelios/RadiationModel.py"
+]
+```
+
+❌ **BAD Observations:**
+```python
+observations = [
+    "Requires OptiX 7.3 or higher and GPU acceleration is optional via --enable-gpu flag, also shader files must be copied to build/shaders/ directory"
+]
+```
+
+**Recommended Entity Types for PyHelios:**
+- **Components**: `plugin`, `module`, `tool`, `library`
+- **Knowledge**: `technical_issue`, `solution`, `pattern`, `architecture`
+- **Process**: `workflow`, `convention`, `guideline`
+- **Project**: `project`, `feature`, `dataset`
+
+**Creating Entities and Relations:**
+```python
+# 1. Create entities with atomic observations
+mcp__memory__create_entities(entities=[
+    {
+        "name": "pytest_forked_plugin",
+        "entityType": "tool",
+        "observations": [
+            "Prevents ctypes contamination between tests",
+            "Runs each test in subprocess for isolation",
+            "Required for PyHelios test suite reliability"
+        ]
+    }
+])
+
+# 2. Create meaningful relations
+mcp__memory__create_relations(relations=[
+    {
+        "from": "pytest_forked_plugin",
+        "to": "ctypes_contamination_issue",
+        "relationType": "solves"
+    }
+])
+
+# 3. Update existing entities (use add_observations, NOT append_observations)
+mcp__memory__add_observations(observations=[
+    {
+        "entityName": "pytest_forked_plugin",
+        "contents": ["Added to PyHelios in version 0.1.4"]
+    }
+])
+```
 
 ### When to read memory
-Before large refactors, onboarding explanations, or when the task mentions prior decisions, call `search_entities` or `search_relations` with a concise query, then cite what you found.
 
-### Usage examples
-- “Search memory for entities about ‘Helios’ and ‘stomatal conductance’ and summarize relevant observations.”
-- “Create entities for ‘GEMINI project’ (type: project) and ‘Nonpareil orchard dataset’ (type: dataset), then relate them with relationType ‘uses’.”
+**ALWAYS search before creating** to avoid duplicates:
+```python
+# Before creating new entity, search for existing
+results = mcp__memory__search_nodes(query="radiation")
+# If found, use add_observations to update
+# If not found, create new entity
+```
 
-### References inside prompts
-- To reference MCP resources or trigger tools, you can type `/mcp` in Claude Code to view available servers and tools, or mention the server by name in your instruction, e.g., “Using the `memory` server, run `search_entities` for ‘trellis’.” See Anthropic’s MCP guide for listing and managing servers. 
+**Search at session start** to gather context:
+```python
+# Use 2-3 keyword searches
+results1 = mcp__memory__search_nodes(query="plugin integration")
+results2 = mcp__memory__search_nodes(query="boundary conductance")
+results3 = mcp__memory__search_nodes(query="pytest")
+```
+
+**Use open_nodes when you know exact names:**
+```python
+entities = mcp__memory__open_nodes(names=[
+    "PyHelios_Plugin_Integration_Process",
+    "ctypes_wrapper_error_handling_pattern"
+])
+```
+
+### Common Pitfalls and Solutions
+
+**Pitfall 1: Overly specific queries return nothing**
+- Problem: `search_nodes(query="the test fails with segmentation fault in boundary layer module")`
+- Solution: Break into separate searches: `search_nodes(query="segmentation")`, `search_nodes(query="boundary")`
+
+**Pitfall 2: Duplicate entities**
+- Problem: Creating `Radiation_Model`, `RadiationModel_Plugin`, `radiation_plugin` separately
+- Solution: ALWAYS search before creating: `search_nodes(query="radiation")`
+
+**Pitfall 3: Generic entity names**
+- Problem: Entity named "test_issue" is impossible to find
+- Solution: Include distinctive identifiers: `pytest_forked_contamination_fix_2025_10`
+
+**Pitfall 4: Compound observations**
+- Problem: "Fixed shader compilation and asset copying and CMake configuration"
+- Solution: Break into atomic facts: ["Fixed shader compilation issue", "Implemented automatic asset copying", "Updated CMake configuration"]
+
+### PyHelios-Specific Memory Structure
+
+**Core Categories:**
+```python
+# Plugins (main focus)
+"RadiationModel_Plugin", "Visualizer_Plugin", "BoundaryLayerConductance_Plugin"
+
+# Technical challenges
+"ctypes_contamination_issue", "pytest_forked_requirement", "cmake_asset_copying_pattern"
+
+# Solutions and patterns
+"pytest_forked_solution", "cmake_custom_asset_copy", "errcheck_callback_pattern"
+
+# Architecture
+"8_phase_plugin_integration_process", "fail_fast_error_philosophy", "cross_platform_library_loading"
+```
+
+**Relation Types to Use:**
+- `solves`, `fixes` (solution → problem)
+- `depends_on`, `requires` (component → dependency)
+- `implements`, `provides` (implementation → interface)
+- `part_of`, `contains` (child → parent)
+- `follows`, `precedes` (sequence relationships)
+
+### Quick Reference
+
+**Search Commands:**
+```python
+mcp__memory__search_nodes(query="keyword")           # Discovery search
+mcp__memory__open_nodes(names=["Entity_Name"])       # Specific retrieval
+mcp__memory__read_graph()                            # Export full graph
+```
+
+**When Search Returns Nothing:**
+1. Try shorter query (use word stem: "visual" not "visualization")
+2. Try related keywords ("GPU" if "OptiX" fails)
+3. Search entity types: `search_nodes(query="technical_issue")`
+4. Use `read_graph()` to see all entities 

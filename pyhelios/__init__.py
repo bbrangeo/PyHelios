@@ -81,10 +81,10 @@ except (AttributeError, ImportError):
 
 try:
     from .StomatalConductance import (
-        StomatalConductanceModel, 
+        StomatalConductanceModel,
         StomatalConductanceModelError,
         BWBCoefficients,
-        BBLCoefficients, 
+        BBLCoefficients,
         MOPTCoefficients,
         BMFCoefficients,
         BBCoefficients
@@ -98,6 +98,16 @@ except (AttributeError, ImportError):
     MOPTCoefficients = None
     BMFCoefficients = None
     BBCoefficients = None
+
+try:
+    from .BoundaryLayerConductance import (
+        BoundaryLayerConductanceModel,
+        BoundaryLayerConductanceModelError
+    )
+except (AttributeError, ImportError):
+    # BoundaryLayerConductanceModel functions not available in current library
+    BoundaryLayerConductanceModel = None
+    BoundaryLayerConductanceModelError = None
 
 try:
     from .PhotosynthesisModel import PhotosynthesisModel, PhotosynthesisModelError

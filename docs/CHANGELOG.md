@@ -1,5 +1,14 @@
 # Changelog
 
+# [v0.1.5] 2025-10-06
+
+🚨++ New Plug-in Integrated ++ 🚨
+- Boundary-layer conductance plug-in integrated
+
+- Updated helios-core to v1.3.52
+
+- Removed pre-built wheels for Intel Macs. Free-tier Intel MacOS runners are no longer available on GitHub. Intel Mac users will need to build from source.
+
 # [v0.1.4] 2025-09-25
 
 - Updated helios-core to v1.3.51

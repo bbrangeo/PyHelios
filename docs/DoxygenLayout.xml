@@ -23,6 +23,7 @@
     <!-- Plugin Documentation Section -->
     <tab type="usergroup" visible="yes" url="@ref Plugins" title="Plugins" intro="">
       <!-- Currently Implemented Plugins (Alphabetized) -->
+      <tab type="user" visible="yes" url="@ref BoundaryLayerConductanceDoc" title="Boundary Layer Conductance"/>
       <tab type="user" visible="yes" url="@ref EnergyBalanceDoc" title="Energy Balance Model"/>
       <tab type="user" visible="yes" url="@ref PhotosynthesisDoc" title="Photosynthesis Model"/>
       <tab type="user" visible="yes" url="@ref PlantArchitectureDoc" title="Plant Architecture"/>

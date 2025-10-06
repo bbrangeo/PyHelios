@@ -45,6 +45,7 @@ INTEGRATED_PLUGINS = [
     "energybalance",
     "solarposition",
     "stomatalconductance",
+    "boundarylayerconductance",
     "photosynthesis",
     "plantarchitecture"
 ]

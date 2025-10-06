@@ -143,7 +143,7 @@ PLUGIN_METADATA: Dict[str, PluginMetadata] = {
         platforms=["windows", "linux", "macos"],
         gpu_required=False,
         optional=True,
-        test_symbols=["runBoundaryLayerModel", "setBoundaryLayerParameters"]
+        test_symbols=["createBoundaryLayerConductanceModel", "runBoundaryLayerModel", "setBoundaryLayerModel"]
     ),
     
     "plantarchitecture": PluginMetadata(

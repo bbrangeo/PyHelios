@@ -23,14 +23,39 @@ from .assets import get_asset_manager
 logger = logging.getLogger(__name__)
 
 
+def _resolve_user_path(path: str) -> str:
+    """
+    Resolve a user-provided path to an absolute path before working directory changes.
+
+    This ensures that user file paths are interpreted relative to their original
+    working directory, not the temporary working directory used for asset discovery.
+
+    Args:
+        path: User-provided file path (absolute or relative)
+
+    Returns:
+        Absolute path resolved from the user's original working directory
+    """
+    from pathlib import Path
+
+    path_obj = Path(path)
+    if path_obj.is_absolute():
+        return str(path_obj)
+    else:
+        # Resolve relative to the user's current working directory
+        return str(Path.cwd().resolve() / path_obj)
+
 @contextmanager
 def _visualizer_working_directory():
     """
     Context manager that temporarily changes working directory for visualizer operations.
-    
+
     The C++ visualizer code expects to find assets at 'plugins/visualizer/' relative
     to the current working directory. This context manager ensures the working directory
     is set correctly during visualizer initialization and operations.
+
+    Note: This is required because the Helios C++ core prioritizes current working
+    directory for asset resolution over environment variables.
     """
     # Find the build directory where assets are located
     # Try asset manager first (works for both development and wheel installations)
@@ -320,14 +345,15 @@ class Visualizer:
     def printWindow(self, filename: str) -> None:
         """
         Save current visualization to image file.
-        
+
         This method exports the current visualization to an image file.
         Supported formats are determined by the native implementation
         (typically JPEG).
-        
+
         Args:
             filename: Output filename for image (should include .jpg extension)
-            
+                     Can be absolute or relative to user's current working directory
+
         Raises:
             VisualizerError: If image saving fails
             ValueError: If filename is invalid
@@ -336,11 +362,14 @@ class Visualizer:
             raise VisualizerError("Visualizer has been destroyed")
         if not filename:
             raise ValueError("Filename cannot be empty")
-        
+
+        # Resolve filename relative to user's working directory before chdir
+        resolved_filename = _resolve_user_path(filename)
+
         try:
             with _visualizer_working_directory():
-                visualizer_wrapper.print_window(self.visualizer, filename)
-            logger.debug(f"Visualization saved to {filename}")
+                visualizer_wrapper.print_window(self.visualizer, resolved_filename)
+            logger.debug(f"Visualization saved to {resolved_filename}")
         except Exception as e:
             raise VisualizerError(f"Failed to save image: {e}")
     
@@ -1528,18 +1557,19 @@ class Visualizer:
     def plotUpdateWithVisibility(self, hide_window: bool = False) -> None:
         """
         Update visualization with window visibility control.
-        
+
         Args:
             hide_window: Whether to hide the window during update
-            
+
         Raises:
             VisualizerError: If operation fails
         """
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
-        
+
         try:
-            helios_lib.plotUpdateWithVisibility(self.visualizer, hide_window)
+            with _visualizer_working_directory():
+                helios_lib.plotUpdateWithVisibility(self.visualizer, hide_window)
         except Exception as e:
             raise VisualizerError(f"Failed to update plot with visibility control: {e}")
     

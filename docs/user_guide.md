@@ -420,7 +420,53 @@ uuids = context.loadXML(
 )
 ```
 
+### Writing Geometry
 
+#### PLY Files
+
+```python
+from pyhelios import Context
+from pyhelios.types import *
+
+context = Context()
+
+# Create some geometry
+patch_uuid = context.addPatch(center=vec3(0, 0, 0), size=vec2(1, 1))
+sphere_uuids = context.addSphere(center=vec3(2, 0, 0), radius=0.5, ndivs=10)
+
+# Export all primitives to PLY
+context.writePLY("output/scene.ply")
+
+# Export specific primitives only
+selected_uuids = [patch_uuid] + sphere_uuids[:5]  # Patch + first 5 sphere faces
+context.writePLY("output/subset.ply", UUIDs=selected_uuids)
+```
+
+#### OBJ Files
+
+```python
+# Basic OBJ export (all primitives)
+context.writeOBJ("output/scene.obj")
+
+# Export with vertex normals
+context.writeOBJ("output/scene_with_normals.obj", write_normals=True)
+
+# Export specific primitives
+context.writeOBJ("output/subset.obj", UUIDs=[uuid1, uuid2, uuid3])
+
+# Export with primitive data fields
+context.setPrimitiveDataFloat(patch_uuid, "temperature", 25.0)
+context.setPrimitiveDataFloat(patch_uuid, "area", 1.0)
+
+context.writeOBJ(
+    "output/with_data.obj",
+    UUIDs=[patch_uuid],
+    primitive_data_fields=["temperature", "area"]
+)
+
+# Silent export (suppress messages)
+context.writeOBJ("output/quiet.obj", silent=True)
+```
 
 ## Error Handling and Best Practices
 

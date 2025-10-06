@@ -15,5 +15,6 @@ from . import UWeberPennTreeWrapper
 from . import UEnergyBalanceWrapper
 from . import USolarPositionWrapper
 from . import UStomatalConductanceWrapper
+from . import UBoundaryLayerConductanceWrapper
 from . import UPhotosynthesisWrapper
 from . import UPlantArchitectureWrapper

@@ -29,10 +29,13 @@ pip install pyhelios3d
 ```
 
 This installs pre-built PyHelios with platform-appropriate plugins:
-- **macOS**: All plugins except GPU-accelerated ones (automatically detected)
+- **macOS (Apple Silicon)**: All plugins except GPU-accelerated ones (automatically detected)
+- **macOS (Intel)**: Pre-built wheels not available - please [build from source](#build-from-source)
 - **Windows/Linux**: All plugins including GPU acceleration (when hardware supports it)
 
 PyHelios will gracefully handle GPU features - if you don't have CUDA-capable hardware, GPU plugins will display helpful error messages with setup instructions.
+
+> **Note for Intel Mac Users**: Due to GitHub Actions infrastructure limitations, pre-built wheels are only available for Apple Silicon Macs (M1/M2/M3). Intel Mac users must build PyHelios from source following the [macOS build instructions](#macos) below.
 
 ### Build from Source
 

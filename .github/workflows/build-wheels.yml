@@ -9,7 +9,7 @@ jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       matrix:
         include:
@@ -17,8 +17,6 @@ jobs:
             arch: x86_64
           - os: windows-2022
             arch: AMD64
-          - os: macos-13
-            arch: x86_64
           - os: macos-14
             arch: arm64
 
@@ -195,7 +193,7 @@ jobs:
             else
               echo "[macOS] Reusing previously built native libs; skipping rebuild."
             fi
-          CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=${{ matrix.arch == 'x86_64' && '13.0' || '14.0' }} CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} SYSTEM_VERSION_COMPAT=0"
+          CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=14.0 CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} SYSTEM_VERSION_COMPAT=0"
 
           # Ensure CUDA is visible inside cibuildwheel's Windows build environment
           CIBW_ENVIRONMENT_PASS_WINDOWS: "CUDA_PATH CUDA_HOME"
@@ -658,6 +656,7 @@ jobs:
   test_wheels:
     name: Test wheels on ${{ matrix.os }} Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     needs: build_wheels
     strategy:
       matrix:
@@ -669,10 +668,6 @@ jobs:
           - os: windows-2022
             python-version: '3.8'
           - os: windows-2022
-            python-version: '3.11'
-          - os: macos-13
-            python-version: '3.8'
-          - os: macos-13
             python-version: '3.11'
           - os: macos-14
             python-version: '3.11'

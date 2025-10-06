@@ -129,6 +129,7 @@ INPUT                  = pyhelios \
                          docs/plugin_system.md \
                          docs/user_guide.md \
                          docs/plugin_integration_guide.md \
+                         docs/plugin_boundarylayerconductance.md \
                          docs/plugin_energybalance.md \
                          docs/plugin_photosynthesis.md \
                          docs/plugin_plantarchitecture.md \
@@ -147,6 +148,7 @@ FILE_PATTERNS          = *.py \
 RECURSIVE              = YES
 EXCLUDE                = pyhelios/plugins/__pycache__ \
                          pyhelios/__pycache__ \
+                         pyhelios/wrappers/UBoundaryLayerConductanceWrapper.py \
                          pyhelios/wrappers/UContextWrapper.py \
                          pyhelios/wrappers/UGlobalWrapper.py \
                          pyhelios/wrappers/ULoggerWrapper.py \
