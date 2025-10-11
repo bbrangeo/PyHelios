@@ -342,21 +342,33 @@ class Visualizer:
             raise VisualizerError(f"Visualization update failed: {e}")
     
     @validate_print_window_params
-    def printWindow(self, filename: str) -> None:
+    def printWindow(self, filename: str, image_format: Optional[str] = None) -> None:
         """
         Save current visualization to image file.
 
         This method exports the current visualization to an image file.
-        Supported formats are determined by the native implementation
-        (typically JPEG).
+        Starting from v1.3.53, supports both JPEG and PNG formats.
 
         Args:
-            filename: Output filename for image (should include .jpg extension)
+            filename: Output filename for image
                      Can be absolute or relative to user's current working directory
+                     Extension (.jpg, .png) is recommended but not required
+            image_format: Image format - "jpeg" or "png" (v1.3.53+)
+                         If None, automatically detects from filename extension
+                         Default: "jpeg" if not detectable from extension
 
         Raises:
             VisualizerError: If image saving fails
-            ValueError: If filename is invalid
+            ValueError: If filename or format is invalid
+
+        Note:
+            PNG format is required to preserve transparent backgrounds when using
+            setBackgroundTransparent(). JPEG format will render transparent areas as black.
+
+        Example:
+            >>> visualizer.printWindow("output.jpg")  # Auto-detects JPEG
+            >>> visualizer.printWindow("output.png")  # Auto-detects PNG
+            >>> visualizer.printWindow("output.img", image_format="png")  # Explicit PNG
         """
         if self.visualizer is None:
             raise VisualizerError("Visualizer has been destroyed")
@@ -366,10 +378,40 @@ class Visualizer:
         # Resolve filename relative to user's working directory before chdir
         resolved_filename = _resolve_user_path(filename)
 
+        # Auto-detect format from extension if not specified
+        if image_format is None:
+            if resolved_filename.lower().endswith('.png'):
+                image_format = 'png'
+            elif resolved_filename.lower().endswith(('.jpg', '.jpeg')):
+                image_format = 'jpeg'
+            else:
+                # Default to jpeg for backward compatibility
+                image_format = 'jpeg'
+                logger.debug(f"No format specified and extension not recognized, defaulting to JPEG")
+
+        # Validate format
+        if image_format.lower() not in ['jpeg', 'png']:
+            raise ValueError(f"Image format must be 'jpeg' or 'png', got '{image_format}'")
+
         try:
             with _visualizer_working_directory():
-                visualizer_wrapper.print_window(self.visualizer, resolved_filename)
-            logger.debug(f"Visualization saved to {resolved_filename}")
+                # Try using the new format-aware function (v1.3.53+)
+                try:
+                    visualizer_wrapper.print_window_with_format(
+                        self.visualizer,
+                        resolved_filename,
+                        image_format
+                    )
+                    logger.debug(f"Visualization saved to {resolved_filename} ({image_format.upper()} format)")
+                except (AttributeError, NotImplementedError):
+                    # Fallback to old function for older Helios versions
+                    if image_format.lower() != 'jpeg':
+                        logger.warning(
+                            "PNG format requested but not available in current Helios version. "
+                            "Falling back to JPEG format. Update to Helios v1.3.53+ for PNG support."
+                        )
+                    visualizer_wrapper.print_window(self.visualizer, resolved_filename)
+                    logger.debug(f"Visualization saved to {resolved_filename} (JPEG format - legacy mode)")
         except Exception as e:
             raise VisualizerError(f"Failed to save image: {e}")
     
@@ -473,7 +515,103 @@ class Visualizer:
             logger.debug(f"Background color set to ({color.r}, {color.g}, {color.b})")
         except Exception as e:
             raise VisualizerError(f"Failed to set background color: {e}")
-    
+
+    def setBackgroundTransparent(self) -> None:
+        """
+        Enable transparent background mode (v1.3.53+).
+
+        Sets the background to transparent with checkerboard pattern display.
+        Requires PNG output format to preserve transparency.
+
+        Note: When using transparent background, use printWindow() with PNG
+        format to save transparent images.
+
+        Raises:
+            VisualizerError: If transparent background setting fails
+        """
+        if self.visualizer is None:
+            raise VisualizerError("Visualizer has been destroyed")
+
+        try:
+            visualizer_wrapper.set_background_transparent(self.visualizer)
+            logger.debug("Background set to transparent mode")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set transparent background: {e}")
+
+    def setBackgroundImage(self, texture_file: str) -> None:
+        """
+        Set custom background image texture (v1.3.53+).
+
+        Args:
+            texture_file: Path to background image file
+                         Can be absolute or relative to working directory
+
+        Raises:
+            VisualizerError: If background image setting fails
+            ValueError: If texture file path is invalid
+        """
+        if self.visualizer is None:
+            raise VisualizerError("Visualizer has been destroyed")
+
+        if not texture_file or not isinstance(texture_file, str):
+            raise ValueError("Texture file path must be a non-empty string")
+
+        # Resolve texture file path relative to user's working directory
+        resolved_path = _resolve_user_path(texture_file)
+
+        try:
+            visualizer_wrapper.set_background_image(self.visualizer, resolved_path)
+            logger.debug(f"Background image set to {resolved_path}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set background image: {e}")
+
+    def setBackgroundSkyTexture(self, texture_file: Optional[str] = None, divisions: int = 50) -> None:
+        """
+        Set sky sphere texture background with automatic scaling (v1.3.53+).
+
+        Creates a sky sphere that automatically scales with the scene.
+        Replaces the deprecated addSkyDomeByCenter() method.
+
+        Args:
+            texture_file: Path to spherical/equirectangular texture image
+                         If None, uses default gradient sky texture
+            divisions: Number of sphere tessellation divisions (default: 50)
+                      Higher values create smoother sphere but use more GPU
+
+        Raises:
+            VisualizerError: If sky texture setting fails
+            ValueError: If parameters are invalid
+
+        Example:
+            >>> visualizer.setBackgroundSkyTexture()  # Default gradient sky
+            >>> visualizer.setBackgroundSkyTexture("sky_hdri.jpg", divisions=100)
+        """
+        if self.visualizer is None:
+            raise VisualizerError("Visualizer has been destroyed")
+
+        if not isinstance(divisions, int) or divisions <= 0:
+            raise ValueError("Divisions must be a positive integer")
+
+        # Resolve texture file path if provided
+        resolved_path = None
+        if texture_file:
+            if not isinstance(texture_file, str):
+                raise ValueError("Texture file must be a string")
+            resolved_path = _resolve_user_path(texture_file)
+
+        try:
+            visualizer_wrapper.set_background_sky_texture(
+                self.visualizer,
+                resolved_path,
+                divisions
+            )
+            if resolved_path:
+                logger.debug(f"Sky texture background set: {resolved_path}, divisions={divisions}")
+            else:
+                logger.debug(f"Default sky texture background set with divisions={divisions}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set sky texture background: {e}")
+
     def setLightDirection(self, direction: vec3) -> None:
         """
         Set light direction.
@@ -955,17 +1093,92 @@ class Visualizer:
     def updateContextPrimitiveColors(self) -> None:
         """
         Update context primitive colors.
-        
+
         Raises:
             VisualizerError: If operation fails
         """
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
-        
+
         try:
             helios_lib.updateContextPrimitiveColors(self.visualizer)
         except Exception as e:
             raise VisualizerError(f"Failed to update context primitive colors: {e}")
+
+    # Geometry Vertex Manipulation Methods (v1.3.53+)
+
+    def getGeometryVertices(self, geometry_id: int) -> List[vec3]:
+        """
+        Get vertices of a geometry primitive.
+
+        Args:
+            geometry_id: Unique identifier of the geometry primitive
+
+        Returns:
+            List of vertices as vec3 objects
+
+        Raises:
+            ValueError: If geometry ID is invalid
+            VisualizerError: If operation fails
+
+        Example:
+            >>> # Get vertices of a specific geometry
+            >>> vertices = visualizer.getGeometryVertices(geometry_id)
+            >>> for vertex in vertices:
+            ...     print(f"Vertex: ({vertex.x}, {vertex.y}, {vertex.z})")
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+
+        if not isinstance(geometry_id, int) or geometry_id < 0:
+            raise ValueError("Geometry ID must be a non-negative integer")
+
+        try:
+            vertices_list = visualizer_wrapper.get_geometry_vertices(self.visualizer, geometry_id)
+            # Convert [[x,y,z], ...] to [vec3(), ...]
+            return [vec3(v[0], v[1], v[2]) for v in vertices_list]
+        except Exception as e:
+            raise VisualizerError(f"Failed to get geometry vertices: {e}")
+
+    def setGeometryVertices(self, geometry_id: int, vertices: List[vec3]) -> None:
+        """
+        Set vertices of a geometry primitive.
+
+        This allows dynamic modification of geometry shapes during visualization.
+        Useful for animating geometry or adjusting shapes based on simulation results.
+
+        Args:
+            geometry_id: Unique identifier of the geometry primitive
+            vertices: List of new vertices as vec3 objects
+
+        Raises:
+            ValueError: If parameters are invalid
+            VisualizerError: If operation fails
+
+        Example:
+            >>> # Modify vertices of an existing geometry
+            >>> vertices = visualizer.getGeometryVertices(geometry_id)
+            >>> # Scale all vertices by 2x
+            >>> scaled_vertices = [vec3(v.x*2, v.y*2, v.z*2) for v in vertices]
+            >>> visualizer.setGeometryVertices(geometry_id, scaled_vertices)
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+
+        if not isinstance(geometry_id, int) or geometry_id < 0:
+            raise ValueError("Geometry ID must be a non-negative integer")
+
+        if not vertices or not isinstance(vertices, (list, tuple)):
+            raise ValueError("Vertices must be a non-empty list")
+
+        if not all(isinstance(v, vec3) for v in vertices):
+            raise ValueError("All vertices must be vec3 objects")
+
+        try:
+            visualizer_wrapper.set_geometry_vertices(self.visualizer, geometry_id, vertices)
+            logger.debug(f"Set {len(vertices)} vertices for geometry {geometry_id}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set geometry vertices: {e}")
 
     # Coordinate Axes and Grid Methods
 
@@ -1492,17 +1705,59 @@ class Visualizer:
     def updateWatermark(self) -> None:
         """
         Update watermark geometry to match current window size.
-        
+
         Raises:
             VisualizerError: If operation fails
         """
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
-        
+
         try:
             helios_lib.updateWatermark(self.visualizer)
         except Exception as e:
             raise VisualizerError(f"Failed to update watermark: {e}")
+
+    # Navigation Gizmo Methods (v1.3.53+)
+
+    def hideNavigationGizmo(self) -> None:
+        """
+        Hide navigation gizmo (coordinate axes indicator in corner).
+
+        The navigation gizmo shows XYZ axes orientation and can be clicked
+        to snap the camera to standard views (top, front, side, etc.).
+
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+
+        try:
+            visualizer_wrapper.hide_navigation_gizmo(self.visualizer)
+            logger.debug("Navigation gizmo hidden")
+        except Exception as e:
+            raise VisualizerError(f"Failed to hide navigation gizmo: {e}")
+
+    def showNavigationGizmo(self) -> None:
+        """
+        Show navigation gizmo (coordinate axes indicator in corner).
+
+        The navigation gizmo shows XYZ axes orientation and can be clicked
+        to snap the camera to standard views (top, front, side, etc.).
+
+        Note: Navigation gizmo is shown by default in v1.3.53+.
+
+        Raises:
+            VisualizerError: If operation fails
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+
+        try:
+            visualizer_wrapper.show_navigation_gizmo(self.visualizer)
+            logger.debug("Navigation gizmo shown")
+        except Exception as e:
+            raise VisualizerError(f"Failed to show navigation gizmo: {e}")
 
     # Performance and Utility Methods
 

@@ -16,6 +16,7 @@ PyHelios provides a Python interface to the powerful Helios C++ library for 3D p
 📖 **[Complete Documentation](https://plantsimulationlab.github.io/PyHelios/)**
 
 ⚠️Note that this is a work in progress. Not all Helios functionality has been implemented in PyHelios ⚠️
+⚠️Help make PyHelios better by reporting issues: https://github.com/PlantSimulationLab/PyHelios/issues ⚠️
 
 See the Helios C++ documentation for a more in-depth description of Helios: https://baileylab.ucdavis.edu/software/helios
 
@@ -35,7 +36,7 @@ This installs pre-built PyHelios with platform-appropriate plugins:
 
 PyHelios will gracefully handle GPU features - if you don't have CUDA-capable hardware, GPU plugins will display helpful error messages with setup instructions.
 
-> **Note for Intel Mac Users**: Due to GitHub Actions infrastructure limitations, pre-built wheels are only available for Apple Silicon Macs (M1/M2/M3). Intel Mac users must build PyHelios from source following the [macOS build instructions](#macos) below.
+> **Note for Intel Mac Users**: Due to GitHub Actions infrastructure limitations, pre-built wheels are only available for Apple Silicon Macs. Intel Mac users must build PyHelios from source following the [macOS build instructions](#macos) below.
 
 ### Build from Source
 

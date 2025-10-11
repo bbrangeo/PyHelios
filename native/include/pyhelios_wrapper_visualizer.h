@@ -501,6 +501,81 @@ PYHELIOS_API void plotOnce(Visualizer* visualizer, bool get_keystrokes);
  */
 PYHELIOS_API void plotUpdateWithVisibility(Visualizer* visualizer, bool hide_window);
 
+//=============================================================================
+// v1.3.53 Background Control Functions
+//=============================================================================
+
+/**
+ * @brief Enable transparent background mode (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ */
+PYHELIOS_API void setBackgroundTransparent(Visualizer* visualizer);
+
+/**
+ * @brief Set custom background image texture (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ * @param texture_file Path to texture file (JPEG or PNG)
+ */
+PYHELIOS_API void setBackgroundImage(Visualizer* visualizer, const char* texture_file);
+
+/**
+ * @brief Set sky sphere texture background with automatic scaling (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ * @param texture_file Path to texture file (NULL for default gradient)
+ * @param divisions Number of sphere divisions for tessellation
+ */
+PYHELIOS_API void setBackgroundSkyTexture(Visualizer* visualizer, const char* texture_file, unsigned int divisions);
+
+//=============================================================================
+// v1.3.53 Navigation Gizmo Functions
+//=============================================================================
+
+/**
+ * @brief Hide navigation gizmo (coordinate axes indicator) (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ */
+PYHELIOS_API void hideNavigationGizmo(Visualizer* visualizer);
+
+/**
+ * @brief Show navigation gizmo (coordinate axes indicator) (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ */
+PYHELIOS_API void showNavigationGizmo(Visualizer* visualizer);
+
+//=============================================================================
+// v1.3.53 Geometry Vertex Manipulation Functions
+//=============================================================================
+
+/**
+ * @brief Get vertices of a geometry primitive (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ * @param geometry_id ID of the geometry primitive
+ * @param vertices Pointer to store vertex data (array of floats: x1,y1,z1,x2,y2,z2,...)
+ * @param vertex_count Pointer to store number of vertices
+ */
+PYHELIOS_API void getGeometryVertices(Visualizer* visualizer, size_t geometry_id, float** vertices, size_t* vertex_count);
+
+/**
+ * @brief Set vertices of a geometry primitive (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ * @param geometry_id ID of the geometry primitive
+ * @param vertices Array of vertex data (floats: x1,y1,z1,x2,y2,z2,...)
+ * @param vertex_count Number of vertices in the array
+ */
+PYHELIOS_API void setGeometryVertices(Visualizer* visualizer, size_t geometry_id, float* vertices, size_t vertex_count);
+
+//=============================================================================
+// v1.3.53 Enhanced Image Export
+//=============================================================================
+
+/**
+ * @brief Save current visualization to image file with format specification (v1.3.53+)
+ * @param visualizer Pointer to the Visualizer
+ * @param filename Output filename for image
+ * @param format Image format ("jpeg" or "png")
+ */
+PYHELIOS_API void printWindowWithFormat(Visualizer* visualizer, const char* filename, const char* format);
+
 #ifdef __cplusplus
 }
 #endif

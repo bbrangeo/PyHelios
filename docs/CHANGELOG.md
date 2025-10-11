@@ -1,5 +1,9 @@
 # Changelog
 
+# [v0.1.7] 2025-10-11
+
+- Updated helios-core to v1.3.53, which includes a number of upgrades to the visualizer
+
 # [v0.1.6] 2025-10-06
 
 - Reconfigured wheel builds to keep all generated files in `pyhelios_build` directory

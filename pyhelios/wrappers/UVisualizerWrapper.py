@@ -231,6 +231,34 @@ try:
     helios_lib.plotUpdateWithVisibility.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_bool]
     helios_lib.plotUpdateWithVisibility.restype = None
 
+    # v1.3.53 Background Control Functions
+    helios_lib.setBackgroundTransparent.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.setBackgroundTransparent.restype = None
+
+    helios_lib.setBackgroundImage.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p]
+    helios_lib.setBackgroundImage.restype = None
+
+    helios_lib.setBackgroundSkyTexture.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p, ctypes.c_uint]
+    helios_lib.setBackgroundSkyTexture.restype = None
+
+    # v1.3.53 Navigation Gizmo Functions
+    helios_lib.hideNavigationGizmo.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.hideNavigationGizmo.restype = None
+
+    helios_lib.showNavigationGizmo.argtypes = [ctypes.POINTER(UVisualizer)]
+    helios_lib.showNavigationGizmo.restype = None
+
+    # v1.3.53 Geometry Vertex Manipulation Functions
+    helios_lib.getGeometryVertices.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_size_t, ctypes.POINTER(ctypes.POINTER(ctypes.c_float)), ctypes.POINTER(ctypes.c_size_t)]
+    helios_lib.getGeometryVertices.restype = None
+
+    helios_lib.setGeometryVertices.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_size_t, ctypes.POINTER(ctypes.c_float), ctypes.c_size_t]
+    helios_lib.setGeometryVertices.restype = None
+
+    # v1.3.53 Enhanced printWindow with format support
+    helios_lib.printWindowWithFormat.argtypes = [ctypes.POINTER(UVisualizer), ctypes.c_char_p, ctypes.c_char_p]
+    helios_lib.printWindowWithFormat.restype = None
+
     # Error management functions availability check
     try:
         helios_lib.getLastErrorCode.restype = ctypes.c_int
@@ -722,6 +750,268 @@ def color_context_primitives_by_data_uuids(visualizer: ctypes.POINTER(UVisualize
     data_name_bytes = data_name.encode('utf-8')
     uuid_array = (ctypes.c_uint32 * len(uuids))(*uuids)
     helios_lib.colorContextPrimitivesByDataUUIDs(visualizer, data_name_bytes, uuid_array, len(uuids))
+    _check_for_helios_error()
+
+def set_background_transparent(visualizer: ctypes.POINTER(UVisualizer)) -> None:
+    """
+    Enable transparent background mode.
+
+    Args:
+        visualizer: Pointer to UVisualizer
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        RuntimeError: If background setting fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+
+    helios_lib.setBackgroundTransparent(visualizer)
+    _check_for_helios_error()
+
+def set_background_image(visualizer: ctypes.POINTER(UVisualizer), texture_file: str) -> None:
+    """
+    Set custom background image.
+
+    Args:
+        visualizer: Pointer to UVisualizer
+        texture_file: Path to texture image file
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        ValueError: If parameters are invalid
+        RuntimeError: If background setting fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+    if not texture_file:
+        raise ValueError("Texture file path cannot be empty")
+
+    texture_file_bytes = texture_file.encode('utf-8')
+    helios_lib.setBackgroundImage(visualizer, texture_file_bytes)
+    _check_for_helios_error()
+
+def set_background_sky_texture(visualizer: ctypes.POINTER(UVisualizer), texture_file: Optional[str] = None, divisions: int = 50) -> None:
+    """
+    Set sky sphere texture background with automatic scaling.
+
+    Args:
+        visualizer: Pointer to UVisualizer
+        texture_file: Path to spherical/equirectangular texture (None for default)
+        divisions: Number of divisions for sphere tessellation
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        ValueError: If parameters are invalid
+        RuntimeError: If background setting fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+    if divisions <= 0:
+        raise ValueError("Divisions must be positive")
+
+    # Use nullptr for default texture, encoded path otherwise
+    if texture_file:
+        texture_bytes = texture_file.encode('utf-8')
+    else:
+        texture_bytes = None
+
+    helios_lib.setBackgroundSkyTexture(visualizer, texture_bytes, ctypes.c_uint(divisions))
+    _check_for_helios_error()
+
+def hide_navigation_gizmo(visualizer: ctypes.POINTER(UVisualizer)) -> None:
+    """
+    Hide navigation gizmo (coordinate axes indicator).
+
+    Args:
+        visualizer: Pointer to UVisualizer
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        RuntimeError: If operation fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+
+    helios_lib.hideNavigationGizmo(visualizer)
+    _check_for_helios_error()
+
+def show_navigation_gizmo(visualizer: ctypes.POINTER(UVisualizer)) -> None:
+    """
+    Show navigation gizmo (coordinate axes indicator).
+
+    Args:
+        visualizer: Pointer to UVisualizer
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        RuntimeError: If operation fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+
+    helios_lib.showNavigationGizmo(visualizer)
+    _check_for_helios_error()
+
+def get_geometry_vertices(visualizer: ctypes.POINTER(UVisualizer), geometry_id: int) -> List[List[float]]:
+    """
+    Get vertices of a geometry primitive.
+
+    Args:
+        visualizer: Pointer to UVisualizer
+        geometry_id: Unique identifier of the geometry
+
+    Returns:
+        List of vertices as [[x,y,z], [x,y,z], ...]
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        ValueError: If parameters are invalid
+        RuntimeError: If operation fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+    if geometry_id < 0:
+        raise ValueError("Geometry ID must be non-negative")
+
+    # Prepare output parameters
+    vertices_ptr = ctypes.POINTER(ctypes.c_float)()
+    vertex_count = ctypes.c_size_t()
+
+    helios_lib.getGeometryVertices(
+        visualizer,
+        ctypes.c_size_t(geometry_id),
+        ctypes.byref(vertices_ptr),
+        ctypes.byref(vertex_count)
+    )
+    _check_for_helios_error()
+
+    # Convert flat array to list of [x,y,z] vectors
+    if not vertices_ptr or vertex_count.value == 0:
+        return []
+
+    vertices = []
+    for i in range(0, vertex_count.value, 3):
+        vertices.append([vertices_ptr[i], vertices_ptr[i+1], vertices_ptr[i+2]])
+
+    return vertices
+
+def set_geometry_vertices(visualizer: ctypes.POINTER(UVisualizer), geometry_id: int, vertices: List[List[float]]) -> None:
+    """
+    Set vertices of a geometry primitive.
+
+    Args:
+        visualizer: Pointer to UVisualizer
+        geometry_id: Unique identifier of the geometry
+        vertices: List of vertices as [[x,y,z], [x,y,z], ...] or list of vec3 objects
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        ValueError: If parameters are invalid
+        RuntimeError: If operation fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+    if geometry_id < 0:
+        raise ValueError("Geometry ID must be non-negative")
+    if not vertices:
+        raise ValueError("Vertices list cannot be empty")
+
+    # Flatten vertices to single array
+    flattened = []
+    for vertex in vertices:
+        # Handle both vec3 objects and [x,y,z] lists
+        if hasattr(vertex, 'to_list'):
+            flattened.extend(vertex.to_list())
+        elif isinstance(vertex, (list, tuple)) and len(vertex) == 3:
+            flattened.extend(vertex)
+        else:
+            raise ValueError("Each vertex must be a vec3 object or [x,y,z] list")
+
+    # Convert to ctypes array
+    vertices_array = (ctypes.c_float * len(flattened))(*flattened)
+
+    helios_lib.setGeometryVertices(
+        visualizer,
+        ctypes.c_size_t(geometry_id),
+        vertices_array,
+        ctypes.c_size_t(len(flattened))
+    )
+    _check_for_helios_error()
+
+def print_window_with_format(visualizer: ctypes.POINTER(UVisualizer), filename: str, image_format: str) -> None:
+    """
+    Save current visualization to image file with specified format.
+
+    Args:
+        visualizer: Pointer to UVisualizer
+        filename: Output filename for image
+        image_format: Image format ("jpeg" or "png")
+
+    Raises:
+        NotImplementedError: If visualizer functions not available
+        ValueError: If parameters are invalid
+        RuntimeError: If image saving fails
+    """
+    if not _VISUALIZER_FUNCTIONS_AVAILABLE:
+        raise NotImplementedError(
+            "Visualizer functions not available in current Helios library. "
+            "Rebuild with visualizer plugin enabled."
+        )
+
+    if not visualizer:
+        raise ValueError("Visualizer pointer is null")
+    if not filename:
+        raise ValueError("Filename cannot be empty")
+    if image_format.lower() not in ['jpeg', 'png']:
+        raise ValueError("Image format must be 'jpeg' or 'png'")
+
+    filename_bytes = filename.encode('utf-8')
+    format_bytes = image_format.lower().encode('utf-8')
+
+    helios_lib.printWindowWithFormat(visualizer, filename_bytes, format_bytes)
     _check_for_helios_error()
 
 # Mock implementations when visualizer is not available

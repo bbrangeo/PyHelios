@@ -1037,6 +1037,185 @@ extern "C" {
         }
     }
 
+    // v1.3.53 Background Control Functions
+    PYHELIOS_API void setBackgroundTransparent(Visualizer* visualizer) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            visualizer->setBackgroundTransparent();
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setBackgroundTransparent): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setBackgroundTransparent): Unknown error");
+        }
+    }
+
+    PYHELIOS_API void setBackgroundImage(Visualizer* visualizer, const char* texture_file) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            if (!texture_file) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Texture file path cannot be null");
+                return;
+            }
+            visualizer->setBackgroundImage(texture_file);
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setBackgroundImage): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setBackgroundImage): Unknown error");
+        }
+    }
+
+    PYHELIOS_API void setBackgroundSkyTexture(Visualizer* visualizer, const char* texture_file, unsigned int divisions) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+
+            if (texture_file) {
+                visualizer->setBackgroundSkyTexture(texture_file, divisions);
+            } else {
+                visualizer->setBackgroundSkyTexture("", divisions);
+            }
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setBackgroundSkyTexture): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setBackgroundSkyTexture): Unknown error");
+        }
+    }
+
+    // v1.3.53 Navigation Gizmo Functions
+    PYHELIOS_API void hideNavigationGizmo(Visualizer* visualizer) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            visualizer->hideNavigationGizmo();
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (hideNavigationGizmo): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (hideNavigationGizmo): Unknown error");
+        }
+    }
+
+    PYHELIOS_API void showNavigationGizmo(Visualizer* visualizer) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            visualizer->showNavigationGizmo();
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (showNavigationGizmo): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (showNavigationGizmo): Unknown error");
+        }
+    }
+
+    // v1.3.53 Geometry Vertex Manipulation Functions
+    PYHELIOS_API void getGeometryVertices(Visualizer* visualizer, size_t geometry_id, float** vertices, size_t* vertex_count) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            if (!vertices || !vertex_count) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Output pointers cannot be null");
+                return;
+            }
+
+            static thread_local std::vector<float> static_vertex_data;
+            std::vector<helios::vec3> vertex_vec = visualizer->getGeometryVertices(geometry_id);
+
+            // Flatten vec3 array to float array
+            static_vertex_data.clear();
+            static_vertex_data.reserve(vertex_vec.size() * 3);
+            for (const auto& v : vertex_vec) {
+                static_vertex_data.push_back(v.x);
+                static_vertex_data.push_back(v.y);
+                static_vertex_data.push_back(v.z);
+            }
+
+            *vertices = static_vertex_data.data();
+            *vertex_count = vertex_vec.size();
+
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getGeometryVertices): ") + e.what());
+            if (vertices) *vertices = nullptr;
+            if (vertex_count) *vertex_count = 0;
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getGeometryVertices): Unknown error");
+            if (vertices) *vertices = nullptr;
+            if (vertex_count) *vertex_count = 0;
+        }
+    }
+
+    PYHELIOS_API void setGeometryVertices(Visualizer* visualizer, size_t geometry_id, float* vertices, size_t vertex_count) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            if (!vertices && vertex_count > 0) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Vertices array is null but count > 0");
+                return;
+            }
+
+            // Convert flat float array to vec3 vector
+            std::vector<helios::vec3> vertex_vec;
+            vertex_vec.reserve(vertex_count);
+            for (size_t i = 0; i < vertex_count; i++) {
+                vertex_vec.emplace_back(vertices[i*3], vertices[i*3+1], vertices[i*3+2]);
+            }
+
+            visualizer->setGeometryVertices(geometry_id, vertex_vec);
+
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setGeometryVertices): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setGeometryVertices): Unknown error");
+        }
+    }
+
+    // v1.3.53 Enhanced printWindow with format support
+    PYHELIOS_API void printWindowWithFormat(Visualizer* visualizer, const char* filename, const char* format) {
+        try {
+            clearError();
+            if (!visualizer) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Visualizer pointer is null");
+                return;
+            }
+            if (!filename) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Filename cannot be null");
+                return;
+            }
+            if (!format) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Format cannot be null");
+                return;
+            }
+
+            visualizer->printWindow(filename, format);
+
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (printWindowWithFormat): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (printWindowWithFormat): Unknown error");
+        }
+    }
+
 } //extern "C"
 
 #endif //VISUALIZER_PLUGIN_AVAILABLE

@@ -725,6 +725,199 @@ class TestVisualizerNewMethodsNative:
                 visualizer.setColormap(99)
 
 
+@pytest.mark.native_only
+@pytest.mark.skipif(is_headless_environment(), reason="Skipping visualizer tests in headless environment")
+class TestVisualizerV1353Features:
+    """Test Helios v1.3.53+ visualizer features"""
+
+    def test_background_transparent(self):
+        """Test transparent background mode"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Should not raise any exceptions
+            visualizer.setBackgroundTransparent()
+
+    def test_background_image(self):
+        """Test custom background image"""
+        import tempfile
+
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Test with dummy image path (won't exist but should accept parameter)
+            # In production, this would use an actual image file
+            with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
+                # Note: This test validates parameter handling
+                # Actual image loading would require a real image file
+                try:
+                    visualizer.setBackgroundImage(tmp.name)
+                except VisualizerError:
+                    # May fail if file doesn't contain valid image data
+                    # but parameter validation should pass
+                    pass
+
+            # Test validation
+            with pytest.raises(ValueError, match="non-empty string"):
+                visualizer.setBackgroundImage("")
+
+            with pytest.raises(ValueError, match="non-empty string"):
+                visualizer.setBackgroundImage(None)
+
+    def test_background_sky_texture(self):
+        """Test sky sphere texture background"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Test default sky texture (no file path)
+            visualizer.setBackgroundSkyTexture()
+
+            # Test with custom divisions
+            visualizer.setBackgroundSkyTexture(divisions=100)
+
+            # Test parameter validation
+            with pytest.raises(ValueError, match="positive integer"):
+                visualizer.setBackgroundSkyTexture(divisions=0)
+
+            with pytest.raises(ValueError, match="positive integer"):
+                visualizer.setBackgroundSkyTexture(divisions=-10)
+
+    def test_navigation_gizmo_controls(self):
+        """Test navigation gizmo show/hide"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            # Should not raise exceptions
+            visualizer.hideNavigationGizmo()
+            visualizer.showNavigationGizmo()
+
+            # Test that methods can be called multiple times
+            visualizer.hideNavigationGizmo()
+            visualizer.hideNavigationGizmo()
+            visualizer.showNavigationGizmo()
+
+    def test_printwindow_png_format(self):
+        """Test PNG format support in printWindow"""
+        import tempfile
+
+        with Context() as context:
+            # Add simple geometry
+            center = vec3(0, 0, 0)
+            size = vec2(1, 1)
+            context.addPatch(center=center, size=size)
+
+            with Visualizer(400, 300, headless=True) as visualizer:
+                visualizer.buildContextGeometry(context)
+                visualizer.plotUpdate()
+
+                # Test PNG format export
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_png:
+                    png_path = tmp_png.name
+
+                try:
+                    # Explicit PNG format
+                    visualizer.printWindow(png_path, image_format="png")
+                    assert os.path.exists(png_path)
+                finally:
+                    if os.path.exists(png_path):
+                        os.unlink(png_path)
+
+                # Test auto-detection from .png extension
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_auto:
+                    auto_path = tmp_auto.name
+
+                try:
+                    visualizer.printWindow(auto_path)  # Should auto-detect PNG
+                    assert os.path.exists(auto_path)
+                finally:
+                    if os.path.exists(auto_path):
+                        os.unlink(auto_path)
+
+                # Test JPEG format still works
+                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_jpg:
+                    jpg_path = tmp_jpg.name
+
+                try:
+                    visualizer.printWindow(jpg_path, image_format="jpeg")
+                    assert os.path.exists(jpg_path)
+                finally:
+                    if os.path.exists(jpg_path):
+                        os.unlink(jpg_path)
+
+    def test_printwindow_format_validation(self):
+        """Test printWindow format parameter validation"""
+        with Visualizer(400, 300, headless=True) as visualizer:
+            import tempfile
+
+            # Use valid filename extensions to test format parameter validation
+            with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
+                # Test invalid format parameter
+                with pytest.raises(ValueError, match="must be 'jpeg' or 'png'"):
+                    visualizer.printWindow(tmp.name, image_format="bmp")
+
+                with pytest.raises(ValueError, match="must be 'jpeg' or 'png'"):
+                    visualizer.printWindow(tmp.name, image_format="invalid")
+
+    def test_transparent_background_with_png_workflow(self):
+        """Test complete workflow: transparent background + PNG export"""
+        import tempfile
+
+        with Context() as context:
+            # Add geometry
+            center = vec3(0, 0, 0)
+            size = vec2(1, 1)
+            color = RGBcolor(0.8, 0.3, 0.2)
+            context.addPatch(center=center, size=size, color=color)
+
+            with Visualizer(400, 300, headless=True) as visualizer:
+                visualizer.buildContextGeometry(context)
+
+                # Enable transparent background
+                visualizer.setBackgroundTransparent()
+
+                visualizer.plotUpdate()
+
+                # Export as PNG to preserve transparency
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    png_path = tmp.name
+
+                try:
+                    visualizer.printWindow(png_path, image_format="png")
+                    assert os.path.exists(png_path)
+                    # In a full test, we'd verify PNG has transparency channel
+                finally:
+                    if os.path.exists(png_path):
+                        os.unlink(png_path)
+
+
+@pytest.mark.cross_platform
+class TestVisualizerV1353API:
+    """Test v1.3.53 API methods exist and have correct signatures"""
+
+    def test_v1353_methods_exist(self):
+        """Test that all v1.3.53 methods exist"""
+        expected_methods_v1353 = [
+            'setBackgroundTransparent',
+            'setBackgroundImage',
+            'setBackgroundSkyTexture',
+            'hideNavigationGizmo',
+            'showNavigationGizmo',
+            'getGeometryVertices',
+            'setGeometryVertices',
+        ]
+
+        for method_name in expected_methods_v1353:
+            assert hasattr(Visualizer, method_name), f"Missing v1.3.53 method: {method_name}"
+            method = getattr(Visualizer, method_name)
+            assert callable(method), f"Method {method_name} is not callable"
+
+    def test_printwindow_signature_updated(self):
+        """Test that printWindow has updated signature with image_format parameter"""
+        import inspect
+
+        sig = inspect.signature(Visualizer.printWindow)
+        params = list(sig.parameters.keys())
+
+        assert 'filename' in params
+        assert 'image_format' in params
+
+        # Check that image_format has Optional type hint and default None
+        format_param = sig.parameters['image_format']
+        assert format_param.default is None
+
+
 if __name__ == "__main__":
     # Run tests when executed directly
     pytest.main([__file__, "-v"])
