@@ -82,11 +82,11 @@ def main():
 
     # Calculate sky view factors
     try:
-        # svfs = svf_model.calculate_sky_view_factors(test_points)
         svf_model.set_max_ray_length(10.0)
         svf_model.set_message_flag(True)
         svf_model.set_ray_count(10)
-        svfs = svf_model.calculate_sky_view_factors_for_primitives()
+        svfs = svf_model.calculate_sky_view_factors(test_points)
+        # svfs = svf_model.calculate_sky_view_factors_for_primitives()
         print("✓ Sky view factors calculated successfully")
     except Exception as e:
         print(f"✗ Failed to calculate sky view factors: {e}")
