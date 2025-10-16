@@ -49,3 +49,4 @@ docs/generated/
 .mcp.json
 *.obj
 *.ifc
+docs/examples/models/IfcConvert

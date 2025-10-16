@@ -232,6 +232,17 @@ PLUGIN_METADATA: Dict[str, PluginMetadata] = {
         gpu_required=True,
         optional=True,
         test_symbols=["initializeProjectBuilder", "runProjectBuilder"]
+    ),
+    
+    "skyviewfactor": PluginMetadata(
+        name="skyviewfactor",
+        description="Sky view factor calculation for urban and environmental analysis",
+        system_dependencies=[],  # No hard dependencies - CPU implementation available
+        plugin_dependencies=[],
+        platforms=["windows", "linux", "macos"],  # macOS support with CPU implementation
+        gpu_required=False,  # CPU implementation available
+        optional=True,
+        test_symbols=["createSkyViewFactorModel", "calculateSkyViewFactor", "createSkyViewFactorCamera"]
     )
 }
 

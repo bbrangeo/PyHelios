@@ -59,6 +59,14 @@ except (AttributeError, ImportError):
     RadiationModelError = None
 
 try:
+    from .SkyViewFactorModel import SkyViewFactorModel, SkyViewFactorModelError, SkyViewFactorCamera
+except (AttributeError, ImportError):
+    # SkyViewFactorModel functions not available in current library
+    SkyViewFactorModel = None
+    SkyViewFactorModelError = None
+    SkyViewFactorCamera = None
+
+try:
     from .EnergyBalance import EnergyBalanceModel, EnergyBalanceModelError
 except (AttributeError, ImportError):
     # EnergyBalanceModel functions not available in current library

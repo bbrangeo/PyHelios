@@ -47,7 +47,8 @@ INTEGRATED_PLUGINS = [
     "stomatalconductance",
     "boundarylayerconductance",
     "photosynthesis",
-    "plantarchitecture"
+    "plantarchitecture",
+    "skyviewfactor"
 ]
 
 # Execute dependency_resolver.py to get PluginDependencyResolver
@@ -90,8 +91,12 @@ class HeliosBuilder:
             'lib_name': 'libhelios.dylib',  # Shared library for ctypes
             'build_type': 'Release',
             'generator': 'Unix Makefiles',
-	    'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'],#,'-DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)', '-DCMAKE_CXX_FLAGS=-I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/'],
-            #'cmake_args': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)"','-DCMAKE_CXX_STANDARD=11', '-DCMAKE_CXX_FLAGS=-I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1'],
+            'cmake_args': [
+                '-DCMAKE_BUILD_TYPE=Release',
+                '-DCMAKE_CXX_COMPILER=/Library/Developer/CommandLineTools/usr/bin/clang++',
+                '-DCMAKE_C_COMPILER=/Library/Developer/CommandLineTools/usr/bin/clang',
+                '-DCMAKE_CXX_FLAGS:STRING=-fPIC -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1'
+            ],
             'build_args': [],
         },
         'Linux': {
@@ -1638,6 +1643,7 @@ def get_default_plugins() -> List[str]:
     - solarposition: Solar position calculations and sun angle modeling
     - photosynthesis: Photosynthesis modeling and carbon assimilation
     - plantarchitecture: Advanced plant structure and architecture modeling with procedural plant library
+    - skyviewfactor: Sky view factor calculation for urban and environmental analysis
 
     Returns:
         List of default plugins

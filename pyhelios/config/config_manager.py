@@ -201,9 +201,9 @@ class ConfigManager:
             gpu_available = resolver._check_cuda()
             
             if gpu_available:
-                plugins = ["weberpenntree", "canopygenerator", "solarposition", "radiation", "visualizer", "energybalance"]
+                plugins = ["weberpenntree", "canopygenerator", "solarposition", "radiation", "visualizer", "energybalance", "skyviewfactor"]
             else:
-                plugins = ["weberpenntree", "canopygenerator", "solarposition", "visualizer", "energybalance"]
+                plugins = ["weberpenntree", "canopygenerator", "solarposition", "visualizer", "energybalance", "skyviewfactor"]
         else:
             raise ConfigurationError(
                 f"Invalid selection_mode '{self.plugin_config.selection_mode}'. "

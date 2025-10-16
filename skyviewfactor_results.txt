@@ -1,0 +1,5 @@
+# Sky View Factor Data
+# Point_ID X Y Z SkyViewFactor
+0 0 0 0 0.458317
+1 1 0 0 0.84266
+2 0 1 0 0.863349
