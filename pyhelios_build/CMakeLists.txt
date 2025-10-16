@@ -54,6 +54,13 @@ if("radiation" IN_LIST PLUGINS)
     endif()
 endif()
 
+if("skyviewfactor" IN_LIST PLUGINS)
+    find_package(CUDAToolkit QUIET)
+    if(CUDAToolkit_FOUND)
+        message(STATUS "Found CUDA toolkit for skyviewfactor plugin: ${CUDAToolkit_VERSION}")
+    endif()
+endif()
+
 #-------- PYHELIOS INTERFACE ---------#
 # Create PyHelios interface library after Helios setup
 

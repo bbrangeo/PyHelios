@@ -598,6 +598,22 @@ class HeliosBuilder:
                 "# Radiation plugin not selected - disable OptiX",
                 "add_compile_definitions(HELIOS_NO_OPTIX)"
             ])
+
+        # Add special handling for radiation plugin
+        if "skyviewfactor" in plugins:
+            config_content.extend([
+                "",
+                "# Skyviewfactor plugin configuration",
+                "# Enable OptiX for GPU-accelerated ray tracing",
+                "# Comment out the next line to disable OptiX",
+                "# add_compile_definitions(HELIOS_NO_OPTIX)"
+            ])
+        else:
+            config_content.extend([
+                "",
+                "# Skyviewfactor plugin not selected - disable OptiX",
+                "add_compile_definitions(HELIOS_NO_OPTIX)"
+            ])
         
         config_content.extend([
             "",
