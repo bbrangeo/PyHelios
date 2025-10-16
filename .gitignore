@@ -47,3 +47,5 @@ docs/generated/
 # MCP memory server files (local development only)
 .aim/
 .mcp.json
+*.obj
+*.ifc

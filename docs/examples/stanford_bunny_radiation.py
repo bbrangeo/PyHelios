@@ -28,61 +28,82 @@ import os
 import numpy as np
 
 # Add pyhelios to path if needed
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from pyhelios import Context, RadiationModel, Visualizer
 from pyhelios.types import *
 
 
 def main():
-    
+
     # Initialize context
     with Context() as context:
-        
-        # Load Stanford Bunny PLY file  
-        ply_path = os.path.join(os.path.dirname(__file__), '..', '..', 'helios-core', 'PLY', 'StanfordBunny.ply')
+
+        # Load Stanford Bunny PLY file
+        ply_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "helios-core",
+            "PLY",
+            "StanfordBunny.ply",
+        )
 
         # Load bunny with scaling factor of 4
-        bunny_uuids = context.loadPLY(ply_path, origin=vec3(0, 0, 0), height=4.0, upaxis="YUP")
-            
+        bunny_uuids = context.loadPLY(
+            ply_path, origin=vec3(0, 0, 0), height=4.0, upaxis="YUP"
+        )
+
         print(f"Loaded Stanford Bunny with {len(bunny_uuids)} triangles")
-        
+
         # Ground parameters (matching C++ sample)
         D = 10  # Ground size
         size = int2(5, 5)  # Number of ground segments
         subsize = int2(50, 50)  # Subdivisions per segment
         dx = vec2(D / (size.x * subsize.x), D / (size.y * subsize.y))
-        
+
         ground_uuids = []
         for j in range(size.y):
             for i in range(size.x):
-                
+
                 for jj in range(subsize.y):
                     for ii in range(subsize.x):
-                        center = vec3(-0.5 * D + (i * subsize.x + ii) * dx.x, -0.5 * D + (j * subsize.y + jj) * dx.y,0 )
-                        
+                        center = vec3(
+                            -0.5 * D + (i * subsize.x + ii) * dx.x,
+                            -0.5 * D + (j * subsize.y + jj) * dx.y,
+                            0,
+                        )
+
                         if (j * size.x + i) % 2 == 0:
                             # Silver patches with low reflectivity
                             color = RGBcolor(0.75, 0.75, 0.75)
-                            patch_uuid = context.addPatch(center=center, size=dx, color=color)
-                            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_SW", 0.0)
+                            patch_uuid = context.addPatch(
+                                center=center, size=dx, color=color
+                            )
+                            context.setPrimitiveDataFloat(
+                                patch_uuid, "reflectivity_SW", 0.0
+                            )
                         else:
-                            # White patches with higher reflectivity  
+                            # White patches with higher reflectivity
                             color = RGBcolor(1.0, 1.0, 1.0)
-                            patch_uuid = context.addPatch(center=center, size=dx, color=color)
-                            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_SW", 0.6)
+                            patch_uuid = context.addPatch(
+                                center=center, size=dx, color=color
+                            )
+                            context.setPrimitiveDataFloat(
+                                patch_uuid, "reflectivity_SW", 0.6
+                            )
 
                         ground_uuids.append(patch_uuid)
-        
+
         print(f"Added {len(ground_uuids)} ground patches")
 
         # Initialize radiation model
 
         with RadiationModel(context) as radiation_model:
-            
+
             # Add shortwave radiation band
             radiation_model.addRadiationBand("SW")
-            
+
             radiation_model.disableEmission("SW")
             radiation_model.setDirectRayCount("SW", 100)
             radiation_model.setDiffuseRayCount("SW", 300)
@@ -93,7 +114,7 @@ def main():
             radiation_model.setSourceFlux(sun_source, "SW", 800.0)
             radiation_model.setDiffuseRadiationFlux("SW", 200.0)
             radiation_model.setScatteringDepth("SW", 3)
-            
+
             # Update geometry and run simulation
             radiation_model.updateGeometry()
 
@@ -103,11 +124,11 @@ def main():
         all_uuids = context.getAllUUIDs()
         context.colorPrimitiveByDataPseudocolor(
             uuids=all_uuids,
-            primitive_data="radiation_flux_SW", 
-            colormap="hot", 
-            ncolors=256
+            primitive_data="radiation_flux_SW",
+            colormap="hot",
+            ncolors=256,
         )
-        
+
         # Visualize results using native PyHelios visualizer
 
         with Visualizer(width=1024, height=768) as visualizer:
@@ -127,7 +148,7 @@ def main():
 
             # Start the visualization loop - this will open a window and run until user exits
             visualizer.plotInteractive()  # Blocking call - runs until user closes window
-    
+
     print("Stanford Bunny radiation example completed!")
     return 0
 

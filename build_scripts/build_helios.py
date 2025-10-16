@@ -90,7 +90,8 @@ class HeliosBuilder:
             'lib_name': 'libhelios.dylib',  # Shared library for ctypes
             'build_type': 'Release',
             'generator': 'Unix Makefiles',
-            'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'],
+	    'cmake_args': ['-DCMAKE_BUILD_TYPE=Release'],#,'-DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)', '-DCMAKE_CXX_FLAGS=-I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/'],
+            #'cmake_args': ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)"','-DCMAKE_CXX_STANDARD=11', '-DCMAKE_CXX_FLAGS=-I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1'],
             'build_args': [],
         },
         'Linux': {

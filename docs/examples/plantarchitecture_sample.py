@@ -42,22 +42,27 @@ from pyhelios.types import vec3, vec2, int2, RGBcolor
 
 def main():
     """Main demonstration function"""
-    print("="*60)
+    print("=" * 60)
     print("PyHelios PlantArchitecture Plugin Sample")
-    print("="*60)
+    print("=" * 60)
 
     # Check if PlantArchitecture is available
     print("1. Checking PlantArchitecture availability...")
     try:
         from pyhelios.PlantArchitecture import is_plantarchitecture_available
+
         if not is_plantarchitecture_available():
             print("❌ PlantArchitecture plugin not available")
-            print("   Rebuild PyHelios with: build_scripts/build_helios --plugins plantarchitecture")
+            print(
+                "   Rebuild PyHelios with: build_scripts/build_helios --plugins plantarchitecture"
+            )
             return
         print("✅ PlantArchitecture plugin available")
     except ImportError:
         print("❌ PlantArchitecture module not found")
-        print("   Rebuild PyHelios with: build_scripts/build_helios --plugins plantarchitecture")
+        print(
+            "   Rebuild PyHelios with: build_scripts/build_helios --plugins plantarchitecture"
+        )
         return
 
     # Create context and PlantArchitecture instance
@@ -103,9 +108,21 @@ def discover_plant_models(plantarch):
         print(f"✅ Found {len(models)} plant models:")
 
         # Group models by category for better display
-        trees = [m for m in models if m in ['almond', 'apple', 'olive', 'walnut', 'easternredbud', 'pistachio']]
-        crops = [m for m in models if m in ['bean', 'cowpea', 'maize', 'rice', 'soybean', 'wheat', 'sorghum']]
-        vegetables = [m for m in models if m in ['tomato', 'cherrytomato', 'capsicum', 'strawberry', 'sugarbeet']]
+        trees = [
+            m
+            for m in models
+            if m in ["almond", "apple", "olive", "walnut", "easternredbud", "pistachio"]
+        ]
+        crops = [
+            m
+            for m in models
+            if m in ["bean", "cowpea", "maize", "rice", "soybean", "wheat", "sorghum"]
+        ]
+        vegetables = [
+            m
+            for m in models
+            if m in ["tomato", "cherrytomato", "capsicum", "strawberry", "sugarbeet"]
+        ]
         others = [m for m in models if m not in trees + crops + vegetables]
 
         if trees:
@@ -134,7 +151,7 @@ def select_plant_model(plantarch):
             return None
 
         # Prefer certain models for demonstration
-        preferred_models = ['bean', 'maize', 'soybean', 'tomato', 'almond', 'apple']
+        preferred_models = ["bean", "maize", "soybean", "tomato", "almond", "apple"]
         selected_model = None
 
         for model in preferred_models:
@@ -163,18 +180,15 @@ def demonstrate_individual_plant(plantarch, plant_model, context):
 
         # Create plants at different ages
         ages = [10, 20, 30, 45]
-        positions = [
-            vec3(-2, 0, 0),
-            vec3(-1, 0, 0),
-            vec3(1, 0, 0),
-            vec3(2, 0, 0)
-        ]
+        positions = [vec3(-2, 0, 0), vec3(-1, 0, 0), vec3(1, 0, 0), vec3(2, 0, 0)]
 
         plant_ids = []
         for i, (pos, age) in enumerate(zip(positions, ages)):
             plant_id = plantarch.buildPlantInstanceFromLibrary(pos, age)
             plant_ids.append(plant_id)
-            print(f"   Plant {i+1}: ID {plant_id} at {[pos.x, pos.y, pos.z]} with age {age} days")
+            print(
+                f"   Plant {i+1}: ID {plant_id} at {[pos.x, pos.y, pos.z]} with age {age} days"
+            )
 
         print(f"✅ Created {len(plant_ids)} individual plants")
         return plant_ids
@@ -229,14 +243,16 @@ def demonstrate_plant_growth(plantarch, plant_model, context):
         growth_steps = [5, 10, 15, 20]  # Days to advance
         for i, time_step in enumerate(growth_steps):
             plantarch.advanceTime(time_step)
-            current_age = initial_age + sum(growth_steps[:i+1])
+            current_age = initial_age + sum(growth_steps[: i + 1])
 
             # Check if geometry changed
             current_primitives = context.getPrimitiveCount()
             primitive_change = current_primitives - initial_primitives
 
             print(f"   Step {i+1}: Advanced {time_step} days (age: {current_age} days)")
-            print(f"            Primitives: {current_primitives} (Δ{primitive_change:+d})")
+            print(
+                f"            Primitives: {current_primitives} (Δ{primitive_change:+d})"
+            )
 
         total_growth = sum(growth_steps)
         final_age = initial_age + total_growth
@@ -289,9 +305,9 @@ def analyze_plant_geometry(plantarch, context):
 
 def print_usage_tips():
     """Print usage tips for PlantArchitecture"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PlantArchitecture Usage Tips")
-    print("="*60)
+    print("=" * 60)
     print("1. Always use context managers for proper resource cleanup")
     print("2. Load plant models before building instances")
     print("3. Use appropriate ages for realistic plant development")

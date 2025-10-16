@@ -1,0 +1,45 @@
+# This file was created by OSM2World 0.2.0 - http://osm2world.org
+
+
+newmtl MAT_0_0
+Ns 92.156863
+Ka 0.3764706 0.3764706 0.3764706
+Kd 0.3764706 0.3764706 0.3764706
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+map_Ka Fabi2-putz1.png
+map_Kd Fabi2-putz1.png
+Ni 1
+illum 2
+
+newmtl MAT_0_1
+Ns 92.156863
+Ka 0.5019608 0.5019608 0.5019608
+Kd 0.5019608 0.5019608 0.5019608
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+map_Ka MarekCompositeWall00001_transparent.png
+map_Kd MarekCompositeWall00001_transparent.png
+Ni 1
+illum 2
+
+newmtl MAT_1_0
+Ns 92.156863
+Ka 0.3764706 0.3764706 0.3764706
+Kd 0.3764706 0.3764706 0.3764706
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+map_Ka Fabi2-putz1.png
+map_Kd Fabi2-putz1.png
+Ni 1
+illum 2
+
+newmtl ROOF_DEFAULT_0
+Ns 92.156863
+Ka 0.4 0.0 0.0
+Kd 0.4 0.0 0.0
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1
+illum 2
+

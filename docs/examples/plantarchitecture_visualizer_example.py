@@ -17,6 +17,7 @@ Usage:
 from pyhelios import Context, PlantArchitecture, Visualizer
 from pyhelios.types import *
 
+
 def main():
     """Create a mixed-species plant garden and visualize it."""
 
@@ -25,7 +26,13 @@ def main():
 
     with Context() as context:
 
-        context.addTile(vec3(0,0,0), vec2(10,10), SphericalCoord(1,0,0), int2(5,5), RGBcolor(0.5,0.5,0.5))
+        context.addTile(
+            vec3(0, 0, 0),
+            vec2(10, 10),
+            SphericalCoord(1, 0, 0),
+            int2(5, 5),
+            RGBcolor(0.5, 0.5, 0.5),
+        )
 
         with PlantArchitecture(context) as plantarch:
             print("[OK] PlantArchitecture plugin available")
@@ -33,7 +40,9 @@ def main():
             # Get available plant models
             models = plantarch.getAvailablePlantModels()
             print(f"Available plant models: {len(models)}")
-            print(f"Examples: {', '.join(models[:5])}{'...' if len(models) > 5 else ''}")
+            print(
+                f"Examples: {', '.join(models[:5])}{'...' if len(models) > 5 else ''}"
+            )
 
             # Create a diverse garden layout
             print("\nCreating plant garden...")
@@ -44,7 +53,6 @@ def main():
                 ("bean", vec3(-1, -1, 0), 25.0),
                 ("maize", vec3(0, -1, 0), 35.0),
                 ("soybean", vec3(1, -1, 0), 30.0),
-
                 # Vegetables in middle row
                 ("tomato", vec3(-1, 1, 0), 40.0),
                 ("groundcherryweed", vec3(-0, 1, 0), 28.0),
@@ -61,7 +69,9 @@ def main():
                 plant_id = plantarch.buildPlantInstanceFromLibrary(position, age)
                 created_plants.append((species, plant_id, age))
 
-                print(f"  + {species.capitalize():12} at {position} (age: {age:2.0f} days) -> ID: {plant_id}")
+                print(
+                    f"  + {species.capitalize():12} at {position} (age: {age:2.0f} days) -> ID: {plant_id}"
+                )
 
             # Simulate some growth
             print("\nAdvancing plant growth by 7 days...")
@@ -77,7 +87,9 @@ def main():
             for species, plant_id, initial_age in created_plants:
                 object_ids = plantarch.getAllPlantObjectIDs(plant_id)
                 uuids = plantarch.getAllPlantUUIDs(plant_id)
-                print(f"  {species.capitalize():12}: {len(object_ids):3d} objects, {len(uuids):4d} primitives")
+                print(
+                    f"  {species.capitalize():12}: {len(object_ids):3d} objects, {len(uuids):4d} primitives"
+                )
 
         with Visualizer(800, 500) as vis:
 
@@ -89,6 +101,7 @@ def main():
             print("Starting visualization...")
             print("Close the visualizer window when done viewing.")
             vis.plotInteractive()
+
 
 if __name__ == "__main__":
     main()

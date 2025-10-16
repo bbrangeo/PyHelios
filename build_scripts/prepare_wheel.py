@@ -215,6 +215,8 @@ def copy_assets_for_packaging(project_root):
         'weberpenntree': ['leaves', 'wood', 'xml'],
         'visualizer': ['textures', 'shaders', 'fonts'],
         'plantarchitecture': ['assets/textures', 'assets/obj'],
+        'canopygenerator': ['buildCanopy', 'generateCanopy'],
+
         # NOTE: canopygenerator is not integrated with PyHelios - assets not needed
     }
 
