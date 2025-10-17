@@ -636,6 +636,9 @@ with Context() as context:
         # svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(
         #     uuids=ground_uuids, batch_size=200
         # )
+        # Forcer l'utilisation du CPU même avec GPU disponible
+        svf_model.set_force_cpu(True)
+
         svfs = svf_model.calculate_sky_view_factors_for_primitives(
             uuids=ground_uuids, num_threads=8
         )
