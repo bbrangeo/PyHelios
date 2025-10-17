@@ -345,40 +345,7 @@ extern "C" {
         }
     }
     
-    // CUDA/OptiX availability
-    PYHELIOS_API bool isSkyViewFactorCudaAvailable(SkyViewFactorModel* skyviewfactor_model) {
-        try {
-            clearError();
-            if (!skyviewfactor_model) {
-                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SkyViewFactorModel pointer is null");
-                return false;
-            }
-            return skyviewfactor_model->isCudaAvailable();
-        } catch (const std::exception& e) {
-            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (SkyViewFactorModel::isCudaAvailable): ") + e.what());
-            return false;
-        } catch (...) {
-            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (SkyViewFactorModel::isCudaAvailable): Unknown error checking CUDA availability.");
-            return false;
-        }
-    }
-    
-    PYHELIOS_API bool isSkyViewFactorOptiXAvailable(SkyViewFactorModel* skyviewfactor_model) {
-        try {
-            clearError();
-            if (!skyviewfactor_model) {
-                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SkyViewFactorModel pointer is null");
-                return false;
-            }
-            return skyviewfactor_model->isOptiXAvailable();
-        } catch (const std::exception& e) {
-            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (SkyViewFactorModel::isOptiXAvailable): ") + e.what());
-            return false;
-        } catch (...) {
-            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (SkyViewFactorModel::isOptiXAvailable): Unknown error checking OptiX availability.");
-            return false;
-        }
-    }
+
     
     // Reset functionality
     PYHELIOS_API void resetSkyViewFactorModel(SkyViewFactorModel* skyviewfactor_model) {
@@ -738,16 +705,8 @@ extern "C" {
         setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
         return nullptr;
     }
-    
-    PYHELIOS_API bool isSkyViewFactorCudaAvailable(SkyViewFactorModel* skyviewfactor_model) {
-        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
-        return false;
-    }
-    
-    PYHELIOS_API bool isSkyViewFactorOptiXAvailable(SkyViewFactorModel* skyviewfactor_model) {
-        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
-        return false;
-    }
+
+
     
     PYHELIOS_API void resetSkyViewFactorModel(SkyViewFactorModel* skyviewfactor_model) {
         setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
