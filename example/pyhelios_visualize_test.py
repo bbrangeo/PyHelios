@@ -30,6 +30,7 @@ from pyhelios import (
     BMFCoefficients,
     PhotosynthesisModel,
     PlantArchitecture,
+    SkyViewFactorModel,
 )
 
 from pyhelios.types import *
@@ -427,7 +428,7 @@ turbidity = 0.05
 # center = vec3(0, 50, 0)
 center = vec3(0, 0, 0)
 # size_total = vec2(450, 150)     # taille globale du sol (m)
-size_total = vec2(50, 50)  # taille globale du sol (m)
+size_total = vec2(100, 100)  # taille globale du sol (m)
 nx, ny = 100, 100  # nombre de subdivisions
 
 dx = size_total.x / nx
@@ -614,6 +615,37 @@ with Context() as context:
         center=vec3(-100, -100, 0), size=vec2(dx, dy), color=RGBcolor(0.2, 0.7, 0.2)
     )
 
+    # Create SkyViewFactor model
+    print("\nCreating SkyViewFactor model...")
+    try:
+        svf_model = SkyViewFactorModel(context)
+        print("✓ SkyViewFactor model created successfully")
+    except Exception as e:
+        print(f"✗ Failed to create SkyViewFactor model: {e}")
+
+    # Calculate sky view factors
+    print(len(ground_uuids))
+    try:
+        # Configure the model
+        svf_model.set_ray_count(2000)  # Use 2000 rays for good accuracy
+        svf_model.set_max_ray_length(1000.0)  # Maximum ray length of 100 units
+        svf_model.set_message_flag(True)  # Enable console output
+
+        # ground_uuids = ground_uuids[: min(10, len(ground_uuids))]
+        svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(
+            uuids=ground_uuids, batch_size=200
+        )
+        print("✓ Sky view factors calculated successfully")
+        success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
+
+    except Exception as e:
+        print(f"✗ Failed to calculate sky view factors: {e}")
+
+    print(f"Ray count: {svf_model.get_ray_count()}")
+    print(f"Max ray length: {svf_model.get_max_ray_length()}")
+    print(f"CUDA available: {svf_model.is_cuda_available()}")
+    print(f"OptiX available: {svf_model.is_optix_available()}")
+
     if platform.system() == "Darwin":
         # Create visualizer (smaller window for demo)
         with Visualizer(800, 600, headless=False) as visualizer:
@@ -639,6 +671,7 @@ with Context() as context:
             camera_pos = vec3(8, 8, 6)  # Camera position
             look_at = vec3(1.5, 4.5, 3.5)  # Look at center of geometry
             visualizer.setCameraPosition(camera_pos, look_at)
+            visualizer.setBackgroundSkyTexture()
 
             # Paramètres de la caméra
             radius = 15

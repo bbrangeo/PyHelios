@@ -419,6 +419,101 @@ class SkyViewFactorModel:
                 f"Failed to calculate sky view factors for primitives: {e}"
             )
 
+    def calculate_sky_view_factor_from_uuids(
+        self, uuids: List[str | int], batch_size: int = 50
+    ) -> List[float]:
+        """
+        Calculate sky view factors for specific primitive UUIDs.
+
+        Args:
+            uuids: List of primitive UUIDs to calculate SVF for
+            batch_size: Number of points to process in each batch (default: 50)
+
+        Returns:
+            List of sky view factor values for each UUID (in same order)
+        """
+        if not uuids:
+            return []
+
+        try:
+            # Get positions of primitives by UUID
+            points = []
+            valid_uuids = []
+            uuid_to_index = {}  # Map UUID to index in valid_uuids list
+
+            for i, uuid in enumerate(uuids):
+                try:
+                    # Get primitive vertices and calculate center
+                    vertices = self.context.getPrimitiveVertices(uuid)
+                    if vertices:
+                        # Calculate center as average of all vertices
+                        center_x = sum(v.x for v in vertices) / len(vertices)
+                        center_y = sum(v.y for v in vertices) / len(vertices)
+                        center_z = sum(v.z for v in vertices) / len(vertices)
+                        position = (center_x, center_y, center_z)
+                        points.append(position)
+                        valid_uuids.append(uuid)
+                        uuid_to_index[uuid] = len(valid_uuids) - 1
+                    else:
+                        logger.warning(
+                            f"Could not get vertices for UUID {uuid}, skipping"
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"Error getting vertices for UUID {uuid}: {e}, skipping"
+                    )
+
+            if not points:
+                raise SkyViewFactorModelError(
+                    "No valid positions found for the provided UUIDs"
+                )
+            
+            # Process points in batches to avoid memory issues
+            all_results = []
+            total_points = len(points)
+            
+            logger.info(f"Processing {total_points} points in batches of {batch_size}")
+            
+            for batch_start in range(0, total_points, batch_size):
+                batch_end = min(batch_start + batch_size, total_points)
+                batch_points = points[batch_start:batch_end]
+                
+                logger.debug(f"Processing batch {batch_start//batch_size + 1}: points {batch_start}-{batch_end-1}")
+                
+                # Calculate sky view factors for this batch
+                with _skyviewfactor_working_directory():
+                    batch_results = skyviewfactor_wrapper.calculateSkyViewFactors(
+                        self._model_ptr, batch_points
+                    )
+                    all_results.extend(batch_results)
+
+            # Store all results
+            self._sky_view_factors = all_results
+            self._sample_points = points
+
+            # Create a mapping from valid UUIDs to results
+            uuid_to_svf = dict(zip(valid_uuids, all_results))
+
+            # Return results in the same order as input UUIDs
+            # Use 0.0 for UUIDs that couldn't be processed
+            ordered_results = []
+            for uuid in uuids:
+                if uuid in uuid_to_svf:
+                    ordered_results.append(uuid_to_svf[uuid])
+                else:
+                    ordered_results.append(0.0)
+                    logger.warning(
+                        f"Using SVF=0.0 for UUID {uuid} (position not found)"
+                    )
+
+            logger.info(f"Successfully calculated SVF for {len(ordered_results)} UUIDs")
+            return ordered_results
+
+        except Exception as e:
+            raise SkyViewFactorModelError(
+                f"Failed to calculate sky view factors from UUIDs: {e}"
+            )
+
     def export_sky_view_factors(self, filename: str) -> bool:
         """
         Export sky view factors to file.

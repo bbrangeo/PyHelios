@@ -14,6 +14,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pyhelios import Context, SkyViewFactorModel, SkyViewFactorCamera
+from pyhelios.wrappers.DataTypes import vec3
 
 
 def main():
@@ -24,28 +25,37 @@ def main():
     print("Creating 3D scene...")
     context = Context()
 
-    # # Add some obstacles to the scene
-    # # Building 1 (triangle)
-    # context.addTriangle(
-    #     (-2.0, -2.0, 0.0),
-    #     (2.0, -2.0, 0.0),
-    #     (0.0, 2.0, 0.0)
-    # )
-    #
-    # # Building 2 (taller)
-    # context.addTriangle(
-    #     (5.0, -1.0, 0.0),
-    #     (7.0, -1.0, 0.0),
-    #     (6.0, 1.0, 0.0)
-    # )
-    #
-    # # Tree (small obstacle)
-    # context.addTriangle(
-    #     (3.0, 3.0, 0.0),
-    #     (4.0, 3.0, 0.0),
-    #     (3.5, 4.0, 0.0)
-    # )
-    # bat_uuids = context.loadOBJ("models/MAISON_EP_1.obj")
+    # Add many obstacles to the scene to test robustness
+    print("Adding multiple obstacles to test robustness...")
+    
+    # Create a grid of obstacles
+    obstacle_uuids = []
+    for i in range(-5, 6):  # 11x11 grid
+        for j in range(-5, 6):
+            if (i + j) % 3 == 0:  # Every third position
+                # Create a small triangle obstacle
+                uuid = context.addTriangle(
+                    vec3(i - 0.2, j - 0.2, 0.0),
+                    vec3(i + 0.2, j - 0.2, 0.0),
+                    vec3(i, j + 0.2, 0.0)
+                )
+                obstacle_uuids.append(uuid)
+    
+    # Add some larger obstacles
+    uuid1 = context.addTriangle(
+        vec3(-2.0, -2.0, 0.0), vec3(2.0, -2.0, 0.0), vec3(0.0, 2.0, 0.0)
+    )
+    obstacle_uuids.append(uuid1)
+
+    uuid2 = context.addTriangle(
+        vec3(5.0, -1.0, 0.0), vec3(7.0, -1.0, 0.0), vec3(6.0, 1.0, 0.0)
+    )
+    obstacle_uuids.append(uuid2)
+
+    uuid3 = context.addTriangle(
+        vec3(3.0, 3.0, 0.0), vec3(4.0, 3.0, 0.0), vec3(3.5, 4.0, 0.0)
+    )
+    obstacle_uuids.append(uuid3)
 
     print(f"Scene created with {len(context.getAllUUIDs())} primitives")
 
@@ -85,14 +95,70 @@ def main():
         svf_model.set_max_ray_length(10.0)
         svf_model.set_message_flag(True)
         svf_model.set_ray_count(10)
-        svfs = svf_model.calculate_sky_view_factors(test_points)
-        # svfs = svf_model.calculate_sky_view_factors_for_primitives()
+        # svfs = svf_model.calculate_sky_view_factors(test_points)
+        svfs = svf_model.calculate_sky_view_factors_for_primitives()
         print("✓ Sky view factors calculated successfully")
     except Exception as e:
         print(f"✗ Failed to calculate sky view factors: {e}")
         return
 
     success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
+
+    # Test the new UUID-based calculation function
+    print("\nTesting UUID-based sky view factor calculation...")
+    try:
+        # Get some UUIDs from the loaded model
+        all_uuids = context.getAllUUIDs()
+        if all_uuids:
+            # Test with all UUIDs to demonstrate robustness
+            print(f"Calculating SVF for {len(all_uuids)} primitives by UUID...")
+            print("Using batch processing to handle large datasets robustly...")
+
+            svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(all_uuids, batch_size=25)
+            print("✓ UUID-based calculation successful")
+            print(f"Processed {len(svf_uuids)} primitives successfully")
+
+            # Display results
+            print("\nUUID-based Results:")
+            print("==================")
+            # Show results for first 10 and last 10 to demonstrate it works for all
+            display_uuids = all_uuids[:10] + all_uuids[-10:] if len(all_uuids) > 20 else all_uuids
+            display_svfs = svf_uuids[:10] + svf_uuids[-10:] if len(svf_uuids) > 20 else svf_uuids
+            
+            if len(all_uuids) > 20:
+                print(f"(Showing first 10 and last 10 of {len(all_uuids)} results)")
+            
+            for i, (uuid, svf) in enumerate(zip(display_uuids, display_svfs)):
+                # Get position for display by calculating center from vertices
+                try:
+                    vertices = context.getPrimitiveVertices(uuid)
+                    if vertices:
+                        center_x = sum(v.x for v in vertices) / len(vertices)
+                        center_y = sum(v.y for v in vertices) / len(vertices)
+                        center_z = sum(v.z for v in vertices) / len(vertices)
+                        pos_str = f"({center_x:.2f}, {center_y:.2f}, {center_z:.2f})"
+                    else:
+                        pos_str = "Unknown"
+                except:
+                    pos_str = "Unknown"
+
+                print(f"UUID {i}: {uuid} at {pos_str}: SVF = {svf:.3f}", end="")
+
+                # Interpret the result
+                if svf > 0.9:
+                    print(" (Very open sky)")
+                elif svf > 0.7:
+                    print(" (Mostly open sky)")
+                elif svf > 0.5:
+                    print(" (Partially obstructed)")
+                elif svf > 0.3:
+                    print(" (Heavily obstructed)")
+                else:
+                    print(" (Very obstructed)")
+        else:
+            print("No primitives found in scene for UUID-based calculation")
+    except Exception as e:
+        print(f"✗ UUID-based calculation failed: {e}")
 
     # # Display results
     # print("\nResults:")
