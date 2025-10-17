@@ -54,12 +54,6 @@ if("radiation" IN_LIST PLUGINS)
     endif()
 endif()
 
-if("skyviewfactor" IN_LIST PLUGINS)
-    find_package(CUDAToolkit QUIET)
-    if(CUDAToolkit_FOUND)
-        message(STATUS "Found CUDA toolkit for skyviewfactor plugin: ${CUDAToolkit_VERSION}")
-    endif()
-endif()
 
 #-------- PYHELIOS INTERFACE ---------#
 # Create PyHelios interface library after Helios setup
@@ -237,20 +231,6 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
     endif()
 endif()
 
-if(NOT DEFINED ENV{CIBUILDWHEEL})
-    # Add platform-specific OptiX include directories for skyviewfactor plugin
-    if("skyviewfactor" IN_LIST PLUGINS)
-        if(WIN32)
-            target_include_directories(pyhelios_interface PRIVATE
-                ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/OptiX/windows64-6.5.0/include
-            )
-        else()
-            target_include_directories(pyhelios_interface PRIVATE
-                ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/OptiX/linux64-6.5.0/include
-            )
-        endif()
-    endif()
-endif()
 
 if(NOT DEFINED ENV{CIBUILDWHEEL})
     # Add CUDA include directories if CUDA toolkit was found and radiation plugin is selected
@@ -259,12 +239,6 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
     endif()
 endif()
 
-if(NOT DEFINED ENV{CIBUILDWHEEL})
-    # Add CUDA include directories if CUDA toolkit was found and skyviewfactor plugin is selected
-    if("skyviewfactor" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
-        target_include_directories(pyhelios_interface PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
-    endif()
-endif()
 
 if(NOT DEFINED ENV{CIBUILDWHEEL})
     # Link interface to helios library using keyword signature for compatibility
@@ -289,7 +263,12 @@ set_target_properties(pyhelios_shared PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
+    CXX_VISIBILITY_PRESET default
+    VISIBILITY_INLINES_HIDDEN ON
 )
+
+# Add export flags for proper symbol visibility
+target_compile_definitions(pyhelios_shared PRIVATE HELIOS_BUILD)
 
 # Add macOS-specific compile options for C++ standard headers
 if(APPLE)
@@ -473,25 +452,3 @@ if("radiation" IN_LIST PLUGINS AND WIN32)
         COMMENT "Moving OptiX DLL to lib directory for wheel packaging"
     )
 endif()
-
-# Copy OptiX DLL to lib directory for Windows wheel packaging (skyviewfactor)
-if("skyviewfactor" IN_LIST PLUGINS AND WIN32)
-    # Determine OptiX version and DLL name
-    if(OPTIX_VERSION_LEGACY)
-        set(OPTIX_PATH ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/OptiX/windows64-5.1.1/)
-        set(OPTIX_DLL "optix.51.dll")
-    else()
-        set(OPTIX_PATH ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/OptiX/windows64-6.5.0/)
-        set(OPTIX_DLL "optix.6.5.0.dll")
-    endif()
-
-    # Copy OptiX DLL to lib directory for wheel packaging
-    # The skyviewfactor plugin already copies it to CMAKE_BINARY_DIR, we just move it to lib/
-    add_custom_command(TARGET pyhelios_shared POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_BINARY_DIR}/${OPTIX_DLL}"
-        "${CMAKE_BINARY_DIR}/lib/${OPTIX_DLL}"
-        COMMENT "Moving OptiX DLL to lib directory for wheel packaging (skyviewfactor)"
-    )
-endif()
-
