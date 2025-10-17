@@ -520,7 +520,7 @@ class SkyViewFactorModel:
                     )
 
             logger.info(f"Successfully calculated SVF for {len(ordered_results)} UUIDs")
-            return uuid_to_svf, ordered_results
+            return ordered_results
 
         except Exception as e:
             raise SkyViewFactorModelError(
@@ -572,6 +572,14 @@ class SkyViewFactorModel:
     def is_optix_available(self) -> bool:
         """Check if OptiX is available."""
         return skyviewfactor_wrapper.isOptiXAvailable(self._model_ptr)
+    
+    def set_force_cpu(self, force: bool):
+        """Set force CPU flag to use OpenMP even when GPU is available."""
+        skyviewfactor_wrapper.setForceCPU(self._model_ptr, force)
+    
+    def get_force_cpu(self) -> bool:
+        """Get force CPU flag status."""
+        return skyviewfactor_wrapper.getForceCPU(self._model_ptr)
 
     def reset(self):
         """Reset all calculated data."""

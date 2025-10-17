@@ -293,6 +293,15 @@ try:
     # CUDA/OptiX availability
     helios_lib.isSkyViewFactorCudaAvailable.errcheck = _check_error
     helios_lib.isSkyViewFactorOptiXAvailable.errcheck = _check_error
+    
+    # Force CPU control
+    helios_lib.setForceCPU.argtypes = [ctypes.POINTER(USkyViewFactorModel), ctypes.c_bool]
+    helios_lib.setForceCPU.restype = None
+    helios_lib.setForceCPU.errcheck = _check_error
+    
+    helios_lib.getForceCPU.argtypes = [ctypes.POINTER(USkyViewFactorModel)]
+    helios_lib.getForceCPU.restype = ctypes.c_bool
+    helios_lib.getForceCPU.errcheck = _check_error
 
     # Reset functionality
     helios_lib.resetSkyViewFactorModel.errcheck = _check_error
@@ -545,6 +554,24 @@ def isOptiXAvailable(skyviewfactor_model):
     if not _SKYVIEWFACTOR_MODEL_FUNCTIONS_AVAILABLE:
         return False
     return helios_lib.isSkyViewFactorOptiXAvailable(skyviewfactor_model)
+
+
+def setForceCPU(skyviewfactor_model, force):
+    """Set force CPU flag to use OpenMP even when GPU is available"""
+    if not _SKYVIEWFACTOR_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError(
+            "SkyViewFactorModel functions are not available. Native library missing or skyviewfactor plugin not enabled."
+        )
+    helios_lib.setForceCPU(skyviewfactor_model, force)
+
+
+def getForceCPU(skyviewfactor_model):
+    """Get force CPU flag status"""
+    if not _SKYVIEWFACTOR_MODEL_FUNCTIONS_AVAILABLE:
+        raise RuntimeError(
+            "SkyViewFactorModel functions are not available. Native library missing or skyviewfactor plugin not enabled."
+        )
+    return helios_lib.getForceCPU(skyviewfactor_model)
 
 
 def reset(skyviewfactor_model):

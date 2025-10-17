@@ -416,6 +416,39 @@ extern "C" {
         }
     }
     
+    // Force CPU control
+    PYHELIOS_API void setForceCPU(SkyViewFactorModel* skyviewfactor_model, bool force) {
+        try {
+            clearError();
+            if (!skyviewfactor_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SkyViewFactorModel pointer is null");
+                return;
+            }
+            skyviewfactor_model->setForceCPU(force);
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (SkyViewFactorModel::setForceCPU): ") + e.what());
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (SkyViewFactorModel::setForceCPU): Unknown error setting force CPU flag.");
+        }
+    }
+    
+    PYHELIOS_API bool getForceCPU(SkyViewFactorModel* skyviewfactor_model) {
+        try {
+            clearError();
+            if (!skyviewfactor_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SkyViewFactorModel pointer is null");
+                return false;
+            }
+            return skyviewfactor_model->getForceCPU();
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (SkyViewFactorModel::getForceCPU): ") + e.what());
+            return false;
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (SkyViewFactorModel::getForceCPU): Unknown error getting force CPU flag.");
+            return false;
+        }
+    }
+    
 
     
     // Reset functionality
@@ -789,6 +822,16 @@ extern "C" {
     }
     
     PYHELIOS_API bool isSkyViewFactorOptiXAvailable(SkyViewFactorModel* skyviewfactor_model) {
+        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
+        return false;
+    }
+    
+    // Force CPU control stubs
+    PYHELIOS_API void setForceCPU(SkyViewFactorModel* skyviewfactor_model, bool force) {
+        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
+    }
+    
+    PYHELIOS_API bool getForceCPU(SkyViewFactorModel* skyviewfactor_model) {
         setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
         return false;
     }

@@ -70,6 +70,10 @@ PYHELIOS_API const char* getSkyViewFactorStatistics(SkyViewFactorModel* skyviewf
 PYHELIOS_API bool isSkyViewFactorCudaAvailable(SkyViewFactorModel* skyviewfactor_model);
 PYHELIOS_API bool isSkyViewFactorOptiXAvailable(SkyViewFactorModel* skyviewfactor_model);
 
+// Force CPU control
+PYHELIOS_API void setForceCPU(SkyViewFactorModel* skyviewfactor_model, bool force);
+PYHELIOS_API bool getForceCPU(SkyViewFactorModel* skyviewfactor_model);
+
 // Reset functionality
 PYHELIOS_API void resetSkyViewFactorModel(SkyViewFactorModel* skyviewfactor_model);
 
