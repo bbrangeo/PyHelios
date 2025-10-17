@@ -50,10 +50,10 @@ PYHELIOS_API float calculateSkyViewFactor(SkyViewFactorModel* skyviewfactor_mode
 PYHELIOS_API float calculateSkyViewFactorCPU(SkyViewFactorModel* skyviewfactor_model, float x, float y, float z);
 
 // Multiple points calculation
-PYHELIOS_API void calculateSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, float* points, size_t num_points, float* results);
+PYHELIOS_API void calculateSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, float* points, size_t num_points, float* results, int num_threads);
 
 // Primitive centers calculation
-PYHELIOS_API size_t calculateSkyViewFactorsForPrimitives(SkyViewFactorModel* skyviewfactor_model, float* results);
+PYHELIOS_API size_t calculateSkyViewFactorsForPrimitives(SkyViewFactorModel* skyviewfactor_model, float* results, uint* primitive_ids, size_t num_primitives, int num_threads);
 
 // Export/Import functionality
 PYHELIOS_API bool exportSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, const char* filename);
@@ -61,6 +61,7 @@ PYHELIOS_API bool loadSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, co
 
 // Get results
 PYHELIOS_API float* getSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, size_t* size);
+PYHELIOS_API float* getSamplePoints(SkyViewFactorModel* skyviewfactor_model, size_t* size);
 
 // Statistics
 PYHELIOS_API const char* getSkyViewFactorStatistics(SkyViewFactorModel* skyviewfactor_model);

@@ -400,17 +400,27 @@ class SkyViewFactorModel:
         except Exception as e:
             raise SkyViewFactorModelError(f"Failed to calculate sky view factors: {e}")
 
-    def calculate_sky_view_factors_for_primitives(self) -> List[float]:
+    def calculate_sky_view_factors_for_primitives(
+        self, uuids: List[str | int] = None, num_threads: int = 0
+    ) -> List[float]:
         """
-        Calculate sky view factors for all primitive centers.
+        Calculate sky view factors for primitive centers.
+
+        Args:
+            uuids: List of primitive UUIDs to calculate SVF for (if None, uses all primitives)
+            num_threads: Number of OpenMP threads to use (0 = auto, default: 0)
 
         Returns:
             List of sky view factor values for each primitive
         """
         try:
+            if uuids is None:
+                # Get all primitive UUIDs if none specified
+                uuids = self.context.getAllUUIDs()
+
             with _skyviewfactor_working_directory():
                 results = skyviewfactor_wrapper.calculateSkyViewFactorsForPrimitives(
-                    self._model_ptr
+                    self._model_ptr, uuids, num_threads
                 )
                 self._sky_view_factors = results
                 return results
@@ -420,7 +430,7 @@ class SkyViewFactorModel:
             )
 
     def calculate_sky_view_factor_from_uuids(
-        self, uuids: List[str | int], batch_size: int = 50
+        self, uuids: List[str | int], batch_size: int = 50, num_threads: int = 0
     ) -> List[float]:
         """
         Calculate sky view factors for specific primitive UUIDs.
@@ -428,6 +438,7 @@ class SkyViewFactorModel:
         Args:
             uuids: List of primitive UUIDs to calculate SVF for
             batch_size: Number of points to process in each batch (default: 50)
+            num_threads: Number of OpenMP threads to use (0 = auto, default: 0)
 
         Returns:
             List of sky view factor values for each UUID (in same order)
@@ -467,23 +478,25 @@ class SkyViewFactorModel:
                 raise SkyViewFactorModelError(
                     "No valid positions found for the provided UUIDs"
                 )
-            
+
             # Process points in batches to avoid memory issues
             all_results = []
             total_points = len(points)
-            
+
             logger.info(f"Processing {total_points} points in batches of {batch_size}")
-            
+
             for batch_start in range(0, total_points, batch_size):
                 batch_end = min(batch_start + batch_size, total_points)
                 batch_points = points[batch_start:batch_end]
-                
-                logger.debug(f"Processing batch {batch_start//batch_size + 1}: points {batch_start}-{batch_end-1}")
-                
+
+                logger.debug(
+                    f"Processing batch {batch_start//batch_size + 1}: points {batch_start}-{batch_end-1}"
+                )
+
                 # Calculate sky view factors for this batch
                 with _skyviewfactor_working_directory():
                     batch_results = skyviewfactor_wrapper.calculateSkyViewFactors(
-                        self._model_ptr, batch_points
+                        self._model_ptr, batch_points, num_threads
                     )
                     all_results.extend(batch_results)
 
@@ -507,7 +520,7 @@ class SkyViewFactorModel:
                     )
 
             logger.info(f"Successfully calculated SVF for {len(ordered_results)} UUIDs")
-            return ordered_results
+            return uuid_to_svf, ordered_results
 
         except Exception as e:
             raise SkyViewFactorModelError(
@@ -539,6 +552,10 @@ class SkyViewFactorModel:
         """
         validate_file_path(filename, must_exist=True)
         return skyviewfactor_wrapper.loadSkyViewFactors(self._model_ptr, filename)
+
+    def get_sample_points(self) -> List[float]:
+        """Get the last calculated sample points."""
+        return self._sample_points.copy()
 
     def get_sky_view_factors(self) -> List[float]:
         """Get the last calculated sky view factors."""

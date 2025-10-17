@@ -184,7 +184,7 @@ extern "C" {
     }
     
     // Multiple points calculation
-    PYHELIOS_API void calculateSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, float* points, size_t num_points, float* results) {
+    PYHELIOS_API void calculateSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, float* points, size_t num_points, float* results, int num_threads) {
         try {
             clearError();
             if (!skyviewfactor_model) {
@@ -201,7 +201,7 @@ extern "C" {
                 point_vec.push_back(helios::vec3(points[3*i], points[3*i+1], points[3*i+2]));
             }
             
-            std::vector<float> svf_results = skyviewfactor_model->calculateSkyViewFactors(point_vec);
+            std::vector<float> svf_results = skyviewfactor_model->calculateSkyViewFactors(point_vec, num_threads);
             
             for (size_t i = 0; i < svf_results.size() && i < num_points; ++i) {
                 results[i] = svf_results[i];
@@ -214,15 +214,21 @@ extern "C" {
     }
     
     // Primitive centers calculation
-    PYHELIOS_API size_t calculateSkyViewFactorsForPrimitives(SkyViewFactorModel* skyviewfactor_model, float* results) {
+    PYHELIOS_API size_t calculateSkyViewFactorsForPrimitives(SkyViewFactorModel* skyviewfactor_model, float* results, uint* primitive_ids, size_t num_primitives, int num_threads) {
         try {
             clearError();
             if (!skyviewfactor_model) {
                 setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SkyViewFactorModel pointer is null");
                 return 0;
             }
+            if (!primitive_ids) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Primitive IDs is null");
+                return 0;
+            }
             
-            std::vector<float> svf_results = skyviewfactor_model->calculateSkyViewFactorsForPrimitives();
+            // Convert C array to vector
+            std::vector<uint> primitive_ids_vec(primitive_ids, primitive_ids + num_primitives);
+            std::vector<float> svf_results = skyviewfactor_model->calculateSkyViewFactorsForPrimitives(primitive_ids_vec, num_threads);
             
             if (results && svf_results.size() > 0) {
                 for (size_t i = 0; i < svf_results.size(); ++i) {
@@ -314,6 +320,36 @@ extern "C" {
             return nullptr;
         } catch (...) {
             setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (SkyViewFactorModel::getSkyViewFactors): Unknown error getting sky view factors.");
+            return nullptr;
+        }
+    }
+    
+    PYHELIOS_API float* getSamplePoints(SkyViewFactorModel* skyviewfactor_model, size_t* size) {
+        try {
+            clearError();
+            if (!skyviewfactor_model) {
+                setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SkyViewFactorModel pointer is null");
+                return nullptr;
+            }
+            std::vector<helios::vec3> sample_points = skyviewfactor_model->getSamplePoints();
+            if (size) {
+                *size = sample_points.size() * 3; // 3 floats per point (x, y, z)
+            }
+            if (sample_points.empty()) {
+                return nullptr;
+            }
+            float* results = new float[sample_points.size() * 3];
+            for (size_t i = 0; i < sample_points.size(); ++i) {
+                results[i * 3] = sample_points[i].x;
+                results[i * 3 + 1] = sample_points[i].y;
+                results[i * 3 + 2] = sample_points[i].z;
+            }
+            return results;
+        } catch (const std::exception& e) {
+            setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (SkyViewFactorModel::getSamplePoints): ") + e.what());
+            return nullptr;
+        } catch (...) {
+            setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (SkyViewFactorModel::getSamplePoints): Unknown error getting sample points.");
             return nullptr;
         }
     }
@@ -716,7 +752,7 @@ extern "C" {
         setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
     }
     
-    PYHELIOS_API size_t calculateSkyViewFactorsForPrimitives(SkyViewFactorModel* skyviewfactor_model, float* results) {
+    PYHELIOS_API size_t calculateSkyViewFactorsForPrimitives(SkyViewFactorModel* skyviewfactor_model, float* results, uint* primitive_ids, size_t num_primitives, int num_threads) {
         setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
         return 0;
     }
@@ -732,6 +768,11 @@ extern "C" {
     }
     
     PYHELIOS_API float* getSkyViewFactors(SkyViewFactorModel* skyviewfactor_model, size_t* size) {
+        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
+        return nullptr;
+    }
+    
+    PYHELIOS_API float* getSamplePoints(SkyViewFactorModel* skyviewfactor_model, size_t* size) {
         setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
         return nullptr;
     }

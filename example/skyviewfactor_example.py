@@ -27,7 +27,7 @@ def main():
 
     # Add many obstacles to the scene to test robustness
     print("Adding multiple obstacles to test robustness...")
-    
+
     # Create a grid of obstacles
     obstacle_uuids = []
     for i in range(-5, 6):  # 11x11 grid
@@ -37,10 +37,10 @@ def main():
                 uuid = context.addTriangle(
                     vec3(i - 0.2, j - 0.2, 0.0),
                     vec3(i + 0.2, j - 0.2, 0.0),
-                    vec3(i, j + 0.2, 0.0)
+                    vec3(i, j + 0.2, 0.0),
                 )
                 obstacle_uuids.append(uuid)
-    
+
     # Add some larger obstacles
     uuid1 = context.addTriangle(
         vec3(-2.0, -2.0, 0.0), vec3(2.0, -2.0, 0.0), vec3(0.0, 2.0, 0.0)
@@ -96,7 +96,9 @@ def main():
         svf_model.set_message_flag(True)
         svf_model.set_ray_count(10)
         # svfs = svf_model.calculate_sky_view_factors(test_points)
-        svfs = svf_model.calculate_sky_view_factors_for_primitives()
+        svfs = svf_model.calculate_sky_view_factors_for_primitives(
+            uuids=obstacle_uuids, num_threads=8
+        )
         print("✓ Sky view factors calculated successfully")
     except Exception as e:
         print(f"✗ Failed to calculate sky view factors: {e}")
@@ -104,6 +106,7 @@ def main():
 
     success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
 
+    exit()
     # Test the new UUID-based calculation function
     print("\nTesting UUID-based sky view factor calculation...")
     try:
@@ -114,7 +117,9 @@ def main():
             print(f"Calculating SVF for {len(all_uuids)} primitives by UUID...")
             print("Using batch processing to handle large datasets robustly...")
 
-            svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(all_uuids, batch_size=25)
+            svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(
+                all_uuids, batch_size=25
+            )
             print("✓ UUID-based calculation successful")
             print(f"Processed {len(svf_uuids)} primitives successfully")
 
@@ -122,12 +127,16 @@ def main():
             print("\nUUID-based Results:")
             print("==================")
             # Show results for first 10 and last 10 to demonstrate it works for all
-            display_uuids = all_uuids[:10] + all_uuids[-10:] if len(all_uuids) > 20 else all_uuids
-            display_svfs = svf_uuids[:10] + svf_uuids[-10:] if len(svf_uuids) > 20 else svf_uuids
-            
+            display_uuids = (
+                all_uuids[:10] + all_uuids[-10:] if len(all_uuids) > 20 else all_uuids
+            )
+            display_svfs = (
+                svf_uuids[:10] + svf_uuids[-10:] if len(svf_uuids) > 20 else svf_uuids
+            )
+
             if len(all_uuids) > 20:
                 print(f"(Showing first 10 and last 10 of {len(all_uuids)} results)")
-            
+
             for i, (uuid, svf) in enumerate(zip(display_uuids, display_svfs)):
                 # Get position for display by calculating center from vertices
                 try:

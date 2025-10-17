@@ -36,6 +36,7 @@ from pyhelios import (
 from pyhelios.types import *
 
 import pyhelios.dev_utils
+import matplotlib.pyplot as plt
 
 pyhelios.dev_utils.enable_dev_mode()
 
@@ -428,8 +429,8 @@ turbidity = 0.05
 # center = vec3(0, 50, 0)
 center = vec3(0, 0, 0)
 # size_total = vec2(450, 150)     # taille globale du sol (m)
-size_total = vec2(100, 100)  # taille globale du sol (m)
-nx, ny = 100, 100  # nombre de subdivisions
+size_total = vec2(50, 50)  # taille globale du sol (m)
+nx, ny = 40, 40  # nombre de subdivisions
 
 dx = size_total.x / nx
 dy = size_total.y / ny
@@ -627,17 +628,88 @@ with Context() as context:
     print(len(ground_uuids))
     try:
         # Configure the model
-        svf_model.set_ray_count(2000)  # Use 2000 rays for good accuracy
-        svf_model.set_max_ray_length(1000.0)  # Maximum ray length of 100 units
+        svf_model.set_ray_count(100)  # Use 2000 rays for good accuracy
+        svf_model.set_max_ray_length(100.0)  # Maximum ray length of 100 units
         svf_model.set_message_flag(True)  # Enable console output
 
         # ground_uuids = ground_uuids[: min(10, len(ground_uuids))]
-        svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(
-            uuids=ground_uuids, batch_size=200
+        # svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(
+        #     uuids=ground_uuids, batch_size=200
+        # )
+        svfs = svf_model.calculate_sky_view_factors_for_primitives(
+            uuids=ground_uuids, num_threads=8
         )
+        #
+        # uuid_to_svf, _ = svf_model.calculate_sky_view_factor_from_uuids(
+        #     uuids=ground_uuids, batch_size=100
+        # )
+        # print("uuid_to_svf", uuid_to_svf)
+
         print("✓ Sky view factors calculated successfully")
         success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
 
+        svf_model.load_sky_view_factors("skyviewfactor_results.txt")
+        sample_points = svf_model.get_sample_points()
+        print(sample_points)
+
+        # svf_result = svf_model.get_sky_view_factors()
+
+        df = pd.read_csv(
+            "skyviewfactor_results.txt",
+            delimiter=" ",
+            skiprows=1,
+            comment="#",
+            names=["Point_ID", "X", "Y", "Z", "SkyViewFactor"],
+            encoding="utf-8",
+        )
+
+        print(df.head(10))
+        # Créer une grille vide de SkyViewFactor (initialisée à NaN)
+        grid = np.full((nx, ny), np.nan)
+
+        # # Assigner les valeurs de SkyViewFactor dans la grille
+        for _, row in df.iterrows():
+            # Convertir les coordonnées X, Y en indices de grille
+            x_idx = int((row["X"] + size_total.x / 2) // dx)
+            y_idx = int((row["Y"] + size_total.y / 2) // dy)
+            grid[x_idx, y_idx] = row["SkyViewFactor"]
+
+        # Ploter la heatmap
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            grid,
+            cmap="viridis",
+            interpolation="nearest",
+            extent=[0, size_total.x, 0, size_total.y],
+        )
+        #
+        # plt.imshow(
+        #     df.values,
+        #     cmap="gray_r",
+        #     origin="lower",
+        #     extent=[0, nx, 0, ny],
+        #     vmin=0,
+        #     vmax=1,
+        # )
+        plt.colorbar(label="Sky View Factor")
+        plt.title("Heatmap des Sky View Factors")
+        plt.xlabel("X (m)")
+        plt.ylabel("Y (m)")
+        plt.show()
+
+        # ombre_matrix = np.zeros((ny, nx))
+        # temperature_matrix = np.zeros((ny, nx))
+        #
+        # for j in range(ny):
+        #     for i in range(nx):
+        #         ombre_matrix[j, i] = np.nan  # aucune donnée
+        #
+        # # Convertir en DataFrame avec index spatiaux
+        # df_ombre = pd.DataFrame(
+        #     ombre_matrix,
+        #     index=[f"y{j}" for j in range(ny)],
+        #     columns=[f"x{i}" for i in range(nx)],
+        # )
     except Exception as e:
         print(f"✗ Failed to calculate sky view factors: {e}")
 
