@@ -45,7 +45,7 @@ def main():
     #     (4.0, 3.0, 0.0),
     #     (3.5, 4.0, 0.0)
     # )
-    bat_uuids = context.loadOBJ("models/MAISON_EP_1.obj")
+    # bat_uuids = context.loadOBJ("models/MAISON_EP_1.obj")
 
     print(f"Scene created with {len(context.getAllUUIDs())} primitives")
 
