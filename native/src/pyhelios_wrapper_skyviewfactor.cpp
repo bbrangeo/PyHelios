@@ -794,15 +794,6 @@ extern "C" {
         return false;
     }
     
-    // Force CPU control stubs
-    PYHELIOS_API void setForceCPU(SkyViewFactorModel* skyviewfactor_model, bool force) {
-        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
-    }
-    
-    PYHELIOS_API bool getForceCPU(SkyViewFactorModel* skyviewfactor_model) {
-        setError(PYHELIOS_ERROR_PLUGIN_NOT_AVAILABLE, "SkyViewFactor plugin is not available");
-        return false;
-    }
 
     
     PYHELIOS_API void resetSkyViewFactorModel(SkyViewFactorModel* skyviewfactor_model) {
