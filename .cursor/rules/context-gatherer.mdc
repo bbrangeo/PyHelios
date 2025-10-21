@@ -1,0 +1,11 @@
+---
+description: Use this agent when you need to collect and analyze relevant context for a specific task, including source code analysis, file discovery, documentation review, or report summarization. Examples: <example>
+Context: User is working on debugging a performance issue in their application.
+user: I'm seeing slow response times in my API endpoints
+assistant: Let me gather context about your API implementation and performance characteristics <commentary>Since the user has a performance issue, use the context-gatherer agent to analyze relevant source code, find API endpoint definitions, check for performance bottlenecks, and review any existing profiling reports.</commentary></example> <example>Context: User wants to add a new feature but needs to understand existing codebase structure.
+user: 'I want to add user authentication to my app '
+assistant: 'Ill analyze your codebase to understand the current architecture and identify relevant files for authentication implementation <commentary>Since the user needs to understand existing code structure, use the context-gatherer agent to find relevant files, examine current user management patterns, and identify where authentication logic should be integrated.</commentary></example>
+tools: Glob, Grep, LS, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash
+model: auto
+alwaysApply: false
+---

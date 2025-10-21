@@ -430,7 +430,7 @@ turbidity = 0.05
 center = vec3(0, 0, 0)
 # size_total = vec2(450, 150)     # taille globale du sol (m)
 size_total = vec2(50, 50)  # taille globale du sol (m)
-nx, ny = 100, 100  # nombre de subdivisions
+nx, ny = 40, 40  # nombre de subdivisions
 
 dx = size_total.x / nx
 dy = size_total.y / ny
@@ -514,6 +514,7 @@ def create_ground_patch(
 with Context() as context:
 
     tree_id, tree_uuids, leaf_uuids = create_sample_tree(context=context)
+
     ground_uuids, ground_patches = create_ground_patch(
         context, center, size_total, dx, dy
     )
@@ -639,9 +640,7 @@ with Context() as context:
         # Forcer l'utilisation du CPU même avec GPU disponible
         svf_model.set_force_cpu(True)
 
-        svfs = svf_model.calculate_sky_view_factors_for_primitives(
-            uuids=ground_uuids, num_threads=8
-        )
+        svfs = svf_model.calculate_sky_view_factors_for_primitives(uuids=ground_uuids)
         #
         # uuid_to_svf, _ = svf_model.calculate_sky_view_factor_from_uuids(
         #     uuids=ground_uuids, batch_size=100
@@ -698,7 +697,7 @@ with Context() as context:
     plt.title("Heatmap des Sky View Factors")
     plt.xlabel("X (m)")
     plt.ylabel("Y (m)")
-    plt.savefig("Heatmap des Sky View Factors.png")
+    plt.savefig("SVF.png")
     plt.show()
 
     if platform.system() == "Darwin":
@@ -760,361 +759,381 @@ with Context() as context:
             visualizer.plotInteractive()
 
     # print(context.getAllPrimitiveInfo())
+#
+#     # === Simulation horaire ===
+#     ombres_par_heure = {}  # dict {hour: DataFrame}
+#     all_UUIDs = context.getAllUUIDs()
+#
+#     context.setDate(2025, 6, 10)
+#
+#     # Paramètres pour la rampe
+#     min_temperature_C = 25.0  # Température min en °C
+#     max_temperature_C = 40.0  # Température max en °C
+#     min_humidity = 0.4  # Humidité min
+#     max_humidity = 0.6  # Humidité max
+#     min_wind_speed = 0.9  # Vitesse du vent min en m/s
+#     max_wind_speed = 1.0  # Vitesse du vent max en m/s
+#
+#     with PlantArchitecture(context) as plantarch:
+#         growth_steps = [5, 10, 15, 20]  # Days to advance
+#         print(f"\n\ncreate_canopy\n\n")
+#         create_canopy(plantarch)
+#         for i, time_step in enumerate(growth_steps):
+#             plantarch.advanceTime(time_step * 365)
+#
+#             hour = 10
+#             # for hour in range(12, 13):
+#             print(f"\n\nHOUR : {hour}\n\n")
+#             context.setTime(hour=hour)
+#             air_temperature_C = get_ramped_value(
+#                 min_temperature_C, max_temperature_C, hour, 6, 19
+#             )
+#             air_temperature_K = air_temperature_C + 273.15  # Conversion en Kelvin
+#
+#             # Humidité (de 1.0 à 0.0 entre 6h et 19h)
+#             air_humidity = get_ramped_value(max_humidity, min_humidity, hour, 6, 19)
+#
+#             # Vitesse du vent (de 0.3 m/s à 2.0 m/s entre 6h et 19h)
+#             wind_speed = get_ramped_value(min_wind_speed, max_wind_speed, hour, 6, 19)
+#
+#             # Affichage des valeurs
+#             print(f"Température (°C) : {air_temperature_C:.2f} °C")
+#             print(f"Température (K) : {air_temperature_K:.2f} K")
+#             print(f"Humidité relative : {air_humidity:.2f}")
+#             print(f"Vitesse du vent : {wind_speed:.2f} m/s\n")
+#
+#             for uuid in all_UUIDs:
+#                 context.setPrimitiveDataFloat(
+#                     uuid, "air_temperature", air_temperature_K
+#                 )
+#                 context.setPrimitiveDataFloat(uuid, "air_humidity", air_humidity)
+#                 context.setPrimitiveDataFloat(uuid, "wind_speed", wind_speed)
+#
+#             with SolarPosition(context, UTC, latitude, longitude) as solar_position:
+#                 sun_dir = solar_position.getSunDirectionVector()
+#                 # solar_position.enableCloudCalibration("cloud_cover")
+#
+#                 try:
+#                     with RadiationModel(context) as rad:
+#                         sun_source = rad.addCollimatedRadiationSource(sun_dir)
+#
+#                         # Configure longwave radiation band
+#                         rad.addRadiationBand("LW")
+#                         rad.setDiffuseRayCount("LW", 1000)
+#
+#                         rad.addRadiationBand("NIR")
+#                         rad.disableEmission("NIR")
+#                         rad.setScatteringDepth("NIR", 3)
+#
+#                         # Configure shortwave radiation band
+#                         rad.addRadiationBand("SW")
+#                         rad.disableEmission("SW")
+#                         rad.setScatteringDepth("SW", 3)
+#                         rad.setDirectRayCount(
+#                             "SW", 100
+#                         )  # plus de rayons = plus de précision
+#                         rad.setDiffuseRayCount("SW", 1000)
+#
+#                         rad.addRadiationBand("PAR")
+#                         rad.disableEmission("PAR")
+#                         rad.setScatteringDepth("PAR", 3)
+#
+#                         LW = getAmbientLongwaveFlux(
+#                             temperature_K=air_temperature_K, humidity_rel=air_humidity
+#                         )
+#                         print(
+#                             f"LW : flux radiatif atmosphérique de grande longueur d’onde (W/m²): {LW:.1f} W/m²"
+#                         )
+#
+#                         PAR = solar_position.getSolarFluxPAR(
+#                             pressure_Pa=pressure,
+#                             temperature_K=air_temperature_K,
+#                             humidity_rel=air_humidity,
+#                             turbidity=turbidity,
+#                         )
+#                         print(
+#                             f"PAR (Photosynthetically Active Radiation) solar flux: {PAR:.1f} W/m²"
+#                         )
+#
+#                         NIR = solar_position.getSolarFluxNIR(
+#                             pressure_Pa=pressure,
+#                             temperature_K=air_temperature_K,
+#                             humidity_rel=air_humidity,
+#                             turbidity=turbidity,
+#                         )
+#                         print(f"NIR (Near-Infrared) solar flux: {NIR:.1f} W/m²")
+#
+#                         diffuse_fraction = solar_position.getDiffuseFraction(
+#                             pressure_Pa=pressure,
+#                             temperature_K=air_temperature_K,
+#                             humidity_rel=air_humidity,
+#                             turbidity=turbidity,
+#                         )
+#                         print(
+#                             f"Diffuse fraction of solar radiation : {diffuse_fraction:.3f} ({diffuse_fraction*100:.1f}%)"
+#                         )
+#
+#                         rad.setSourceFlux(sun_source, "SW", 800)
+#                         rad.setDiffuseRadiationFlux("SW", 200)
+#
+#                         rad.setSourceFlux(
+#                             sun_source, "NIR", NIR * (1.0 - diffuse_fraction)
+#                         )
+#                         rad.setDiffuseRadiationFlux("NIR", NIR * diffuse_fraction)
+#
+#                         rad.setSourceFlux(
+#                             sun_source, "PAR", PAR * (1.0 - diffuse_fraction)
+#                         )
+#                         rad.setDiffuseRadiationFlux("PAR", PAR * diffuse_fraction)
+#
+#                         rad.setDiffuseRadiationFlux("LW", LW)
+#
+#                         rad.updateGeometry()
+#
+#                         with BoundaryLayerConductanceModel(
+#                             context
+#                         ) as boundarylayerconductance:
+#                             boundarylayerconductance.setBoundaryLayerModel(
+#                                 "Ground", ground_uuids
+#                             )
+#                             boundarylayerconductance.setBoundaryLayerModel(
+#                                 "Pohlhausen", leaf_uuids
+#                             )
+#                             boundarylayerconductance.run()
+#
+#                         rad.runBand(["SW", "PAR", "NIR", "LW"])
+#
+#                         # Step 7: Setting Up the Stomatal Conductance Model
+#                         stomatalconductance = StomatalConductanceModel(context)
+#                         # Set model coefficients using species library
+#                         stomatalconductance.setBMFCoefficientsFromLibrary(
+#                             "Apple", uuids=leaf_uuids
+#                         )
+#                         # Run steady-state calculation
+#                         stomatalconductance.run(leaf_uuids)
+#                         # Or run dynamic simulation with timestep
+#                         # stomatal.run(dt=60.0)  # 60 second timestep
+#                         # # Set custom BMF coefficients for specific leaves
+#                         # bmf_coeffs = BMFCoefficients(Em=258.25, i0=38.65, k=232916.82, b=609.67)
+#                         # stomatal.setBMFCoefficients(bmf_coeffs, uuids=[leaf_uuid])
+#
+#                         energybalance = EnergyBalanceModel(context)
+#                         energybalance.addRadiationBand("LW")
+#                         energybalance.addRadiationBand("PAR")
+#                         energybalance.addRadiationBand("NIR")
+#                         energybalance.enableAirEnergyBalance()
+#
+#                         energybalance.run()
+#                         # energybalance.evaluateAirEnergyBalance(
+#                         #     dt_sec=30.0, time_advance_sec=3600.0
+#                         # )
+#
+#                         # Run the longwave band, stomatal conductance plugin, and energy balance plugin again to update primitive temperature values
+#                         rad.runBand("LW")
+#
+#                         stomatalconductance.run(leaf_uuids)
+#                         energybalance.run()
+#                         # energybalance.evaluateAirEnergyBalance(
+#                         #     dt_sec=30.0, time_advance_sec=3600.0
+#                         # )
+#
+#                         photosynthesis = PhotosynthesisModel(context)
+#
+#                         photoparams = FarquharModelCoefficients()
+#                         photosynthesis.setFarquharModelCoefficients(photoparams)
+#                         photosynthesis.setModelTypeFarquhar()
+#
+#                         photosynthesis.runForPrimitives(leaf_uuids)
+#
+#                         A_canopy = 0.0
+#                         E_canopy = 0.0
+#                         for UUID in leaf_uuids:
+#                             E = context.getPrimitiveData(UUID, "latent_flux")
+#                             A = context.getPrimitiveData(UUID, "net_photosynthesis")
+#                             E_canopy += E / 44000 * 1000
+#                             # mmol H2O / m^2 / sec
+#                             A_canopy += A  # umol CO2 / m^2 / sec
+#
+#                             WUE = A / (E / 44000 * 1000)  # umol CO2/mmol H2O
+#                             context.setPrimitiveDataFloat(UUID, "WUE", WUE)
+#
+#                         WUE_canopy = A_canopy / E_canopy  # umol CO2/mmol H2O
+#                         print(f"WUE of the canopy = {WUE_canopy} umol CO2/mmol H2O")
+#
+#                         # Apply Helios pseudocolor mapping to all primitives
+#                         # all_uuids = context.getAllUUIDs()
+#                         # context.colorPrimitiveByDataPseudocolor(
+#                         #     uuids=all_uuids,
+#                         #     primitive_data="radiation_flux_SW",
+#                         #     colormap="hot",
+#                         #     ncolors=256,
+#                         # )
+#
+#                         # flux de référence
+#                         irr_ref = context.getPrimitiveData(
+#                             ref_ground_uuid, "radiation_flux_SW"
+#                         )
+#                         if not irr_ref or irr_ref <= 0:
+#                             irr_ref = 1e-6  # éviter la division par zéro
+#
+#                         # Calcul du flux sur chaque paroi verticale
+#                         wall_fluxes = []
+#                         for wall_uuid in vertical_walls:
+#                             flux = context.getPrimitiveData(
+#                                 wall_uuid, "radiation_flux_SW"
+#                             )
+#                             if flux:
+#                                 wall_fluxes.append(flux)
+#                             else:
+#                                 wall_fluxes.append(0.0)
+#
+#                         # Matrice des flux par heure
+#                         df_flux = pd.DataFrame(
+#                             wall_fluxes,
+#                             index=[f"Wall {i}" for i in range(len(wall_fluxes))],
+#                             columns=[f"hour_{hour}"],
+#                         )
+#                         ombres_par_heure[hour] = df_flux
+#
+#                         print(
+#                             f"Heure {hour:02d}h : Flux sur murs = {np.sum(wall_fluxes):.1f} W/m²"
+#                         )
+#
+#                         # Matrice numpy pour stocker les fractions
+#                         ombre_matrix = np.zeros((ny, nx))
+#                         temperature_matrix = np.zeros((ny, nx))
+#
+#                         for j in range(ny):
+#                             for i in range(nx):
+#                                 irr_sol = context.getPrimitiveData(
+#                                     ground_patches[j][i], "radiation_flux_SW"
+#                                 )
+#                                 temperature = context.getPrimitiveData(
+#                                     ground_patches[j][i], "temperature"
+#                                 )
+#                                 # print(f"temperature : {temperature-273.15}")
+#                                 temperature_matrix[j, i] = temperature - 273.15
+#
+#                                 if irr_sol:
+#                                     ombre_matrix[j, i] = max(0, 1 - irr_sol / irr_ref)
+#                                 else:
+#                                     ombre_matrix[j, i] = np.nan  # aucune donnée
+#
+#                         # Convertir en DataFrame avec index spatiaux
+#                         df_ombre = pd.DataFrame(
+#                             ombre_matrix,
+#                             index=[f"y{j}" for j in range(ny)],
+#                             columns=[f"x{i}" for i in range(nx)],
+#                         )
+#
+#                         df_temperature = pd.DataFrame(
+#                             temperature_matrix,
+#                             index=[f"y{j}" for j in range(ny)],
+#                             columns=[f"x{i}" for i in range(nx)],
+#                         )
+#                         ombres_par_heure[hour] = df_ombre
+#                         print(
+#                             f"Heure {hour:02d}h : ombre moyenne = {np.nanmean(ombre_matrix)*100:.1f}%"
+#                         )
+#
+#                         import matplotlib.pyplot as plt
+#
+#                         # --- Export CSV + Heatmap PNG ---
+#                         csv_path_ombre = os.path.join(
+#                             output_dir, f"ombre_{hour:02d}h_{i}.csv"
+#                         )
+#                         csv_path_temperature = os.path.join(
+#                             output_dir, f"temperature_{hour:02d}h_{i}.csv"
+#                         )
+#
+#                         png_path_ombre = os.path.join(
+#                             output_dir, f"ombre_{hour:02d}h_{i}.png"
+#                         )
+#                         png_path_temperature = os.path.join(
+#                             output_dir, f"temperature_{hour:02d}h_{i}.png"
+#                         )
+#
+#                         df_ombre.to_csv(csv_path_ombre)
+#                         df_temperature.to_csv(csv_path_temperature)
+#
+#                         plt.figure(figsize=(6, 4))
+#                         plt.imshow(
+#                             df_ombre.values,
+#                             cmap="gray_r",
+#                             origin="lower",
+#                             extent=[0, nx, 0, ny],
+#                             vmin=0,
+#                             vmax=1,
+#                         )
+#                         plt.title(f"Fraction d’ombre à {hour}h")
+#                         plt.xlabel("X")
+#                         plt.ylabel("Y")
+#                         plt.colorbar(label="Fraction d’ombre")
+#                         plt.tight_layout()
+#                         plt.savefig(png_path_ombre, dpi=200)
+#                         plt.close()
+#
+#                         plt.figure(figsize=(6, 4))
+#                         plt.imshow(
+#                             df_temperature.values,
+#                             cmap="magma",
+#                             origin="lower",
+#                             extent=[0, nx, 0, ny],
+#                             vmin=20,
+#                             vmax=50,
+#                         )
+#                         plt.title(f"Temperature (°C) à {hour}h")
+#                         plt.xlabel("X")
+#                         plt.ylabel("Y")
+#                         plt.colorbar(label="Temperature")
+#                         plt.tight_layout()
+#                         plt.savefig(png_path_temperature, dpi=200)
+#                         plt.close()
+#
+#                 except Exception as e:
+#                     print(f"Radiation modeling not available: {e}")
+#                     exit()
+#
+#
+# # === ANIMATION JOURNALIÈRE ===
+# images_ombre = []
+# images_temperature = []
+# for hour in range(6, 19):
+#     png_path_ombre = os.path.join(output_dir, f"ombre_{hour:02d}h.png")
+#     png_path_temperature = os.path.join(output_dir, f"temperature_{hour:02d}h.png")
+#     if os.path.exists(png_path_ombre):
+#         images_ombre.append(imageio.v3.imread(png_path_ombre))
+#     if os.path.exists(png_path_temperature):
+#         images_temperature.append(imageio.v3.imread(png_path_temperature))
+#
+# if images_ombre:
+#     gif_path = os.path.join(output_dir, "animation_ombres.gif")
+#     imageio.mimsave(gif_path, images_ombre, fps=2)
+#     print(f"\n✅ Animation créée : {gif_path}")
+#
+# if images_temperature:
+#     gif_path = os.path.join(output_dir, "animation_temperature.gif")
+#     imageio.mimsave(gif_path, images_temperature, fps=2)
+#     print(f"\n✅ Animation créée : {gif_path}")
 
-    exit()
+if __name__ == "__main__":
 
-    # === Simulation horaire ===
-    ombres_par_heure = {}  # dict {hour: DataFrame}
-    all_UUIDs = context.getAllUUIDs()
+    latitude = -1.15
+    longitude = 46.166672
+    UTC = 1
 
-    context.setDate(2025, 6, 10)
+    pressure = 101300
+    turbidity = 0.05
 
-    # Paramètres pour la rampe
-    min_temperature_C = 25.0  # Température min en °C
-    max_temperature_C = 40.0  # Température max en °C
-    min_humidity = 0.4  # Humidité min
-    max_humidity = 0.6  # Humidité max
-    min_wind_speed = 0.9  # Vitesse du vent min en m/s
-    max_wind_speed = 1.0  # Vitesse du vent max en m/s
+    # Paramètres du sol
+    # center = vec3(0, 50, 0)
+    center = vec3(0, 0, 0)
+    # size_total = vec2(450, 150)     # taille globale du sol (m)
+    size_total = vec2(50, 50)  # taille globale du sol (m)
+    nx, ny = 10, 10  # nombre de subdivisions
 
-    with PlantArchitecture(context) as plantarch:
-        growth_steps = [5, 10, 15, 20]  # Days to advance
-        print(f"\n\ncreate_canopy\n\n")
-        create_canopy(plantarch)
-        for i, time_step in enumerate(growth_steps):
-            plantarch.advanceTime(time_step * 365)
+    dx = size_total.x / nx
+    dy = size_total.y / ny
 
-            hour = 10
-            # for hour in range(12, 13):
-            print(f"\n\nHOUR : {hour}\n\n")
-            context.setTime(hour=hour)
-            air_temperature_C = get_ramped_value(
-                min_temperature_C, max_temperature_C, hour, 6, 19
-            )
-            air_temperature_K = air_temperature_C + 273.15  # Conversion en Kelvin
-
-            # Humidité (de 1.0 à 0.0 entre 6h et 19h)
-            air_humidity = get_ramped_value(max_humidity, min_humidity, hour, 6, 19)
-
-            # Vitesse du vent (de 0.3 m/s à 2.0 m/s entre 6h et 19h)
-            wind_speed = get_ramped_value(min_wind_speed, max_wind_speed, hour, 6, 19)
-
-            # Affichage des valeurs
-            print(f"Température (°C) : {air_temperature_C:.2f} °C")
-            print(f"Température (K) : {air_temperature_K:.2f} K")
-            print(f"Humidité relative : {air_humidity:.2f}")
-            print(f"Vitesse du vent : {wind_speed:.2f} m/s\n")
-
-            for uuid in all_UUIDs:
-                context.setPrimitiveDataFloat(
-                    uuid, "air_temperature", air_temperature_K
-                )
-                context.setPrimitiveDataFloat(uuid, "air_humidity", air_humidity)
-                context.setPrimitiveDataFloat(uuid, "wind_speed", wind_speed)
-
-            with SolarPosition(context, UTC, latitude, longitude) as solar_position:
-                sun_dir = solar_position.getSunDirectionVector()
-                # solar_position.enableCloudCalibration("cloud_cover")
-
-                try:
-                    with RadiationModel(context) as rad:
-                        sun_source = rad.addCollimatedRadiationSource(sun_dir)
-
-                        # Configure longwave radiation band
-                        rad.addRadiationBand("LW")
-                        rad.setDiffuseRayCount("LW", 1000)
-
-                        rad.addRadiationBand("NIR")
-                        rad.disableEmission("NIR")
-                        rad.setScatteringDepth("NIR", 3)
-
-                        # Configure shortwave radiation band
-                        rad.addRadiationBand("SW")
-                        rad.disableEmission("SW")
-                        rad.setScatteringDepth("SW", 3)
-                        rad.setDirectRayCount(
-                            "SW", 100
-                        )  # plus de rayons = plus de précision
-                        rad.setDiffuseRayCount("SW", 1000)
-
-                        rad.addRadiationBand("PAR")
-                        rad.disableEmission("PAR")
-                        rad.setScatteringDepth("PAR", 3)
-
-                        LW = getAmbientLongwaveFlux(
-                            temperature_K=air_temperature_K, humidity_rel=air_humidity
-                        )
-                        print(
-                            f"LW : flux radiatif atmosphérique de grande longueur d’onde (W/m²): {LW:.1f} W/m²"
-                        )
-
-                        PAR = solar_position.getSolarFluxPAR(
-                            pressure_Pa=pressure,
-                            temperature_K=air_temperature_K,
-                            humidity_rel=air_humidity,
-                            turbidity=turbidity,
-                        )
-                        print(
-                            f"PAR (Photosynthetically Active Radiation) solar flux: {PAR:.1f} W/m²"
-                        )
-
-                        NIR = solar_position.getSolarFluxNIR(
-                            pressure_Pa=pressure,
-                            temperature_K=air_temperature_K,
-                            humidity_rel=air_humidity,
-                            turbidity=turbidity,
-                        )
-                        print(f"NIR (Near-Infrared) solar flux: {NIR:.1f} W/m²")
-
-                        diffuse_fraction = solar_position.getDiffuseFraction(
-                            pressure_Pa=pressure,
-                            temperature_K=air_temperature_K,
-                            humidity_rel=air_humidity,
-                            turbidity=turbidity,
-                        )
-                        print(
-                            f"Diffuse fraction of solar radiation : {diffuse_fraction:.3f} ({diffuse_fraction*100:.1f}%)"
-                        )
-
-                        rad.setSourceFlux(sun_source, "SW", 800)
-                        rad.setDiffuseRadiationFlux("SW", 200)
-
-                        rad.setSourceFlux(
-                            sun_source, "NIR", NIR * (1.0 - diffuse_fraction)
-                        )
-                        rad.setDiffuseRadiationFlux("NIR", NIR * diffuse_fraction)
-
-                        rad.setSourceFlux(
-                            sun_source, "PAR", PAR * (1.0 - diffuse_fraction)
-                        )
-                        rad.setDiffuseRadiationFlux("PAR", PAR * diffuse_fraction)
-
-                        rad.setDiffuseRadiationFlux("LW", LW)
-
-                        rad.updateGeometry()
-
-                        with BoundaryLayerConductanceModel(
-                            context
-                        ) as boundarylayerconductance:
-                            boundarylayerconductance.setBoundaryLayerModel(
-                                "Ground", ground_uuids
-                            )
-                            boundarylayerconductance.setBoundaryLayerModel(
-                                "Pohlhausen", leaf_uuids
-                            )
-                            boundarylayerconductance.run()
-
-                        rad.runBand(["SW", "PAR", "NIR", "LW"])
-
-                        # Step 7: Setting Up the Stomatal Conductance Model
-                        stomatalconductance = StomatalConductanceModel(context)
-                        # Set model coefficients using species library
-                        stomatalconductance.setBMFCoefficientsFromLibrary(
-                            "Apple", uuids=leaf_uuids
-                        )
-                        # Run steady-state calculation
-                        stomatalconductance.run(leaf_uuids)
-                        # Or run dynamic simulation with timestep
-                        # stomatal.run(dt=60.0)  # 60 second timestep
-                        # # Set custom BMF coefficients for specific leaves
-                        # bmf_coeffs = BMFCoefficients(Em=258.25, i0=38.65, k=232916.82, b=609.67)
-                        # stomatal.setBMFCoefficients(bmf_coeffs, uuids=[leaf_uuid])
-
-                        energybalance = EnergyBalanceModel(context)
-                        energybalance.addRadiationBand("LW")
-                        energybalance.addRadiationBand("PAR")
-                        energybalance.addRadiationBand("NIR")
-                        energybalance.enableAirEnergyBalance()
-
-                        energybalance.run()
-                        # energybalance.evaluateAirEnergyBalance(
-                        #     dt_sec=30.0, time_advance_sec=3600.0
-                        # )
-
-                        # Run the longwave band, stomatal conductance plugin, and energy balance plugin again to update primitive temperature values
-                        rad.runBand("LW")
-
-                        stomatalconductance.run(leaf_uuids)
-                        energybalance.run()
-                        # energybalance.evaluateAirEnergyBalance(
-                        #     dt_sec=30.0, time_advance_sec=3600.0
-                        # )
-
-                        photosynthesis = PhotosynthesisModel(context)
-
-                        photoparams = FarquharModelCoefficients()
-                        photosynthesis.setFarquharModelCoefficients(photoparams)
-                        photosynthesis.setModelTypeFarquhar()
-
-                        photosynthesis.runForPrimitives(leaf_uuids)
-
-                        A_canopy = 0.0
-                        E_canopy = 0.0
-                        for UUID in leaf_uuids:
-                            E = context.getPrimitiveData(UUID, "latent_flux")
-                            A = context.getPrimitiveData(UUID, "net_photosynthesis")
-                            E_canopy += E / 44000 * 1000
-                            # mmol H2O / m^2 / sec
-                            A_canopy += A  # umol CO2 / m^2 / sec
-
-                            WUE = A / (E / 44000 * 1000)  # umol CO2/mmol H2O
-                            context.setPrimitiveDataFloat(UUID, "WUE", WUE)
-
-                        WUE_canopy = A_canopy / E_canopy  # umol CO2/mmol H2O
-                        print(f"WUE of the canopy = {WUE_canopy} umol CO2/mmol H2O")
-
-                        # Apply Helios pseudocolor mapping to all primitives
-                        # all_uuids = context.getAllUUIDs()
-                        # context.colorPrimitiveByDataPseudocolor(
-                        #     uuids=all_uuids,
-                        #     primitive_data="radiation_flux_SW",
-                        #     colormap="hot",
-                        #     ncolors=256,
-                        # )
-
-                        # flux de référence
-                        irr_ref = context.getPrimitiveData(
-                            ref_ground_uuid, "radiation_flux_SW"
-                        )
-                        if not irr_ref or irr_ref <= 0:
-                            irr_ref = 1e-6  # éviter la division par zéro
-
-                        # Calcul du flux sur chaque paroi verticale
-                        wall_fluxes = []
-                        for wall_uuid in vertical_walls:
-                            flux = context.getPrimitiveData(
-                                wall_uuid, "radiation_flux_SW"
-                            )
-                            if flux:
-                                wall_fluxes.append(flux)
-                            else:
-                                wall_fluxes.append(0.0)
-
-                        # Matrice des flux par heure
-                        df_flux = pd.DataFrame(
-                            wall_fluxes,
-                            index=[f"Wall {i}" for i in range(len(wall_fluxes))],
-                            columns=[f"hour_{hour}"],
-                        )
-                        ombres_par_heure[hour] = df_flux
-
-                        print(
-                            f"Heure {hour:02d}h : Flux sur murs = {np.sum(wall_fluxes):.1f} W/m²"
-                        )
-
-                        # Matrice numpy pour stocker les fractions
-                        ombre_matrix = np.zeros((ny, nx))
-                        temperature_matrix = np.zeros((ny, nx))
-
-                        for j in range(ny):
-                            for i in range(nx):
-                                irr_sol = context.getPrimitiveData(
-                                    ground_patches[j][i], "radiation_flux_SW"
-                                )
-                                temperature = context.getPrimitiveData(
-                                    ground_patches[j][i], "temperature"
-                                )
-                                # print(f"temperature : {temperature-273.15}")
-                                temperature_matrix[j, i] = temperature - 273.15
-
-                                if irr_sol:
-                                    ombre_matrix[j, i] = max(0, 1 - irr_sol / irr_ref)
-                                else:
-                                    ombre_matrix[j, i] = np.nan  # aucune donnée
-
-                        # Convertir en DataFrame avec index spatiaux
-                        df_ombre = pd.DataFrame(
-                            ombre_matrix,
-                            index=[f"y{j}" for j in range(ny)],
-                            columns=[f"x{i}" for i in range(nx)],
-                        )
-
-                        df_temperature = pd.DataFrame(
-                            temperature_matrix,
-                            index=[f"y{j}" for j in range(ny)],
-                            columns=[f"x{i}" for i in range(nx)],
-                        )
-                        ombres_par_heure[hour] = df_ombre
-                        print(
-                            f"Heure {hour:02d}h : ombre moyenne = {np.nanmean(ombre_matrix)*100:.1f}%"
-                        )
-
-                        import matplotlib.pyplot as plt
-
-                        # --- Export CSV + Heatmap PNG ---
-                        csv_path_ombre = os.path.join(
-                            output_dir, f"ombre_{hour:02d}h_{i}.csv"
-                        )
-                        csv_path_temperature = os.path.join(
-                            output_dir, f"temperature_{hour:02d}h_{i}.csv"
-                        )
-
-                        png_path_ombre = os.path.join(
-                            output_dir, f"ombre_{hour:02d}h_{i}.png"
-                        )
-                        png_path_temperature = os.path.join(
-                            output_dir, f"temperature_{hour:02d}h_{i}.png"
-                        )
-
-                        df_ombre.to_csv(csv_path_ombre)
-                        df_temperature.to_csv(csv_path_temperature)
-
-                        plt.figure(figsize=(6, 4))
-                        plt.imshow(
-                            df_ombre.values,
-                            cmap="gray_r",
-                            origin="lower",
-                            extent=[0, nx, 0, ny],
-                            vmin=0,
-                            vmax=1,
-                        )
-                        plt.title(f"Fraction d’ombre à {hour}h")
-                        plt.xlabel("X")
-                        plt.ylabel("Y")
-                        plt.colorbar(label="Fraction d’ombre")
-                        plt.tight_layout()
-                        plt.savefig(png_path_ombre, dpi=200)
-                        plt.close()
-
-                        plt.figure(figsize=(6, 4))
-                        plt.imshow(
-                            df_temperature.values,
-                            cmap="magma",
-                            origin="lower",
-                            extent=[0, nx, 0, ny],
-                            vmin=20,
-                            vmax=50,
-                        )
-                        plt.title(f"Temperature (°C) à {hour}h")
-                        plt.xlabel("X")
-                        plt.ylabel("Y")
-                        plt.colorbar(label="Temperature")
-                        plt.tight_layout()
-                        plt.savefig(png_path_temperature, dpi=200)
-                        plt.close()
-
-                except Exception as e:
-                    print(f"Radiation modeling not available: {e}")
-                    exit()
-
-
-# === ANIMATION JOURNALIÈRE ===
-images_ombre = []
-images_temperature = []
-for hour in range(6, 19):
-    png_path_ombre = os.path.join(output_dir, f"ombre_{hour:02d}h.png")
-    png_path_temperature = os.path.join(output_dir, f"temperature_{hour:02d}h.png")
-    if os.path.exists(png_path_ombre):
-        images_ombre.append(imageio.v3.imread(png_path_ombre))
-    if os.path.exists(png_path_temperature):
-        images_temperature.append(imageio.v3.imread(png_path_temperature))
-
-if images_ombre:
-    gif_path = os.path.join(output_dir, "animation_ombres.gif")
-    imageio.mimsave(gif_path, images_ombre, fps=2)
-    print(f"\n✅ Animation créée : {gif_path}")
-
-if images_temperature:
-    gif_path = os.path.join(output_dir, "animation_temperature.gif")
-    imageio.mimsave(gif_path, images_temperature, fps=2)
-    print(f"\n✅ Animation créée : {gif_path}")
+    output_dir = "resultats_ombres"
+    os.makedirs(output_dir, exist_ok=True)
