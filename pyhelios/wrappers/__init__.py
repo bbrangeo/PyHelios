@@ -18,3 +18,5 @@ from . import UStomatalConductanceWrapper
 from . import UBoundaryLayerConductanceWrapper
 from . import UPhotosynthesisWrapper
 from . import UPlantArchitectureWrapper
+from . import ULeafOpticsWrapper
+from . import ULiDARWrapper

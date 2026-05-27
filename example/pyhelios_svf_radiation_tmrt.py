@@ -1,13 +1,14 @@
 import math
 import os
 import platform
-import time
-from typing import List, Tuple, Optional, Dict, Any
+from re import M
+from typing import List, Tuple, Optional
 
 import imageio
 import numpy as np
 import pandas as pd
 
+from example.pyhelios_radiation_pure import compute_MRT
 
 """
 Type de Radiation	Plage de longueur d'onde	Application principale	Effet principal
@@ -27,7 +28,6 @@ from pyhelios import (
     EnergyBalanceModel,
     BoundaryLayerConductanceModel,
     StomatalConductanceModel,
-    BMFCoefficients,
     PhotosynthesisModel,
     PlantArchitecture,
     SkyViewFactorModel,
@@ -36,228 +36,8 @@ from pyhelios import (
 from pyhelios.types import *
 
 import pyhelios.dev_utils
-import matplotlib.pyplot as plt
 
 pyhelios.dev_utils.enable_dev_mode()
-
-
-def create_orbital_camera_animation(
-    visualizer: Visualizer,
-    center_point: vec3,
-    radius: float = 15.0,
-    duration: float = 1.0,
-    elevation_range: Tuple[float, float] = (0.2, 1.2),
-    num_frames: int = 60,
-) -> None:
-    """
-    Crée une animation orbitale de la caméra autour d'un point central.
-
-    Args:
-        visualizer: Objet Visualizer PyHelios
-        center_point: Point central autour duquel la caméra va orbiter
-        radius: Rayon de l'orbite
-        duration: Durée de l'animation en secondes
-        elevation_range: Plage d'élévation (theta min, theta max) en radians
-        num_frames: Nombre de frames pour l'animation
-    """
-    print(f"🎬 Démarrage de l'animation orbitale...")
-    print(
-        f"   - Centre: ({center_point.x:.1f}, {center_point.y:.1f}, {center_point.z:.1f})"
-    )
-    print(f"   - Rayon: {radius:.1f}")
-    print(f"   - Durée: {duration:.1f}s")
-    print(f"   - Frames: {num_frames}")
-
-    # Calcul des paramètres d'animation
-    frame_duration = duration / num_frames
-    theta_min, theta_max = elevation_range
-
-    for frame in range(num_frames):
-        # Calcul de l'angle azimutal (phi) - rotation complète
-        phi = 2 * math.pi * frame / num_frames
-
-        # Calcul de l'angle d'élévation (theta) - oscillation entre min et max
-        theta = theta_min + (theta_max - theta_min) * (
-            0.5 + 0.5 * math.sin(2 * math.pi * frame / num_frames)
-        )
-
-        # Conversion des coordonnées sphériques en cartésiennes
-        x = center_point.x + radius * math.sin(theta) * math.cos(phi)
-        y = center_point.y + radius * math.sin(theta) * math.sin(phi)
-        z = center_point.z + radius * math.cos(theta)
-
-        # Position de la caméra
-        camera_position = vec3(x, y, z)
-
-        # La caméra regarde toujours vers le centre
-        look_at = center_point
-
-        # Mise à jour de la position de la caméra
-        visualizer.setCameraPosition(camera_position, look_at)
-
-        # Mise à jour de l'affichage
-        # visualizer.updateWatermark()
-        visualizer.plotInteractive()
-
-        # Pause pour l'animation
-        time.sleep(frame_duration)
-
-        # Affichage du progrès
-        if frame % 10 == 0:
-            progress = (frame / num_frames) * 100
-            print(
-                f"   Progrès: {progress:.0f}% - Position caméra: ({x:.1f}, {y:.1f}, {z:.1f})"
-            )
-
-    print("✅ Animation orbitale terminée!")
-
-
-def create_interactive_orbital_controls(
-    visualizer: Visualizer, center_point: vec3
-) -> None:
-    """
-    Configure des contrôles interactifs pour l'orbite manuelle.
-
-    Args:
-        visualizer: Objet Visualizer PyHelios
-        center_point: Point central pour l'orbite
-    """
-    print("🎮 Contrôles orbitaux interactifs activés:")
-    print("   - 'O' + clic gauche: Orbite autour du centre")
-    print("   - 'P' + clic gauche: Panoramique")
-    print("   - 'Z' + clic gauche: Zoom")
-    print("   - 'R': Reset de la caméra")
-    print("   - 'A': Animation orbitale automatique")
-    print("   - 'Q': Quitter")
-
-    # Configuration initiale de la caméra
-    initial_radius = 15.0
-    initial_theta = 0.5
-    initial_phi = 0.0
-
-    x = center_point.x + initial_radius * math.sin(initial_theta) * math.cos(
-        initial_phi
-    )
-    y = center_point.y + initial_radius * math.sin(initial_theta) * math.sin(
-        initial_phi
-    )
-    z = center_point.z + initial_radius * math.cos(initial_theta)
-
-    visualizer.setCameraPosition(vec3(x, y, z), center_point)
-
-
-def create_orbital_visualization_with_controls(
-    visualizer: Visualizer,
-    context: Context,
-    orbit_center: vec3,
-    enable_auto_animation: bool = True,
-) -> None:
-    """
-    Crée une visualisation orbitale complète avec contrôles interactifs.
-
-    Args:
-        visualizer: Objet Visualizer PyHelios
-        context: Contexte PyHelios
-        orbit_center: Point central pour l'orbite
-        enable_auto_animation: Si True, démarre automatiquement l'animation
-    """
-    print("🎬 Configuration de la visualisation orbitale...")
-
-    # Configuration de la scène
-    bg_color = RGBcolor(0.1, 0.1, 0.15)
-    visualizer.setBackgroundColor(bg_color)
-    light_dir = vec3(1, 1, 1)
-    visualizer.setLightDirection(light_dir)
-    visualizer.setLightingModel("phong_shadowed")
-
-    # Chargement de la géométrie
-    visualizer.buildContextGeometry(context)
-
-    # Position initiale de la caméra
-    initial_radius = 20.0
-    initial_theta = 0.6
-    initial_phi = 0.0
-
-    x = orbit_center.x + initial_radius * math.sin(initial_theta) * math.cos(
-        initial_phi
-    )
-    y = orbit_center.y + initial_radius * math.sin(initial_theta) * math.sin(
-        initial_phi
-    )
-    z = orbit_center.z + initial_radius * math.cos(initial_theta)
-
-    camera_position = vec3(x, y, z)
-    visualizer.setCameraPosition(camera_position, orbit_center)
-
-    print("✅ Visualisation orbitale configurée!")
-    print("📋 Contrôles disponibles:")
-    print("  - Souris: Navigation manuelle")
-    print("  - 'A': Animation orbitale automatique")
-    print("  - 'R': Reset de la caméra")
-    print("  - 'Q': Quitter")
-
-    if enable_auto_animation:
-        print("\n🚀 Démarrage de l'animation orbitale automatique...")
-        try:
-            create_orbital_camera_animation(
-                visualizer=visualizer,
-                center_point=orbit_center,
-                radius=18.0,
-                duration=12.0,
-                elevation_range=(0.3, 1.1),
-                num_frames=72,
-            )
-        except KeyboardInterrupt:
-            print("\n⏹️ Animation interrompue")
-        except Exception as e:
-            print(f"\n❌ Erreur d'animation: {e}")
-
-    print("\n🎮 Mode interactif activé")
-    visualizer.plotInteractive()
-
-
-def demo_orbital_visualization() -> None:
-    """
-    Démonstration des différentes options de visualisation orbitale.
-    """
-    print("🎬 Démonstration des options de visualisation orbitale")
-    print("=" * 60)
-
-    # Exemple de configuration avec différents paramètres
-    orbit_configs = [
-        {
-            "name": "Orbite lente et fluide",
-            "radius": 15.0,
-            "duration": 20.0,
-            "elevation_range": (0.2, 1.0),
-            "num_frames": 120,
-        },
-        {
-            "name": "Orbite rapide et dynamique",
-            "radius": 25.0,
-            "duration": 8.0,
-            "elevation_range": (0.1, 1.3),
-            "num_frames": 60,
-        },
-        {
-            "name": "Orbite serrée et détaillée",
-            "radius": 10.0,
-            "duration": 15.0,
-            "elevation_range": (0.4, 0.8),
-            "num_frames": 90,
-        },
-    ]
-
-    print("📋 Configurations disponibles:")
-    for i, config in enumerate(orbit_configs, 1):
-        print(f"  {i}. {config['name']}")
-        print(f"     - Rayon: {config['radius']:.1f}")
-        print(f"     - Durée: {config['duration']:.1f}s")
-        print(f"     - Frames: {config['num_frames']}")
-        print(
-            f"     - Élévation: {config['elevation_range'][0]:.1f} - {config['elevation_range'][1]:.1f} rad"
-        )
-        print()
 
 
 # Fonction pour appliquer une rampe de variation
@@ -329,9 +109,18 @@ def getAmbientLongwaveFlux(temperature_K: float, humidity_rel: float) -> float:
     return eps * sigma * (temperature_K**4)
 
 
+def _default_wpt_species(species):
+    """Resolve tree species when caller passes None."""
+    if species is not None:
+        return species
+    if WPTType is not None:
+        return WPTType.APPLE
+    return "APPLE"
+
+
 def create_sample_tree(
     context: Context,
-    species: WPTType = WPTType.APPLE,
+    species=None,
     recursion_depth: int = 3,
     trunk_subdivisions: int = 12,
     branch_subdivisions: int = 12,
@@ -357,6 +146,12 @@ def create_sample_tree(
     print("Creating sample tree...")
 
     try:
+        if WeberPennTree is None:
+            raise RuntimeError(
+                "WeberPennTree plugin is not available. "
+                "Rebuild with: python build_scripts/build_helios.py --plugins weberpenntree"
+            )
+        species = _default_wpt_species(species)
         with WeberPennTree(context) as wpt:
             # Set tree parameters for a nice-looking tree
             wpt.setBranchRecursionLevel(recursion_depth)
@@ -416,27 +211,6 @@ def create_sample_tree(
             f"Note: Tree creation failed (WeberPennTree plugin may not be available): {e}"
         )
         return None, [], []
-
-
-latitude = -1.15
-longitude = 46.166672
-UTC = 1
-
-pressure = 101300
-turbidity = 0.05
-
-# Paramètres du sol
-# center = vec3(0, 50, 0)
-center = vec3(0, 0, 0)
-# size_total = vec2(450, 150)     # taille globale du sol (m)
-size_total = vec2(50, 50)  # taille globale du sol (m)
-nx, ny = 100, 100  # nombre de subdivisions
-
-dx = size_total.x / nx
-dy = size_total.y / ny
-
-output_dir = "resultats_ombres"
-os.makedirs(output_dir, exist_ok=True)
 
 
 def create_canopy(plantarch: PlantArchitecture) -> None:
@@ -501,6 +275,7 @@ def create_ground_patch(
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_SW", albedo)
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_PAR", 0.15)
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_NIR", 0.4)
+            context.setPrimitiveDataFloat(ground_uuid, "emissivity", 0.9)
             context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5)
             # Make sure that the ground is only able to intercept radiation from the top
             context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
@@ -511,293 +286,276 @@ def create_ground_patch(
     return ground_uuids, ground_patches
 
 
-with Context() as context:
+def main():
+    with Context() as context:
 
-    tree_id, tree_uuids, leaf_uuids = create_sample_tree(context=context)
-    ground_uuids, ground_patches = create_ground_patch(
-        context, center, size_total, dx, dy
-    )
-
-    # uuids = context.loadOBJ("models/LABINTECH.obj")
-    bat_uuids = context.loadOBJ("models/MAISON_EP_1.obj")
-    # bat_uuids = context.loadOBJ(
-    #     "models/Mesh_Buildings.obj",
-    #     origin=vec3(0, 0, 0),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(0.55, 0.36, 0.23),  # marron moyen
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-    # pedestrian_uuids = context.loadOBJ(
-    #     "models/Mesh_Pedestrian.obj",
-    #     origin=vec3(0, 0, 0.2),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(0.25, 0.25, 1),
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-
-    # for pedestrian_uuid in pedestrian_uuids:
-    #     context.setPrimitiveDataString(pedestrian_uuid, "surface_type", "pedestrian")
-    #     context.setPrimitiveDataString(pedestrian_uuid, "material", "soil_pedestrian")
-    #     # Propriétés optiques
-    #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_SW", 0.25)
-    #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_PAR", 0.10)
-    #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_NIR", 0.35)
-
-    # terrain_uuids = context.loadOBJ(
-    #     "models/Mesh_Terrain.obj",
-    #     origin=vec3(0, 0, 0.5),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(0.25, 0.25, 0.25),
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-    #
-    # for terrain_uuid in terrain_uuids:
-    #     # Propriétés optiques de l'herbe
-    #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_SW", 0.25)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_PAR", 0.10)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
-    #     context.setPrimitiveDataFloat(
-    #         terrain_uuid, "reflectivity_LW", 0.03
-    #     )  # faible réflexion IR lointain
-    #     context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
-    #
-    # water_uuids = context.loadOBJ(
-    #     "models/Mesh_Water.obj",
-    #     origin=vec3(0, 0, 0),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(
-    #         0.25, 0.55, 0.75
-    #     ),  # bleu plus terne, tirant légèrement sur le vert
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-    #
-    # for water_uuid in water_uuids:
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_SW", 0.07)
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_PAR", 0.06)
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_NIR", 0.02)
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_LW", 0.03)
-    #     context.setPrimitiveDataString(water_uuid, "surface_type", "water")
-
-    vertical_walls = []  # Liste pour stocker les UUID des parois verticales
-
-    for bat_uuid in bat_uuids:
-        context.setPrimitiveDataFloat(
-            bat_uuid, "reflectivity_SW", 0.35
-        )  # Exemple pour l'arbre
-
-        # Récupère la normale de la primitive
-        normal = context.getPrimitiveNormal(bat_uuid)
-
-        # On vérifie si la normale est proche de (0, 0, 1) ou (0, 0, -1), donc une paroi verticale
-        if (
-            np.isclose(normal.x, 0)
-            and np.isclose(normal.y, 0)
-            and (np.isclose(normal.z, 1) or np.isclose(normal.z, -1))
-        ):
-            vertical_walls.append(bat_uuid)
-
-    # Affichage des UUID des parois verticales identifiées
-    # print(f"Parois verticales identifiées : {vertical_walls}")
-
-    # context.writeOBJ("models/scene.obj")
-
-    # === Patch de référence ===
-    ref_ground_uuid = context.addPatch(
-        center=vec3(-100, -100, 0), size=vec2(dx, dy), color=RGBcolor(0.2, 0.7, 0.2)
-    )
-
-    # Create SkyViewFactor model
-    print("\nCreating SkyViewFactor model...")
-    try:
-        svf_model = SkyViewFactorModel(context)
-        print("✓ SkyViewFactor model created successfully")
-    except Exception as e:
-        print(f"✗ Failed to create SkyViewFactor model: {e}")
-
-    # Calculate sky view factors
-    # print(len(ground_uuids))
-    try:
-        # Configure the model
-        svf_model.set_ray_count(100)  # Use 2000 rays for good accuracy
-        svf_model.set_max_ray_length(100.0)  # Maximum ray length of 100 units
-        svf_model.set_message_flag(True)  # Enable console output
-
-        # ground_uuids = ground_uuids[: min(10, len(ground_uuids))]
-        # svf_uuids = svf_model.calculate_sky_view_factor_from_uuids(
-        #     uuids=ground_uuids, batch_size=200
-        # )
-        svfs = svf_model.calculate_sky_view_factors_for_primitives(
-            uuids=ground_uuids, num_threads=36
+        _tree_id, _tree_uuids, leaf_uuids = create_sample_tree(context=context)
+        ground_uuids, ground_patches = create_ground_patch(
+            context, center, size_total, dx, dy
         )
 
-        # uuid_to_svf, _ = svf_model.calculate_sky_view_factor_from_uuids(
-        #     uuids=ground_uuids, batch_size=100
+        # uuids = context.loadOBJ("models/LABINTECH.obj")
+        bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
+        # bat_uuids = context.loadOBJ(
+        #     "models/Mesh_Buildings.obj",
+        #     origin=vec3(0, 0, 0),  # position du modèle
+        #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        #     color=RGBcolor(0.55, 0.36, 0.23),  # marron moyen
+        #     upaxis="ZUP",  # axe vertical
+        #     silent=False,
         # )
-        # print("uuid_to_svf", uuid_to_svf)
+        # pedestrian_uuids = context.loadOBJ(
+        #     "models/Mesh_Pedestrian.obj",
+        #     origin=vec3(0, 0, 0.2),  # position du modèle
+        #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        #     color=RGBcolor(0.25, 0.25, 1),
+        #     upaxis="ZUP",  # axe vertical
+        #     silent=False,
+        # )
 
-        print("✓ Sky view factors calculated successfully")
-        success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
+        # for pedestrian_uuid in pedestrian_uuids:
+        #     context.setPrimitiveDataString(pedestrian_uuid, "surface_type", "pedestrian")
+        #     context.setPrimitiveDataString(pedestrian_uuid, "material", "soil_pedestrian")
+        #     # Propriétés optiques
+        #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_SW", 0.25)
+        #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_PAR", 0.10)
+        #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_NIR", 0.35)
 
-        svf_model.load_sky_view_factors("skyviewfactor_results.txt")
-        sample_points = svf_model.get_sample_points()
-        print(sample_points)
+        # terrain_uuids = context.loadOBJ(
+        #     "models/Mesh_Terrain.obj",
+        #     origin=vec3(0, 0, 0.5),  # position du modèle
+        #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        #     color=RGBcolor(0.25, 0.25, 0.25),
+        #     upaxis="ZUP",  # axe vertical
+        #     silent=False,
+        # )
+        #
+        # for terrain_uuid in terrain_uuids:
+        #     # Propriétés optiques de l'herbe
+        #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_SW", 0.25)
+        #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_PAR", 0.10)
+        #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
+        #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
+        #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
+        #     context.setPrimitiveDataFloat(
+        #         terrain_uuid, "reflectivity_LW", 0.03
+        #     )  # faible réflexion IR lointain
+        #     context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
+        #
+        # water_uuids = context.loadOBJ(
+        #     "models/Mesh_Water.obj",
+        #     origin=vec3(0, 0, 0),  # position du modèle
+        #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        #     color=RGBcolor(
+        #         0.25, 0.55, 0.75
+        #     ),  # bleu plus terne, tirant légèrement sur le vert
+        #     upaxis="ZUP",  # axe vertical
+        #     silent=False,
+        # )
+        #
+        # for water_uuid in water_uuids:
+        #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_SW", 0.07)
+        #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_PAR", 0.06)
+        #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_NIR", 0.02)
+        #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_LW", 0.03)
+        #     context.setPrimitiveDataString(water_uuid, "surface_type", "water")
 
-        # svf_result = svf_model.get_sky_view_factors()
+        vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 
-    except Exception as e:
-        print(f"✗ Failed to calculate sky view factors: {e}")
+        for bat_uuid in bat_uuids:
+            context.setPrimitiveDataFloat(
+                bat_uuid, "reflectivity_SW", 0.35
+            )  # Exemple pour l'arbre
 
-    print(f"Ray count: {svf_model.get_ray_count()}")
-    print(f"Max ray length: {svf_model.get_max_ray_length()}")
-    print(f"CUDA available: {svf_model.is_cuda_available()}")
-    print(f"OptiX available: {svf_model.is_optix_available()}")
+            # Récupère la normale de la primitive
+            normal = context.getPrimitiveNormal(bat_uuid)
 
-    df = pd.read_csv(
-        "skyviewfactor_results.txt",
-        delimiter=" ",
-        skiprows=1,
-        comment="#",
-        names=["Point_ID", "X", "Y", "Z", "SkyViewFactor"],
-        encoding="utf-8",
-    )
+            # On vérifie si la normale est proche de (0, 0, 1) ou (0, 0, -1), donc une paroi verticale
+            if np.isclose(normal.z, 0, atol=0.1):
+                vertical_walls.append(bat_uuid)
 
-    print(df.head(10))
-    # Créer une grille vide de SkyViewFactor (initialisée à NaN)
-    grid = np.full((nx, ny), np.nan)
+        # Affichage des UUID des parois verticales identifiées
+        # print(f"Parois verticales identifiées : {vertical_walls}")
 
-    # # Assigner les valeurs de SkyViewFactor dans la grille
-    for _, row in df.iterrows():
-        # Convertir les coordonnées X, Y en indices de grille
-        x_idx = int((row["X"] + size_total.x / 2) // dx)
-        y_idx = int((row["Y"] + size_total.y / 2) // dy)
-        grid[x_idx, y_idx] = row["SkyViewFactor"]
+        # context.writeOBJ("models/scene.obj")
 
-    # Ploter la heatmap
-    plt.figure(figsize=(8, 6))
-    plt.imshow(
-        grid,
-        cmap="viridis",
-        interpolation="nearest",
-        extent=[0, size_total.x, 0, size_total.y],
-    )
+        # === Patch de référence ===
+        ref_ground_uuid = context.addPatch(
+            center=vec3(-100, -100, 0), size=vec2(dx, dy), color=RGBcolor(0.2, 0.7, 0.2)
+        )
 
-    plt.colorbar(label="Sky View Factor")
-    plt.title("Heatmap des Sky View Factors")
-    plt.xlabel("X (m)")
-    plt.ylabel("Y (m)")
-    plt.savefig("Heatmap des Sky View Factors.png")
-    plt.show()
+        # Create SkyViewFactor model
+        print("\nCreating SkyViewFactor model...")
+        try:
+            svf_model = SkyViewFactorModel(context)
+            print("✓ SkyViewFactor model created successfully")
+        except Exception as e:
+            print(f"✗ Failed to create SkyViewFactor model: {e}")
+            raise e
 
-    if platform.system() == "Darwin":
-        # Create visualizer (smaller window for demo)
-        with Visualizer(800, 600, headless=False) as visualizer:
-            # Load all geometry into visualizer
-            visualizer.buildContextGeometry(context)
+        # Calculate sky view factors
+        # print(len(ground_uuids))
+        try:
+            # Configure the model
+            svf_model.set_ray_count(400)  # Use 2000 rays for good accuracy
+            svf_model.set_max_ray_length(400.0)  # Maximum ray length of 100 units
+            svf_model.set_message_flag(True)  # Enable console output
 
-            # Configure scene
-            bg_color = RGBcolor(0.1, 0.1, 0.15)  # Dark blue background
-            visualizer.setBackgroundColor(bg_color)
-            light_dir = vec3(1, 1, 1)  # Directional lighting
-            visualizer.setLightDirection(light_dir)
-            visualizer.setLightingModel("phong_shadowed")  # Nice lighting with shadows
-            # visualizer.setLightingModel(visualizer.LIGHTING_NONE)    # Nice lighting with shadows
-            # visualizer.buildContextGeometry(context)
+            svfs, uuid_to_svf = svf_model.calculate_sky_view_factors_for_primitives(
+                uuids=ground_uuids, num_threads=8
+            )
 
-            # visualizer.colorContextPrimitivesByData("radiation_flux_SW")
+            print("svfs", svfs)
+            print("uuid_to_svf", uuid_to_svf)
 
-            visualizer.enableColorbar()
-            visualizer.setColorbarRange(200, 1000)
-            visualizer.setColorbarTitle("Radiation Flux")
+            print("✓ Sky view factors calculated successfully")
+            success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
 
-            # Set a good camera position to view the scene
-            camera_pos = vec3(8, 8, 6)  # Camera position
-            look_at = vec3(1.5, 4.5, 3.5)  # Look at center of geometry
-            visualizer.setCameraPosition(camera_pos, look_at)
-            visualizer.setBackgroundSkyTexture()
+            svf_model.load_sky_view_factors("skyviewfactor_results.txt")
+            sample_points = svf_model.get_sample_points()
+            print(sample_points)
+            # svf_result = svf_model.get_sky_view_factors()
 
-            # Paramètres de la caméra
-            radius = 15
-            theta = 0.35
-            phi = 0.4 * math.pi
+        except Exception as e:
+            print(f"✗ Failed to calculate sky view factors: {e}")
 
-            # Conversion de SphericalCoord à cartésien
-            x = radius * math.sin(theta) * math.cos(phi)
-            y = radius * math.sin(theta) * math.sin(phi)
-            z = radius * math.cos(theta)
+        print(f"Ray count: {svf_model.get_ray_count()}")
+        print(f"Max ray length: {svf_model.get_max_ray_length()}")
+        print(f"CUDA available: {svf_model.is_cuda_available()}")
+        print(f"OptiX available: {svf_model.is_optix_available()}")
 
-            # Création du vecteur de position de la caméra
-            camera_position = vec3(x, y, z)
+        df = pd.read_csv(
+            "skyviewfactor_results.txt",
+            delimiter=" ",
+            skiprows=1,
+            comment="#",
+            names=["Point_ID", "X", "Y", "Z", "SkyViewFactor"],
+            encoding="utf-8",
+        )
 
-            # Position de la cible (pod’intérêt) de la caméra
-            look_at = vec3(0, 0, 2)
+        print(df.head(10))
+        # Créer une grille vide de SkyViewFactor (initialisée à NaN)
+        grid = np.full((nx, ny), np.nan)
 
-            # Appliquer la position de la caméra dans le Visualizer
-            visualizer.setCameraPosition(camera_position, look_at)
-            visualizer.buildContextGeometry(context)
+        # # Assigner les valeurs de SkyViewFactor dans la grille
+        for _, row in df.iterrows():
+            # Convertir les coordonnées X, Y en indices de grille
+            x_idx = int((row["X"] + size_total.x / 2) // dx)
+            y_idx = int((row["Y"] + size_total.y / 2) // dy)
+            grid[x_idx, y_idx] = row["SkyViewFactor"]
 
-            print("Opening interactive visualization window...")
-            print("Controls:")
-            print("  - Mouse scroll: Zoom in/out")
-            print("  - Left mouse + drag: Rotate camera")
-            print("  - Right mouse + drag: Pan camera")
-            print("  - Arrow keys: Camera movement")
-            print("  - Close window to continue")
+        import matplotlib.pyplot as plt
 
-            # Show interactive visualization
-            visualizer.plotInteractive()
+        # Ploter la heatmap
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            grid,
+            cmap="viridis",
+            interpolation="nearest",
+            extent=[0, size_total.x, 0, size_total.y],
+        )
 
-    # print(context.getAllPrimitiveInfo())
+        plt.colorbar(label="Sky View Factor")
+        plt.title("Heatmap des Sky View Factors")
+        plt.xlabel("X (m)")
+        plt.ylabel("Y (m)")
+        plt.savefig("Heatmap des Sky View Factors.png")
+        plt.show()
 
-    exit()
+        if platform.system() == "Darwin":
+            # Create visualizer (smaller window for demo)
+            with Visualizer(800, 600, headless=False) as visualizer:
+                # Load all geometry into visualizer
+                visualizer.buildContextGeometry(context)
 
-    # === Simulation horaire ===
-    ombres_par_heure = {}  # dict {hour: DataFrame}
-    all_UUIDs = context.getAllUUIDs()
+                # Configure scene
+                bg_color = RGBcolor(0.1, 0.1, 0.15)  # Dark blue background
+                visualizer.setBackgroundColor(bg_color)
+                light_dir = vec3(1, 1, 1)  # Directional lighting
+                visualizer.setLightDirection(light_dir)
+                visualizer.setLightingModel(
+                    "phong_shadowed"
+                )  # Nice lighting with shadows
+                # visualizer.setLightingModel(visualizer.LIGHTING_NONE)    # Nice lighting with shadows
+                # visualizer.buildContextGeometry(context)
 
-    context.setDate(2025, 6, 10)
+                #visualizer.colorContextPrimitivesByData("radiation_flux_SW")
 
-    # Paramètres pour la rampe
-    min_temperature_C = 25.0  # Température min en °C
-    max_temperature_C = 40.0  # Température max en °C
-    min_humidity = 0.4  # Humidité min
-    max_humidity = 0.6  # Humidité max
-    min_wind_speed = 0.9  # Vitesse du vent min en m/s
-    max_wind_speed = 1.0  # Vitesse du vent max en m/s
+                #visualizer.enableColorbar()
+                #visualizer.setColorbarRange(200, 1000)
+                #visualizer.setColorbarTitle("Radiation Flux")
 
-    with PlantArchitecture(context) as plantarch:
-        growth_steps = [5, 10, 15, 20]  # Days to advance
-        print(f"\n\ncreate_canopy\n\n")
-        create_canopy(plantarch)
-        for i, time_step in enumerate(growth_steps):
-            plantarch.advanceTime(time_step * 365)
+                # sum the "SW" and "LW" fluxes for each primitive and store the result to new primitive data called "total_flux"
+                #context.aggregatePrimitiveDataSum( allUUIDs, {"radiation_flux_SW", "radiation_flux_LW"}, "total_flux" )
+                #visualizer.colorContextPrimitivesByData( "total_flux" )
 
-            hour = 10
+                # Set a good camera position to view the scene
+                camera_pos = vec3(8, 8, 6)  # Camera position
+                look_at = vec3(1.5, 4.5, 3.5)  # Look at center of geometry
+                visualizer.setCameraPosition(camera_pos, look_at)
+                visualizer.setBackgroundSkyTexture()
+
+                # Paramètres de la caméra
+                radius = 15
+                theta = 0.35
+                phi = 0.4 * math.pi
+
+                # Conversion de SphericalCoord à cartésien
+                x = radius * math.sin(theta) * math.cos(phi)
+                y = radius * math.sin(theta) * math.sin(phi)
+                z = radius * math.cos(theta)
+
+                # Création du vecteur de position de la caméra
+                camera_position = vec3(x, y, z)
+
+                # Position de la cible (pod’intérêt) de la caméra
+                look_at = vec3(0, 0, 2)
+
+                # Appliquer la position de la caméra dans le Visualizer
+                visualizer.setCameraPosition(camera_position, look_at)
+                visualizer.buildContextGeometry(context)
+
+                print("Opening interactive visualization window...")
+                print("Controls:")
+                print("  - Mouse scroll: Zoom in/out")
+                print("  - Left mouse + drag: Rotate camera")
+                print("  - Right mouse + drag: Pan camera")
+                print("  - Arrow keys: Camera movement")
+                print("  - Close window to continue")
+
+                # Show interactive visualization
+                visualizer.plotInteractive()
+
+        # print(context.getAllPrimitiveInfo())
+        # === Simulation horaire ===
+        ombres_par_heure = {}  # dict {hour: DataFrame}
+        all_UUIDs = context.getAllUUIDs()
+
+        context.setDate(2026, 6, 10)
+
+        # Paramètres pour la rampe
+        min_temperature_C = 25.0  # Température min en °C
+        max_temperature_C = 40.0  # Température max en °C
+        min_humidity = 0.4  # Humidité min
+        max_humidity = 0.6  # Humidité max
+        min_wind_speed = 0.9  # Vitesse du vent min en m/s
+        max_wind_speed = 1.0  # Vitesse du vent max en m/s
+
+        for i, hour in enumerate(hours):
             # for hour in range(12, 13):
             print(f"\n\nHOUR : {hour}\n\n")
             context.setTime(hour=hour)
-            air_temperature_C = get_ramped_value(
-                min_temperature_C, max_temperature_C, hour, 6, 19
-            )
-            air_temperature_K = air_temperature_C + 273.15  # Conversion en Kelvin
-
-            # Humidité (de 1.0 à 0.0 entre 6h et 19h)
-            air_humidity = get_ramped_value(max_humidity, min_humidity, hour, 6, 19)
+            air_temperature_K = 288.15 + 10 * math.sin(math.pi * (hour - 6) / 12)  # K
+            air_humidity = 0.6 - 0.2 * math.sin(math.pi * (hour - 6) / 12)  # 0-1
 
             # Vitesse du vent (de 0.3 m/s à 2.0 m/s entre 6h et 19h)
             wind_speed = get_ramped_value(min_wind_speed, max_wind_speed, hour, 6, 19)
 
             # Affichage des valeurs
-            print(f"Température (°C) : {air_temperature_C:.2f} °C")
             print(f"Température (K) : {air_temperature_K:.2f} K")
             print(f"Humidité relative : {air_humidity:.2f}")
             print(f"Vitesse du vent : {wind_speed:.2f} m/s\n")
@@ -810,8 +568,11 @@ with Context() as context:
                 context.setPrimitiveDataFloat(uuid, "wind_speed", wind_speed)
 
             with SolarPosition(context, UTC, latitude, longitude) as solar_position:
+                  # Set atmospheric conditions globally
+                solar_position.setAtmosphericConditions( pressure, air_temperature_K, air_humidity, turbidity ) #pressure, temperature, humidity, turbidity
                 sun_dir = solar_position.getSunDirectionVector()
                 # solar_position.enableCloudCalibration("cloud_cover")
+              
 
                 try:
                     with RadiationModel(context) as rad:
@@ -819,6 +580,10 @@ with Context() as context:
 
                         # Configure longwave radiation band
                         rad.addRadiationBand("LW")
+                        rad.disableEmission("LW")
+                        rad.setDirectRayCount(
+                            "LW", 100
+                        )  # plus de rayons = plus de précision
                         rad.setDiffuseRayCount("LW", 1000)
 
                         rad.addRadiationBand("NIR")
@@ -837,6 +602,12 @@ with Context() as context:
                         rad.addRadiationBand("PAR")
                         rad.disableEmission("PAR")
                         rad.setScatteringDepth("PAR", 3)
+
+                        rad.setDirectRayCount("NIR", 100)
+                        rad.setDiffuseRayCount("NIR", 1000)
+
+                        rad.setDirectRayCount("PAR", 100)
+                        rad.setDiffuseRayCount("PAR", 1000)
 
                         LW = getAmbientLongwaveFlux(
                             temperature_K=air_temperature_K, humidity_rel=air_humidity
@@ -872,19 +643,33 @@ with Context() as context:
                         print(
                             f"Diffuse fraction of solar radiation : {diffuse_fraction:.3f} ({diffuse_fraction*100:.1f}%)"
                         )
+                        
+                        # Calculate solar flux using stored atmospheric conditions
+                        R = solar_position.getSolarFlux() # flux perpendicular to sun (W/m^2)
+                        zenith = solar_position.getSunZenith() #zenithal angle (radians)
+                        R_horiz = R*math.cos(zenith) #flux on horizontal surface
+                
+                        f_diff = solar_position.getDiffuseFraction() #fraction of diffuse radiation
+                    
+                        R_dir = R*(1.0-f_diff) #direct component of flux (W/m^2)
 
-                        rad.setSourceFlux(sun_source, "SW", 800)
-                        rad.setDiffuseRadiationFlux("SW", 200)
+                        print(f"R : {R:.1f} W/m²")
+                        print(f"zenith : {zenith:.1f} radians")
+                        print(f"R_horiz : {R_horiz:.1f} W/m²")
+                        print(f"f_diff : {f_diff:.1f}")
+                        print(f"R_dir : {R_dir:.1f} W/m²")
 
-                        rad.setSourceFlux(
-                            sun_source, "NIR", NIR * (1.0 - diffuse_fraction)
-                        )
-                        rad.setDiffuseRadiationFlux("NIR", NIR * diffuse_fraction)
+                        SW = PAR + NIR  
+                        print(f"SW : {SW:.1f} W/m²")
+                        # ou calculé séparément
+                        rad.setSourceFlux(sun_source, "SW", SW * (1.0 - diffuse_fraction))
+                        rad.setDiffuseRadiationFlux("SW", SW * diffuse_fraction)
 
-                        rad.setSourceFlux(
-                            sun_source, "PAR", PAR * (1.0 - diffuse_fraction)
-                        )
+                        rad.setSourceFlux(sun_source, "PAR", PAR * (1.0 - diffuse_fraction))
                         rad.setDiffuseRadiationFlux("PAR", PAR * diffuse_fraction)
+
+                        rad.setSourceFlux(sun_source, "NIR", NIR * (1.0 - diffuse_fraction))
+                        rad.setDiffuseRadiationFlux("NIR", NIR * diffuse_fraction)
 
                         rad.setDiffuseRadiationFlux("LW", LW)
 
@@ -921,7 +706,7 @@ with Context() as context:
                         energybalance.addRadiationBand("LW")
                         energybalance.addRadiationBand("PAR")
                         energybalance.addRadiationBand("NIR")
-                        energybalance.enableAirEnergyBalance()
+                        # energybalance.enableAirEnergyBalance()
 
                         energybalance.run()
                         # energybalance.evaluateAirEnergyBalance(
@@ -944,6 +729,12 @@ with Context() as context:
                         photosynthesis.setModelTypeFarquhar()
 
                         photosynthesis.runForPrimitives(leaf_uuids)
+
+                        df_MRT = compute_MRT(context, ground_patches, output_dir)
+                        plt.imshow(df_MRT.values, cmap="inferno", origin="lower")
+                        plt.colorbar(label="MRT (°C)")
+                        plt.title("Mean Radiant Temperature")
+                        plt.savefig("MRT.png")
 
                         A_canopy = 0.0
                         E_canopy = 0.0
@@ -1003,6 +794,8 @@ with Context() as context:
                         ombre_matrix = np.zeros((ny, nx))
                         temperature_matrix = np.zeros((ny, nx))
 
+                        compute_MRT(context, ground_patches, "TMRT", sigma=5.67e-8)
+
                         for j in range(ny):
                             for i in range(nx):
                                 irr_sol = context.getPrimitiveData(
@@ -1040,17 +833,17 @@ with Context() as context:
 
                         # --- Export CSV + Heatmap PNG ---
                         csv_path_ombre = os.path.join(
-                            output_dir, f"ombre_{hour:02d}h_{i}.csv"
+                            output_dir, f"ombre_{hour:02d}h.csv"
                         )
                         csv_path_temperature = os.path.join(
-                            output_dir, f"temperature_{hour:02d}h_{i}.csv"
+                            output_dir, f"temperature_{hour:02d}h.csv"
                         )
 
                         png_path_ombre = os.path.join(
-                            output_dir, f"ombre_{hour:02d}h_{i}.png"
+                            output_dir, f"ombre_{hour:02d}h.png"
                         )
                         png_path_temperature = os.path.join(
-                            output_dir, f"temperature_{hour:02d}h_{i}.png"
+                            output_dir, f"temperature_{hour:02d}h.png"
                         )
 
                         df_ombre.to_csv(csv_path_ombre)
@@ -1094,24 +887,75 @@ with Context() as context:
                     print(f"Radiation modeling not available: {e}")
                     exit()
 
+    # === ANIMATION JOURNALIÈRE ===
+    images_ombre = []
+    images_temperature = []
+    for hour in range(6, 19):
+        png_path_ombre = os.path.join(output_dir, f"ombre_{hour:02d}h.png")
+        png_path_temperature = os.path.join(output_dir, f"temperature_{hour:02d}h.png")
+        if os.path.exists(png_path_ombre):
+            images_ombre.append(imageio.v3.imread(png_path_ombre))
+        if os.path.exists(png_path_temperature):
+            images_temperature.append(imageio.v3.imread(png_path_temperature))
 
-# === ANIMATION JOURNALIÈRE ===
-images_ombre = []
-images_temperature = []
-for hour in range(6, 19):
-    png_path_ombre = os.path.join(output_dir, f"ombre_{hour:02d}h.png")
-    png_path_temperature = os.path.join(output_dir, f"temperature_{hour:02d}h.png")
-    if os.path.exists(png_path_ombre):
-        images_ombre.append(imageio.v3.imread(png_path_ombre))
-    if os.path.exists(png_path_temperature):
-        images_temperature.append(imageio.v3.imread(png_path_temperature))
+    if images_ombre:
+        gif_path = os.path.join(output_dir, "animation_ombres.gif")
+        imageio.mimsave(gif_path, images_ombre, fps=2)
+        print(f"\n✅ Animation créée : {gif_path}")
 
-if images_ombre:
-    gif_path = os.path.join(output_dir, "animation_ombres.gif")
-    imageio.mimsave(gif_path, images_ombre, fps=2)
-    print(f"\n✅ Animation créée : {gif_path}")
+    if images_temperature:
+        gif_path = os.path.join(output_dir, "animation_temperature.gif")
+        imageio.mimsave(gif_path, images_temperature, fps=2)
+        print(f"\n✅ Animation créée : {gif_path}")
 
-if images_temperature:
-    gif_path = os.path.join(output_dir, "animation_temperature.gif")
-    imageio.mimsave(gif_path, images_temperature, fps=2)
-    print(f"\n✅ Animation créée : {gif_path}")
+
+if __name__ == "__main__":
+
+    longitude = -1.15
+    latitude = 46.166672
+    UTC = 1
+
+    # from pyhelios.types import Location
+    #with Context() as context:
+        # Set location explicitly
+    #    context.setLocation(longitude, latitude, 1)             # latitude, longitude, UTC offset
+    #    context.setLocation(Location(latitude, longitude, 1))   # equivalent
+        
+    #    # Read it back
+    #    loc = context.getLocation()
+    #    print(loc.latitude, loc.longitude, loc.utc_offset)
+
+
+    pressure = 101300
+
+
+    # Guidance for selecting turbidity values:
+
+    # 0.02: Very clear sky (remote/clean atmosphere) - default value
+    # 0.03-0.05: Clear sky (typical for rural areas)
+    # 0.1: Light haze or light pollution
+    # 0.2-0.3: Hazy conditions (urban/polluted atmosphere)
+    # >0.4: Very hazy or heavily polluted atmosphere
+    # Higher turbidity values result in:
+    # - Reduced direct solar radiation
+    # - Increased fraction of diffuse radiation
+    # - Whitening of the sky (reduced blue color)
+    # - Enhanced circumsolar brightening (bright region around the sun)
+    turbidity = 0.05
+
+    # Paramètres du sol
+    # center = vec3(0, 50, 0)
+    center = vec3(0, 0, 0)
+    # size_total = vec2(450, 150)     # taille globale du sol (m)
+    size_total = vec2(50, 50)  # taille globale du sol (m)
+    nx, ny = 30, 30  # nombre de subdivisions
+
+    dx = size_total.x / nx
+    dy = size_total.y / ny
+
+    output_dir = "resultats_ombres"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # hours = [6, 10, 12, 14, 18]  # Days to advance
+    hours = [12]  # Days to advance
+    main()

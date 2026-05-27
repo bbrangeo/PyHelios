@@ -11,25 +11,31 @@ from .wrappers.DataTypes import (
     # Vector types
     vec2, vec3, vec4,
     int2, int3, int4,
-    
+
     # Color types
     RGBcolor, RGBAcolor,
-    
+
     # Coordinate types
     SphericalCoord,
-    
+    AxisRotation,
+
     # Time and Date types
     Time, Date,
-    
+
+    # Geographic location
+    Location,
+
     # Primitive type enumeration
     PrimitiveType,
-    
+
     # Factory functions
     make_int2, make_int3, make_int4,
     make_vec2, make_vec3, make_vec4,
     make_RGBcolor, make_RGBAcolor,
     make_SphericalCoord,
-    make_Time, make_Date
+    make_AxisRotation,
+    make_Time, make_Date,
+    make_Location,
 )
 
 # Export all for star imports
@@ -37,23 +43,29 @@ __all__ = [
     # Vector types
     'vec2', 'vec3', 'vec4',
     'int2', 'int3', 'int4',
-    
+
     # Color types
     'RGBcolor', 'RGBAcolor',
-    
+
     # Coordinate types
     'SphericalCoord',
-    
+    'AxisRotation',
+
     # Time and Date types
     'Time', 'Date',
-    
+
+    # Geographic location
+    'Location',
+
     # Primitive type enumeration
     'PrimitiveType',
-    
+
     # Factory functions
     'make_int2', 'make_int3', 'make_int4',
     'make_vec2', 'make_vec3', 'make_vec4',
     'make_RGBcolor', 'make_RGBAcolor',
     'make_SphericalCoord',
-    'make_Time', 'make_Date'
+    'make_AxisRotation',
+    'make_Time', 'make_Date',
+    'make_Location',
 ]

@@ -6,7 +6,7 @@ capabilities with graceful plugin handling and informative error messages.
 """
 
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Any
 from contextlib import contextmanager
 from pathlib import Path
 import os
@@ -402,7 +402,7 @@ class SkyViewFactorModel:
 
     def calculate_sky_view_factors_for_primitives(
         self, uuids: List[str | int] = None, num_threads: int = 0
-    ) -> List[float]:
+    ) -> tuple[Any, dict[int, Any]]:
         """
         Calculate sky view factors for primitive centers.
 
@@ -423,7 +423,15 @@ class SkyViewFactorModel:
                     self._model_ptr, uuids, num_threads
                 )
                 self._sky_view_factors = results
-                return results
+
+                uuid_to_svf = dict(zip(uuids, results))
+
+                for uuid, sky_view_factor in uuid_to_svf.items():
+                    self.context.setPrimitiveDataFloat(
+                        uuid, "sky_view_factor", sky_view_factor
+                    )
+
+                return results, uuid_to_svf
         except Exception as e:
             raise SkyViewFactorModelError(
                 f"Failed to calculate sky view factors for primitives: {e}"
@@ -572,7 +580,6 @@ class SkyViewFactorModel:
     def is_optix_available(self) -> bool:
         """Check if OptiX is available."""
         return skyviewfactor_wrapper.isOptiXAvailable(self._model_ptr)
-    
 
     def reset(self):
         """Reset all calculated data."""

@@ -76,17 +76,6 @@ function(generate_plugin_definitions PLUGINS)
         message(STATUS "Radiation plugin not selected - disabling OptiX")
         add_compile_definitions(HELIOS_NO_OPTIX)
     endif()
-
-    # Special handling for radiation plugin
-    list(FIND PLUGINS "skyviewfactor" SKYVIEWFACTOR_INDEX)
-    if(SKYVIEWFACTOR_INDEX GREATER_EQUAL 0)
-        message(STATUS "Skyviewfactor plugin enabled - OptiX will be available")
-        # OptiX is enabled by default unless explicitly disabled
-        # The HELIOS_NO_OPTIX definition can be added in plugin_config.cmake if needed
-    else()
-        message(STATUS "Radiation plugin not selected - disabling OptiX")
-        add_compile_definitions(HELIOS_NO_OPTIX)
-    endif()
 endfunction()
 
 # Function to filter plugins by platform
@@ -102,7 +91,7 @@ function(filter_plugins_by_platform PLUGINS)
             # No specific filtering needed currently
         elseif(APPLE)
             # macOS has limited support for some GPU plugins
-            if(PLUGIN STREQUAL "aeriallidar" OR PLUGIN STREQUAL "collisiondetection")
+            if(PLUGIN STREQUAL "aeriallidar")
                 message(STATUS "⚠️  Plugin ${PLUGIN} has limited macOS support")
                 # Include anyway, but warn
             endif()

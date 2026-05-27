@@ -205,7 +205,99 @@ def validate_source_id_list(source_ids: List[int], param_name: str = "source_ids
         validate_source_id(source_id, f"{param_name}[{i}]", function_name)
 
 
-def validate_wpt_parameters(scale_factor: float = 1.0, recursion_level: int = 5, 
+def validate_position_like(value: Any, param_name: str = "position", function_name: str = None):
+    """Validate a position-like parameter (vec3 or 3-element list/tuple).
+
+    Used by RadiationModel methods that accept flexible position types.
+    """
+    from ..wrappers.DataTypes import vec3
+    if isinstance(value, vec3):
+        return
+    if hasattr(value, 'x') and hasattr(value, 'y') and hasattr(value, 'z'):
+        return  # vec3-like
+    if isinstance(value, (list, tuple)):
+        if len(value) != 3:
+            raise create_validation_error(
+                f"Parameter must have 3 elements, got {len(value)}",
+                param_name=param_name,
+                function_name=function_name,
+                expected_type="vec3 or 3-element list/tuple",
+                actual_value=value,
+            )
+        return
+    raise create_validation_error(
+        f"Parameter must be a vec3 or 3-element list/tuple, got {type(value).__name__}",
+        param_name=param_name,
+        function_name=function_name,
+        expected_type="vec3 or 3-element list/tuple",
+        actual_value=value,
+        suggestion="Use vec3(x, y, z) or [x, y, z]."
+    )
+
+
+def validate_direction_like(value: Any, param_name: str = "direction", function_name: str = None):
+    """Validate a direction-like parameter (vec3, SphericalCoord, or 3-element list/tuple).
+
+    Used by RadiationModel methods that accept flexible direction types.
+    """
+    from ..wrappers.DataTypes import vec3, SphericalCoord
+    if isinstance(value, (vec3, SphericalCoord)):
+        return
+    if hasattr(value, 'x') and hasattr(value, 'y') and hasattr(value, 'z'):
+        return  # vec3-like
+    if hasattr(value, 'radius') and hasattr(value, 'elevation') and hasattr(value, 'azimuth'):
+        return  # SphericalCoord-like
+    if isinstance(value, (list, tuple)):
+        if len(value) != 3:
+            raise create_validation_error(
+                f"Parameter must have 3 elements, got {len(value)}",
+                param_name=param_name,
+                function_name=function_name,
+                expected_type="vec3, SphericalCoord, or 3-element list/tuple",
+                actual_value=value,
+            )
+        return
+    raise create_validation_error(
+        f"Parameter must be a vec3, SphericalCoord, or 3-element list/tuple, got {type(value).__name__}",
+        param_name=param_name,
+        function_name=function_name,
+        expected_type="vec3, SphericalCoord, or 3-element list/tuple",
+        actual_value=value,
+        suggestion="Use vec3(x, y, z), SphericalCoord(r, e, a), or [x, y, z]."
+    )
+
+
+def validate_size_like(value: Any, param_name: str = "size", function_name: str = None):
+    """Validate a size-like parameter (vec2 or 2-element list/tuple).
+
+    Used by RadiationModel methods that accept flexible size types.
+    """
+    from ..wrappers.DataTypes import vec2
+    if isinstance(value, vec2):
+        return
+    if hasattr(value, 'x') and hasattr(value, 'y') and not hasattr(value, 'z'):
+        return  # vec2-like
+    if isinstance(value, (list, tuple)):
+        if len(value) != 2:
+            raise create_validation_error(
+                f"Parameter must have 2 elements, got {len(value)}",
+                param_name=param_name,
+                function_name=function_name,
+                expected_type="vec2 or 2-element list/tuple",
+                actual_value=value,
+            )
+        return
+    raise create_validation_error(
+        f"Parameter must be a vec2 or 2-element list/tuple, got {type(value).__name__}",
+        param_name=param_name,
+        function_name=function_name,
+        expected_type="vec2 or 2-element list/tuple",
+        actual_value=value,
+        suggestion="Use vec2(x, y) or [x, y]."
+    )
+
+
+def validate_wpt_parameters(scale_factor: float = 1.0, recursion_level: int = 5,
                            segment_resolution: int = 10, param_prefix: str = "WPT"):
     """Validate WeberPennTree generation parameters."""
     if not is_finite_numeric(scale_factor):
@@ -456,16 +548,30 @@ def validate_filename(filename: Any, param_name: str = "filename", function_name
             suggestion="Provide a non-empty filename."
         )
     
-    # Check for potentially problematic characters
+    # Check for potentially problematic characters in the basename only
+    # (full paths may contain valid characters like ':' in Windows drive letters C:\)
     import os
-    if any(char in filename for char in ['<', '>', ':', '"', '|', '?', '*']):
+    import ntpath
+    # Handle both Windows and Unix paths correctly regardless of current platform
+    # Use ntpath for Windows-style paths (backslash or drive letter pattern)
+    if '\\' in filename or (len(filename) >= 2 and filename[1] == ':'):
+        basename = ntpath.basename(filename)
+    else:
+        basename = os.path.basename(filename)
+    # On Windows, colons are only valid after drive letters, not in filenames
+    # On all platforms, these characters are problematic in filenames
+    invalid_chars = ['<', '>', '"', '|', '?', '*']
+    # Add colon check for the basename (not allowed in filenames on any platform)
+    if ':' in basename:
+        invalid_chars.append(':')
+    if any(char in basename for char in invalid_chars):
         raise create_validation_error(
-            f"Filename contains invalid characters: {filename}",
+            f"Filename contains invalid characters: {basename}",
             param_name=param_name,
             function_name=function_name,
             expected_type="valid filename",
             actual_value=filename,
-            suggestion="Avoid characters: < > : \" | ? *"
+            suggestion="Avoid characters: < > : \" | ? * in filename"
         )
     
     # Validate file extension if specified

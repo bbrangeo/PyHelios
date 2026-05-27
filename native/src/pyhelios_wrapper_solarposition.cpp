@@ -244,7 +244,8 @@ float getSolarFlux(HeliosSolarPosition* solar_pos, float pressure_Pa, float temp
         }
         
         SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
-        return sp->getSolarFlux(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        sp->setAtmosphericConditions(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        return sp->getSolarFlux();
         
     } catch (const std::runtime_error& e) {
         setError(PYHELIOS_ERROR_RUNTIME, e.what());
@@ -285,7 +286,8 @@ float getSolarFluxPAR(HeliosSolarPosition* solar_pos, float pressure_Pa, float t
         }
         
         SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
-        return sp->getSolarFluxPAR(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        sp->setAtmosphericConditions(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        return sp->getSolarFluxPAR();
         
     } catch (const std::runtime_error& e) {
         setError(PYHELIOS_ERROR_RUNTIME, e.what());
@@ -326,7 +328,8 @@ float getSolarFluxNIR(HeliosSolarPosition* solar_pos, float pressure_Pa, float t
         }
         
         SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
-        return sp->getSolarFluxNIR(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        sp->setAtmosphericConditions(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        return sp->getSolarFluxNIR();
         
     } catch (const std::runtime_error& e) {
         setError(PYHELIOS_ERROR_RUNTIME, e.what());
@@ -367,7 +370,8 @@ float getDiffuseFraction(HeliosSolarPosition* solar_pos, float pressure_Pa, floa
         }
         
         SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
-        return sp->getDiffuseFraction(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        sp->setAtmosphericConditions(pressure_Pa, temperature_K, humidity_rel, turbidity);
+        return sp->getDiffuseFraction();
         
     } catch (const std::runtime_error& e) {
         setError(PYHELIOS_ERROR_RUNTIME, e.what());
@@ -377,6 +381,185 @@ float getDiffuseFraction(HeliosSolarPosition* solar_pos, float pressure_Pa, floa
         return 0.0f;
     } catch (...) {
         setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getDiffuseFraction): Unknown error");
+        return 0.0f;
+    }
+}
+
+// Atmospheric condition management (modern API)
+void setAtmosphericConditions(HeliosSolarPosition* solar_pos, float pressure_Pa, float temperature_K, float humidity_rel, float turbidity) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+
+        // Validate parameters
+        if (pressure_Pa < 0.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Atmospheric pressure must be non-negative");
+            return;
+        }
+        if (temperature_K < 0.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Temperature must be non-negative");
+            return;
+        }
+        if (humidity_rel < 0.0f || humidity_rel > 1.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Relative humidity must be between 0 and 1");
+            return;
+        }
+        if (turbidity < 0.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Turbidity must be non-negative");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->setAtmosphericConditions(pressure_Pa, temperature_K, humidity_rel, turbidity);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (setAtmosphericConditions): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (setAtmosphericConditions): Unknown error");
+    }
+}
+
+void getAtmosphericConditions(HeliosSolarPosition* solar_pos, float* pressure_Pa, float* temperature_K, float* humidity_rel, float* turbidity) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+        if (!pressure_Pa || !temperature_K || !humidity_rel || !turbidity) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Output parameters cannot be null");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->getAtmosphericConditions(*pressure_Pa, *temperature_K, *humidity_rel, *turbidity);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getAtmosphericConditions): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getAtmosphericConditions): Unknown error");
+    }
+}
+
+// Modern parameter-free flux methods (use atmospheric conditions from Context)
+float getSolarFluxFromState(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return 0.0f;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->getSolarFlux();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return 0.0f;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getSolarFluxFromState): ") + e.what());
+        return 0.0f;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getSolarFluxFromState): Unknown error");
+        return 0.0f;
+    }
+}
+
+float getSolarFluxPARFromState(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return 0.0f;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->getSolarFluxPAR();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return 0.0f;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getSolarFluxPARFromState): ") + e.what());
+        return 0.0f;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getSolarFluxPARFromState): Unknown error");
+        return 0.0f;
+    }
+}
+
+float getSolarFluxNIRFromState(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return 0.0f;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->getSolarFluxNIR();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return 0.0f;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getSolarFluxNIRFromState): ") + e.what());
+        return 0.0f;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getSolarFluxNIRFromState): Unknown error");
+        return 0.0f;
+    }
+}
+
+float getDiffuseFractionFromState(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return 0.0f;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->getDiffuseFraction();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return 0.0f;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getDiffuseFractionFromState): ") + e.what());
+        return 0.0f;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getDiffuseFractionFromState): Unknown error");
+        return 0.0f;
+    }
+}
+
+float getAmbientLongwaveFluxFromState(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return 0.0f;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->getAmbientLongwaveFlux();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return 0.0f;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (getAmbientLongwaveFluxFromState): ") + e.what());
+        return 0.0f;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (getAmbientLongwaveFluxFromState): Unknown error");
         return 0.0f;
     }
 }
@@ -510,6 +693,187 @@ void disableCloudCalibration(HeliosSolarPosition* solar_pos) {
         setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (disableCloudCalibration): ") + e.what());
     } catch (...) {
         setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (disableCloudCalibration): Unknown error");
+    }
+}
+
+// SSolar-GOA Spectral Solar Model Methods
+
+void calculateDirectSolarSpectrum(HeliosSolarPosition* solar_pos, const char* label, float resolution_nm) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+        if (!label) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Label pointer is null");
+            return;
+        }
+
+        // Validate resolution parameter
+        if (resolution_nm < 1.0f || resolution_nm > 2300.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Wavelength resolution must be between 1 and 2300 nm");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->calculateDirectSolarSpectrum(std::string(label), resolution_nm);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (calculateDirectSolarSpectrum): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (calculateDirectSolarSpectrum): Unknown error");
+    }
+}
+
+void calculateDiffuseSolarSpectrum(HeliosSolarPosition* solar_pos, const char* label, float resolution_nm) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+        if (!label) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Label pointer is null");
+            return;
+        }
+
+        // Validate resolution parameter
+        if (resolution_nm < 1.0f || resolution_nm > 2300.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Wavelength resolution must be between 1 and 2300 nm");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->calculateDiffuseSolarSpectrum(std::string(label), resolution_nm);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (calculateDiffuseSolarSpectrum): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (calculateDiffuseSolarSpectrum): Unknown error");
+    }
+}
+
+void calculateGlobalSolarSpectrum(HeliosSolarPosition* solar_pos, const char* label, float resolution_nm) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+        if (!label) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Label pointer is null");
+            return;
+        }
+
+        // Validate resolution parameter
+        if (resolution_nm < 1.0f || resolution_nm > 2300.0f) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "Wavelength resolution must be between 1 and 2300 nm");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->calculateGlobalSolarSpectrum(std::string(label), resolution_nm);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (calculateGlobalSolarSpectrum): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (calculateGlobalSolarSpectrum): Unknown error");
+    }
+}
+
+// Prague Sky Model Functions
+
+void enablePragueSkyModel(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->enablePragueSkyModel();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (enablePragueSkyModel): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (enablePragueSkyModel): Unknown error");
+    }
+}
+
+bool isPragueSkyModelEnabled(HeliosSolarPosition* solar_pos) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return false;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->isPragueSkyModelEnabled();
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return false;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (isPragueSkyModelEnabled): ") + e.what());
+        return false;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (isPragueSkyModelEnabled): Unknown error");
+        return false;
+    }
+}
+
+void updatePragueSkyModel(HeliosSolarPosition* solar_pos, float ground_albedo) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        sp->updatePragueSkyModel(ground_albedo);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (updatePragueSkyModel): ") + e.what());
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (updatePragueSkyModel): Unknown error");
+    }
+}
+
+bool pragueSkyModelNeedsUpdate(HeliosSolarPosition* solar_pos, float ground_albedo,
+                                float sun_tolerance, float turbidity_tolerance, float albedo_tolerance) {
+    try {
+        clearError();
+        if (!solar_pos) {
+            setError(PYHELIOS_ERROR_INVALID_PARAMETER, "SolarPosition pointer is null");
+            return false;
+        }
+
+        SolarPosition* sp = reinterpret_cast<SolarPosition*>(solar_pos);
+        return sp->pragueSkyModelNeedsUpdate(ground_albedo, sun_tolerance, turbidity_tolerance, albedo_tolerance);
+
+    } catch (const std::runtime_error& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, e.what());
+        return false;
+    } catch (const std::exception& e) {
+        setError(PYHELIOS_ERROR_RUNTIME, std::string("ERROR (pragueSkyModelNeedsUpdate): ") + e.what());
+        return false;
+    } catch (...) {
+        setError(PYHELIOS_ERROR_UNKNOWN, "ERROR (pragueSkyModelNeedsUpdate): Unknown error");
+        return false;
     }
 }
 

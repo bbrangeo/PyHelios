@@ -22,6 +22,10 @@ from .assets import get_asset_manager
 
 logger = logging.getLogger(__name__)
 
+# Type references for type checking (avoids doxygen parsing issues)
+_INT_TYPE = int
+_NUMERIC_TYPES = (int, float)
+
 
 def _resolve_user_path(path: str) -> str:
     """
@@ -149,11 +153,11 @@ class Visualizer:
             ValueError: If parameters are invalid
         """
         # Validate parameter types first
-        if not isinstance(width, int):
+        if not isinstance(width, _INT_TYPE):
             raise ValueError(f"Width must be an integer, got {type(width).__name__}")
-        if not isinstance(height, int):
+        if not isinstance(height, _INT_TYPE):
             raise ValueError(f"Height must be an integer, got {type(height).__name__}")
-        if not isinstance(antialiasing_samples, int):
+        if not isinstance(antialiasing_samples, _INT_TYPE):
             raise ValueError(f"Antialiasing samples must be an integer, got {type(antialiasing_samples).__name__}")
         if not isinstance(headless, bool):
             raise ValueError(f"Headless must be a boolean, got {type(headless).__name__}")
@@ -323,20 +327,23 @@ class Visualizer:
     def plotUpdate(self) -> None:
         """
         Update visualization (non-interactive).
-        
+
         This method updates the visualization window without user interaction.
         The program continues immediately after rendering. Useful for batch
         processing or creating image sequences.
-        
+
+        In headless mode, automatically hides the window to prevent graphics driver crashes on some platforms.
+
         Raises:
             VisualizerError: If visualization update fails
         """
         if self.visualizer is None:
             raise VisualizerError("Visualizer has been destroyed")
-        
+
         try:
             with _visualizer_working_directory():
-                visualizer_wrapper.plot_update(self.visualizer)
+                # In headless mode, hide the window to avoid OpenGL/Metal crashes on macOS
+                visualizer_wrapper.plot_update(self.visualizer, hide_window=self.headless)
             logger.debug("Visualization updated")
         except Exception as e:
             raise VisualizerError(f"Visualization update failed: {e}")
@@ -353,9 +360,9 @@ class Visualizer:
             filename: Output filename for image
                      Can be absolute or relative to user's current working directory
                      Extension (.jpg, .png) is recommended but not required
-            image_format: Image format - "jpeg" or "png" (v1.3.53+)
-                         If None, automatically detects from filename extension
-                         Default: "jpeg" if not detectable from extension
+            image_format: Image format - "jpeg" or "png" (v1.3.53+).
+                         If None, automatically detects from filename extension.
+                         Defaults to "jpeg" if not detectable from extension.
 
         Raises:
             VisualizerError: If image saving fails
@@ -589,7 +596,7 @@ class Visualizer:
         if self.visualizer is None:
             raise VisualizerError("Visualizer has been destroyed")
 
-        if not isinstance(divisions, int) or divisions <= 0:
+        if not isinstance(divisions, _INT_TYPE) or divisions <= 0:
             raise ValueError("Divisions must be a positive integer")
 
         # Resolve texture file path if provided
@@ -728,7 +735,7 @@ class Visualizer:
                 # Color specific primitives
                 if not isinstance(uuids, (list, tuple)) or not uuids:
                     raise ValueError("UUIDs must be a non-empty list or tuple")
-                if not all(isinstance(uuid, int) and uuid >= 0 for uuid in uuids):
+                if not all(isinstance(uuid, _INT_TYPE) and uuid >= 0 for uuid in uuids):
                     raise ValueError("All UUIDs must be non-negative integers")
                 
                 visualizer_wrapper.color_context_primitives_by_data_uuids(self.visualizer, data_name, list(uuids))
@@ -755,8 +762,10 @@ class Visualizer:
         """
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
-        
-        if not isinstance(angle_FOV, (int, float)):
+
+        try:
+            float(angle_FOV)
+        except (TypeError, ValueError):
             raise ValueError("Field of view angle must be numeric")
         if angle_FOV <= 0 or angle_FOV >= 180:
             raise ValueError("Field of view angle must be between 0 and 180 degrees")
@@ -830,7 +839,7 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
         
-        if not isinstance(intensity_factor, (int, float)):
+        if not isinstance(intensity_factor, _NUMERIC_TYPES):
             raise ValueError("Light intensity factor must be numeric")
         if intensity_factor <= 0:
             raise ValueError("Light intensity factor must be positive")
@@ -921,9 +930,9 @@ class Visualizer:
         
         if not isinstance(pixel_data, (list, tuple)):
             raise ValueError("Pixel data must be a list or tuple")
-        if not isinstance(width, int) or width <= 0:
+        if not isinstance(width, _INT_TYPE) or width <= 0:
             raise ValueError("Width must be a positive integer")
-        if not isinstance(height, int) or height <= 0:
+        if not isinstance(height, _INT_TYPE) or height <= 0:
             raise ValueError("Height must be a positive integer")
         
         expected_size = width * height * 4  # RGBA format
@@ -1082,7 +1091,7 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
         
-        if not isinstance(geometry_id, int) or geometry_id < 0:
+        if not isinstance(geometry_id, _INT_TYPE) or geometry_id < 0:
             raise ValueError("Geometry ID must be a non-negative integer")
         
         try:
@@ -1130,7 +1139,7 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
 
-        if not isinstance(geometry_id, int) or geometry_id < 0:
+        if not isinstance(geometry_id, _INT_TYPE) or geometry_id < 0:
             raise ValueError("Geometry ID must be a non-negative integer")
 
         try:
@@ -1165,7 +1174,7 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
 
-        if not isinstance(geometry_id, int) or geometry_id < 0:
+        if not isinstance(geometry_id, _INT_TYPE) or geometry_id < 0:
             raise ValueError("Geometry ID must be a non-negative integer")
 
         if not vertices or not isinstance(vertices, (list, tuple)):
@@ -1264,7 +1273,7 @@ class Visualizer:
             raise ValueError("Size must be a vec3")
         if not isinstance(subdivisions, (list, tuple)) or len(subdivisions) != 3:
             raise ValueError("Subdivisions must be a list of 3 integers")
-        if not all(isinstance(s, int) and s > 0 for s in subdivisions):
+        if not all(isinstance(s, _INT_TYPE) and s > 0 for s in subdivisions):
             raise ValueError("All subdivisions must be positive integers")
         
         try:
@@ -1345,9 +1354,9 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
         
-        if not isinstance(width, (int, float)) or width <= 0:
+        if not isinstance(width, _NUMERIC_TYPES) or width <= 0:
             raise ValueError("Width must be a positive number")
-        if not isinstance(height, (int, float)) or height <= 0:
+        if not isinstance(height, _NUMERIC_TYPES) or height <= 0:
             raise ValueError("Height must be a positive number")
         
         try:
@@ -1371,9 +1380,9 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
         
-        if not isinstance(min_val, (int, float)):
+        if not isinstance(min_val, _NUMERIC_TYPES):
             raise ValueError("Minimum value must be numeric")
-        if not isinstance(max_val, (int, float)):
+        if not isinstance(max_val, _NUMERIC_TYPES):
             raise ValueError("Maximum value must be numeric")
         if min_val >= max_val:
             raise ValueError("Minimum value must be less than maximum value")
@@ -1399,7 +1408,7 @@ class Visualizer:
         
         if not isinstance(ticks, (list, tuple)):
             raise ValueError("Ticks must be a list or tuple")
-        if not all(isinstance(t, (int, float)) for t in ticks):
+        if not all(isinstance(t, _NUMERIC_TYPES) for t in ticks):
             raise ValueError("All tick values must be numeric")
         
         try:
@@ -1470,7 +1479,7 @@ class Visualizer:
         if not self.visualizer:
             raise VisualizerError("Visualizer not initialized")
         
-        if not isinstance(font_size, int) or font_size <= 0:
+        if not isinstance(font_size, _INT_TYPE) or font_size <= 0:
             raise ValueError("Font size must be a positive integer")
         
         try:
@@ -1503,7 +1512,7 @@ class Visualizer:
             if colormap.upper() not in colormap_map:
                 raise ValueError(f"Unknown colormap name: {colormap}")
             colormap_id = colormap_map[colormap.upper()]
-        elif isinstance(colormap, int):
+        elif isinstance(colormap, _INT_TYPE):
             if colormap < 0 or colormap > 5:
                 raise ValueError("Colormap ID must be 0-5")
             colormap_id = colormap
@@ -1539,7 +1548,7 @@ class Visualizer:
         
         if not all(isinstance(c, RGBcolor) for c in colors):
             raise ValueError("All colors must be RGBcolor objects")
-        if not all(isinstance(d, (int, float)) for d in divisions):
+        if not all(isinstance(d, _NUMERIC_TYPES) for d in divisions):
             raise ValueError("All divisions must be numeric")
         
         try:
@@ -1582,7 +1591,7 @@ class Visualizer:
             else:
                 if not isinstance(obj_ids, (list, tuple)):
                     raise ValueError("Object IDs must be a list or tuple")
-                if not all(isinstance(oid, int) and oid >= 0 for oid in obj_ids):
+                if not all(isinstance(oid, _INT_TYPE) and oid >= 0 for oid in obj_ids):
                     raise ValueError("All object IDs must be non-negative integers")
                 
                 if obj_ids:
@@ -1613,7 +1622,7 @@ class Visualizer:
             else:
                 if not isinstance(uuids, (list, tuple)):
                     raise ValueError("UUIDs must be a list or tuple")
-                if not all(isinstance(uuid, int) and uuid >= 0 for uuid in uuids):
+                if not all(isinstance(uuid, _INT_TYPE) and uuid >= 0 for uuid in uuids):
                     raise ValueError("All UUIDs must be non-negative integers")
                 
                 if uuids:
@@ -1644,7 +1653,7 @@ class Visualizer:
             else:
                 if not isinstance(obj_ids, (list, tuple)):
                     raise ValueError("Object IDs must be a list or tuple")
-                if not all(isinstance(oid, int) and oid >= 0 for oid in obj_ids):
+                if not all(isinstance(oid, _INT_TYPE) and oid >= 0 for oid in obj_ids):
                     raise ValueError("All object IDs must be non-negative integers")
                 
                 if obj_ids:
@@ -1827,7 +1836,195 @@ class Visualizer:
                 helios_lib.plotUpdateWithVisibility(self.visualizer, hide_window)
         except Exception as e:
             raise VisualizerError(f"Failed to update plot with visibility control: {e}")
-    
+
+    # Point Culling and LOD Methods (v1.3.54+)
+
+    def setPointCullingEnabled(self, enabled: bool) -> None:
+        """
+        Enable or disable point cloud culling optimization.
+
+        Point culling improves rendering performance for large point clouds by
+        selectively rendering only points that are visible based on distance
+        and density criteria.
+
+        Args:
+            enabled: True to enable culling, False to disable (default: True)
+
+        Raises:
+            ValueError: If enabled is not a boolean
+            VisualizerError: If operation fails
+
+        Example:
+            >>> with Visualizer(800, 600) as vis:
+            ...     vis.setPointCullingEnabled(False)  # Disable for highest quality
+            ...     vis.setPointCullingEnabled(True)   # Enable for better performance
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        if not isinstance(enabled, bool):
+            raise ValueError(f"Enabled must be a boolean, got {type(enabled).__name__}")
+
+        try:
+            visualizer_wrapper.set_point_culling_enabled(self.visualizer, enabled)
+            logger.debug(f"Point culling {'enabled' if enabled else 'disabled'}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set point culling enabled: {e}")
+
+    def setPointCullingThreshold(self, threshold: int) -> None:
+        """
+        Set the minimum number of points required to trigger culling.
+
+        Culling is only activated when the total point count exceeds this threshold.
+        This prevents unnecessary culling overhead for small point clouds.
+
+        Args:
+            threshold: Point count threshold (default: 10000). Set to 0 to always enable.
+
+        Raises:
+            ValueError: If threshold is not a non-negative integer
+            VisualizerError: If operation fails
+
+        Example:
+            >>> vis.setPointCullingThreshold(50000)  # Only cull for >50k points
+            >>> vis.setPointCullingThreshold(0)      # Always enable culling
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        if not isinstance(threshold, int):
+            raise ValueError(f"Threshold must be an integer, got {type(threshold).__name__}")
+        if threshold < 0:
+            raise ValueError("Point culling threshold must be non-negative")
+
+        try:
+            visualizer_wrapper.set_point_culling_threshold(self.visualizer, threshold)
+            logger.debug(f"Point culling threshold set to {threshold}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set point culling threshold: {e}")
+
+    def setPointMaxRenderDistance(self, distance: float) -> None:
+        """
+        Set the maximum rendering distance for points.
+
+        Points beyond this distance from the camera are not rendered, improving
+        performance for large scenes. The distance is measured in world units.
+
+        Args:
+            distance: Maximum distance in world units. Use 0 for auto mode (scene_size * 5.0)
+
+        Raises:
+            ValueError: If distance is negative
+            VisualizerError: If operation fails
+
+        Example:
+            >>> vis.setPointMaxRenderDistance(0.0)    # Auto mode
+            >>> vis.setPointMaxRenderDistance(100.0)  # Fixed distance
+
+        Note:
+            Setting distance to 0 enables automatic mode, which calculates the
+            render distance based on the scene bounding box dimensions.
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        if not isinstance(distance, (int, float)):
+            raise ValueError(f"Distance must be numeric, got {type(distance).__name__}")
+        if distance < 0.0:
+            raise ValueError("Point max render distance cannot be negative")
+
+        try:
+            visualizer_wrapper.set_point_max_render_distance(self.visualizer, float(distance))
+            if distance == 0.0:
+                logger.debug("Point max render distance set to auto mode")
+            else:
+                logger.debug(f"Point max render distance set to {distance}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set point max render distance: {e}")
+
+    def setPointLODFactor(self, factor: float) -> None:
+        """
+        Set the level-of-detail factor for distance-based culling.
+
+        Controls how aggressively points are culled based on distance from camera.
+        Higher values result in more aggressive culling (better performance, lower quality).
+        Lower values preserve more points (higher quality, lower performance).
+
+        Args:
+            factor: LOD factor (default: 10.0, typical range: 1.0-50.0). Must be positive.
+
+        Raises:
+            ValueError: If factor is not positive
+            VisualizerError: If operation fails
+
+        Example:
+            >>> vis.setPointLODFactor(5.0)   # Conservative culling
+            >>> vis.setPointLODFactor(10.0)  # Default culling
+            >>> vis.setPointLODFactor(25.0)  # Aggressive culling
+
+        Note:
+            The LOD factor determines the rate at which point density decreases
+            with distance. Higher factors mean points are culled more quickly
+            as distance increases.
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+        if not isinstance(factor, (int, float)):
+            raise ValueError(f"LOD factor must be numeric, got {type(factor).__name__}")
+        if factor <= 0.0:
+            raise ValueError("Point LOD factor must be positive")
+
+        # Warn about extreme values
+        if factor < 1.0:
+            logger.warning(f"Point LOD factor {factor} is very low (< 1.0), may cause performance issues")
+        elif factor > 100.0:
+            logger.warning(f"Point LOD factor {factor} is very high (> 100.0), may over-cull points")
+
+        try:
+            visualizer_wrapper.set_point_lod_factor(self.visualizer, float(factor))
+            logger.debug(f"Point LOD factor set to {factor}")
+        except Exception as e:
+            raise VisualizerError(f"Failed to set point LOD factor: {e}")
+
+    def getPointRenderingMetrics(self) -> dict:
+        """
+        Get point cloud rendering performance metrics.
+
+        Provides detailed statistics about point cloud culling and rendering
+        performance, useful for optimizing visualization settings.
+
+        Returns:
+            Dictionary with keys:
+                - 'total_points' (int): Total number of points in the scene
+                - 'rendered_points' (int): Number of points actually rendered after culling
+                - 'culling_time_ms' (float): Time spent on culling in milliseconds
+
+        Raises:
+            VisualizerError: If operation fails
+
+        Example:
+            >>> metrics = vis.getPointRenderingMetrics()
+            >>> print(f"Total: {metrics['total_points']}")
+            >>> print(f"Rendered: {metrics['rendered_points']}")
+            >>> cull_rate = (1 - metrics['rendered_points']/metrics['total_points']) * 100
+            >>> print(f"Culling rate: {cull_rate:.1f}%")
+
+        Note:
+            Metrics are only meaningful after calling plotUpdate() or plotInteractive().
+            The culling_time_ms represents CPU time spent on culling calculations,
+            not total frame time.
+        """
+        if not self.visualizer:
+            raise VisualizerError("Visualizer not initialized")
+
+        try:
+            metrics = visualizer_wrapper.get_point_rendering_metrics(self.visualizer)
+            logger.debug(
+                f"Point rendering metrics: {metrics['total_points']} total, "
+                f"{metrics['rendered_points']} rendered, "
+                f"{metrics['culling_time_ms']:.2f} ms culling time"
+            )
+            return metrics
+        except Exception as e:
+            raise VisualizerError(f"Failed to get point rendering metrics: {e}")
+
     def __del__(self):
         """Destructor to ensure proper cleanup."""
         if hasattr(self, 'visualizer') and self.visualizer is not None:

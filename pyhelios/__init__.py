@@ -51,20 +51,20 @@ except (AttributeError, ImportError):
     WPTType = None
 
 try:
-    from .RadiationModel import RadiationModel, RadiationModelError, CameraProperties
+    from .RadiationModel import (
+        RadiationModel,
+        RadiationModelError,
+        CameraProperties,
+        CameraMetadata,
+        SIFCameraProperties,
+    )
 except (AttributeError, ImportError):
     # RadiationModel functions not available in current library
     RadiationModel = None
     CameraProperties = None
+    CameraMetadata = None
     RadiationModelError = None
-
-try:
-    from .SkyViewFactorModel import SkyViewFactorModel, SkyViewFactorModelError, SkyViewFactorCamera
-except (AttributeError, ImportError):
-    # SkyViewFactorModel functions not available in current library
-    SkyViewFactorModel = None
-    SkyViewFactorModelError = None
-    SkyViewFactorCamera = None
+    SIFCameraProperties = None
 
 try:
     from .EnergyBalance import EnergyBalanceModel, EnergyBalanceModelError
@@ -118,18 +118,50 @@ except (AttributeError, ImportError):
     BoundaryLayerConductanceModelError = None
 
 try:
-    from .PhotosynthesisModel import PhotosynthesisModel, PhotosynthesisModelError
+    from .PhotosynthesisModel import (
+        PhotosynthesisModel,
+        PhotosynthesisModelError,
+        AVAILABLE_C4_SPECIES,
+    )
 except (AttributeError, ImportError):
     # PhotosynthesisModel functions not available in current library
     PhotosynthesisModel = None
     PhotosynthesisModelError = None
+    AVAILABLE_C4_SPECIES = []
 
 try:
-    from .PlantArchitecture import PlantArchitecture, PlantArchitectureError
+    from .PlantArchitecture import PlantArchitecture, PlantArchitectureError, RandomParameter, RandomParameterInt
 except (AttributeError, ImportError):
     # PlantArchitecture functions not available in current library
     PlantArchitecture = None
     PlantArchitectureError = None
+
+try:
+    from .LeafOptics import LeafOptics, LeafOpticsError, LeafOpticsProperties
+except (AttributeError, ImportError):
+    # LeafOptics functions not available in current library
+    LeafOptics = None
+    LeafOpticsError = None
+    LeafOpticsProperties = None
+
+try:
+    from .LiDARCloud import LiDARCloud, LiDARError
+except (AttributeError, ImportError):
+    # LiDARCloud functions not available in current library
+    LiDARCloud = None
+    LiDARError = None
+
+try:
+    from .SkyViewFactorModel import (
+        SkyViewFactorModel,
+        SkyViewFactorModelError,
+        SkyViewFactorCamera,
+    )
+except (AttributeError, ImportError):
+    SkyViewFactorModel = None
+    SkyViewFactorModelError = None
+    SkyViewFactorCamera = None
+
 from .wrappers import DataTypes as DataTypes
 from . import dev_utils
 from .exceptions import (

@@ -517,74 +517,74 @@ with Context() as context:
     )
 
     # uuids = context.loadOBJ("models/LABINTECH.obj")
-    bat_uuids = context.loadOBJ("models/MAISON_EP_1.obj")
-    # bat_uuids = context.loadOBJ(
-    #     "models/Mesh_Buildings.obj",
-    #     origin=vec3(0, 0, 0),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(0.55, 0.36, 0.23),  # marron moyen
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-    # pedestrian_uuids = context.loadOBJ(
-    #     "models/Mesh_Pedestrian.obj",
-    #     origin=vec3(0, 0, 0.2),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(0.25, 0.25, 1),
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
+    # bat_uuids = context.loadOBJ("models/MAISON_EP_1.obj")
+    bat_uuids = context.loadOBJ(
+        "models/Mesh_Buildings.obj",
+        origin=vec3(0, 0, 0),  # position du modèle
+        scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        color=RGBcolor(0.55, 0.36, 0.23),  # marron moyen
+        upaxis="ZUP",  # axe vertical
+        silent=False,
+    )
+    pedestrian_uuids = context.loadOBJ(
+        "models/Mesh_Pedestrian.obj",
+        origin=vec3(0, 0, 0.2),  # position du modèle
+        scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        color=RGBcolor(0.25, 0.25, 1),
+        upaxis="ZUP",  # axe vertical
+        silent=False,
+    )
 
-    # for pedestrian_uuid in pedestrian_uuids:
-    #     context.setPrimitiveDataString(pedestrian_uuid, "surface_type", "pedestrian")
-    #     context.setPrimitiveDataString(pedestrian_uuid, "material", "soil_pedestrian")
-    #     # Propriétés optiques
-    #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_SW", 0.25)
-    #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_PAR", 0.10)
-    #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_NIR", 0.35)
+    for pedestrian_uuid in pedestrian_uuids:
+        context.setPrimitiveDataString(pedestrian_uuid, "surface_type", "pedestrian")
+        context.setPrimitiveDataString(pedestrian_uuid, "material", "soil_pedestrian")
+        # Propriétés optiques
+        context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_SW", 0.25)
+        context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_PAR", 0.10)
+        context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_NIR", 0.35)
 
-    # terrain_uuids = context.loadOBJ(
-    #     "models/Mesh_Terrain.obj",
-    #     origin=vec3(0, 0, 0.5),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(0.25, 0.25, 0.25),
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-    #
-    # for terrain_uuid in terrain_uuids:
-    #     # Propriétés optiques de l'herbe
-    #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_SW", 0.25)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_PAR", 0.10)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
-    #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
-    #     context.setPrimitiveDataFloat(
-    #         terrain_uuid, "reflectivity_LW", 0.03
-    #     )  # faible réflexion IR lointain
-    #     context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
-    #
-    # water_uuids = context.loadOBJ(
-    #     "models/Mesh_Water.obj",
-    #     origin=vec3(0, 0, 0),  # position du modèle
-    #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-    #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-    #     color=RGBcolor(
-    #         0.25, 0.55, 0.75
-    #     ),  # bleu plus terne, tirant légèrement sur le vert
-    #     upaxis="ZUP",  # axe vertical
-    #     silent=False,
-    # )
-    #
-    # for water_uuid in water_uuids:
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_SW", 0.07)
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_PAR", 0.06)
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_NIR", 0.02)
-    #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_LW", 0.03)
-    #     context.setPrimitiveDataString(water_uuid, "surface_type", "water")
+    terrain_uuids = context.loadOBJ(
+        "models/Mesh_Terrain.obj",
+        origin=vec3(0, 0, 0.5),  # position du modèle
+        scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        color=RGBcolor(0.25, 0.25, 0.25),
+        upaxis="ZUP",  # axe vertical
+        silent=False,
+    )
+
+    for terrain_uuid in terrain_uuids:
+        # Propriétés optiques de l'herbe
+        context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_SW", 0.25)
+        context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_PAR", 0.10)
+        context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
+        context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
+        context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
+        context.setPrimitiveDataFloat(
+            terrain_uuid, "reflectivity_LW", 0.03
+        )  # faible réflexion IR lointain
+        context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
+
+    water_uuids = context.loadOBJ(
+        "models/Mesh_Water.obj",
+        origin=vec3(0, 0, 0),  # position du modèle
+        scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+        rotation=make_SphericalCoord(0, 0),  # pas de rotation
+        color=RGBcolor(
+            0.25, 0.55, 0.75
+        ),  # bleu plus terne, tirant légèrement sur le vert
+        upaxis="ZUP",  # axe vertical
+        silent=False,
+    )
+
+    for water_uuid in water_uuids:
+        context.setPrimitiveDataFloat(water_uuid, "reflectivity_SW", 0.07)
+        context.setPrimitiveDataFloat(water_uuid, "reflectivity_PAR", 0.06)
+        context.setPrimitiveDataFloat(water_uuid, "reflectivity_NIR", 0.02)
+        context.setPrimitiveDataFloat(water_uuid, "reflectivity_LW", 0.03)
+        context.setPrimitiveDataString(water_uuid, "surface_type", "water")
 
     vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 

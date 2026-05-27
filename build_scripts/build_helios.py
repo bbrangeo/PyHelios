@@ -48,7 +48,9 @@ INTEGRATED_PLUGINS = [
     "boundarylayerconductance",
     "photosynthesis",
     "plantarchitecture",
-    "skyviewfactor"
+    "leafoptics",
+    "lidar", 
+    "skyviewfactor",
 ]
 
 # Execute dependency_resolver.py to get PluginDependencyResolver
@@ -91,12 +93,7 @@ class HeliosBuilder:
             'lib_name': 'libhelios.dylib',  # Shared library for ctypes
             'build_type': 'Release',
             'generator': 'Unix Makefiles',
-            'cmake_args': [
-                '-DCMAKE_BUILD_TYPE=Release',
-                '-DCMAKE_CXX_COMPILER=/Library/Developer/CommandLineTools/usr/bin/clang++',
-                '-DCMAKE_C_COMPILER=/Library/Developer/CommandLineTools/usr/bin/clang',
-                '-DCMAKE_CXX_FLAGS:STRING=-fPIC -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1'
-            ],
+            'cmake_args': ['-DCMAKE_BUILD_TYPE=Release', '-DFORCE_VULKAN_BACKEND=ON'],
             'build_args': [],
         },
         'Linux': {
@@ -598,22 +595,6 @@ class HeliosBuilder:
                 "# Radiation plugin not selected - disable OptiX",
                 "add_compile_definitions(HELIOS_NO_OPTIX)"
             ])
-
-        # Add special handling for radiation plugin
-        if "skyviewfactor" in plugins:
-            config_content.extend([
-                "",
-                "# Skyviewfactor plugin configuration",
-                "# Enable OptiX for GPU-accelerated ray tracing",
-                "# Comment out the next line to disable OptiX",
-                "# add_compile_definitions(HELIOS_NO_OPTIX)"
-            ])
-        else:
-            config_content.extend([
-                "",
-                "# Skyviewfactor plugin not selected - disable OptiX",
-                "add_compile_definitions(HELIOS_NO_OPTIX)"
-            ])
         
         config_content.extend([
             "",
@@ -800,13 +781,8 @@ class HeliosBuilder:
                 '-DBUILD_SHARED_LIBS=ON',  # Build as shared library on Unix
             ])
         
-        # Windows-specific workaround for zlib resource compilation issue
+        # Windows-specific: disable resource compilation if CMAKE_RC_COMPILER is not set
         if self.platform_name == 'Windows':
-            # The RC compiler fails on win32/zlib1.rc due to C syntax in included headers
-            # Patch zlib CMakeLists.txt to disable the problematic shared library target
-            self._patch_zlib_cmake_for_windows()
-            
-            # Disable resource compilation entirely if CMAKE_RC_COMPILER is not set
             if not os.environ.get('CMAKE_RC_COMPILER'):
                 cmake_cmd.extend(['-DCMAKE_RC_COMPILER='])  # Empty RC compiler disables resource compilation
         
@@ -919,11 +895,16 @@ class HeliosBuilder:
                             # Check if this is a system DLL that should be available
                             system_dlls = {
                                 'kernel32.dll', 'user32.dll', 'gdi32.dll', 'advapi32.dll',
-                                'msvcrt.dll', 'vcruntime140.dll', 'msvcp140.dll', 'ucrtbase.dll'
+                                'msvcrt.dll', 'vcruntime140.dll', 'msvcp140.dll', 'ucrtbase.dll',
+                                'opengl32.dll', 'cfgmgr32.dll', 'shell32.dll',
+                            }
+                            # DLLs provided by GPU drivers - not present on headless CI
+                            gpu_driver_dlls = {
+                                'vulkan-1.dll', 'nvcuda.dll', 'nvoptix.dll',
                             }
                             
-                            if dep_name in system_dlls:
-                                dependencies[dep_name] = True  # Assume system DLLs are available
+                            if dep_name in system_dlls or dep_name in gpu_driver_dlls:
+                                dependencies[dep_name] = True  # System/GPU driver DLLs
                             else:
                                 # Check if the DLL exists in system paths
                                 try:
@@ -968,11 +949,10 @@ class HeliosBuilder:
                 print(f"Checking Windows DLL dependencies for: {library_path.name}")
                 dependencies = self._check_windows_dll_dependencies(library_path)
                 missing_deps = [dep for dep, found in dependencies.items() if not found]
-                
                 if missing_deps:
                     print(f"WARNING: Missing dependencies detected: {missing_deps}")
                     print("This may cause ctypes loading to fail")
-                
+
                 # Test Windows DLL loading
                 test_lib = ctypes.WinDLL(str(library_path))
             else:
@@ -985,7 +965,6 @@ class HeliosBuilder:
         except Exception as e:
             # FAIL-FAST: Library cannot be loaded by ctypes
             if self.platform_name == 'Windows':
-                # Windows-specific error handling and dependency checking
                 error_msg = (
                     f"CRITICAL: Built Windows DLL cannot be loaded by ctypes: {library_path}\n"
                     f"Load error: {e}\n\n"
@@ -1003,7 +982,6 @@ class HeliosBuilder:
                     f"The built DLL has missing dependencies and cannot be used."
                 )
             else:
-                # Unix error handling
                 error_msg = (
                     f"CRITICAL: Built library cannot be loaded by ctypes: {library_path}\n"
                     f"Load error: {e}\n\n"
@@ -1486,59 +1464,68 @@ class HeliosBuilder:
         except Exception as e:
             print(f"Warning: Failed to fix dylib dependencies: {e}")
     
-    def copy_ptx_files(self) -> None:
-        """Copy OptiX PTX files to PyHelios installation directory."""
-        # OptiX looks for PTX files in plugins/radiation/ relative to the working directory
-        ptx_source_dir = self.build_dir / 'plugins' / 'radiation'
-        if not ptx_source_dir.exists():
+    def copy_radiation_shader_files(self) -> None:
+        """Copy radiation GPU shader files (SPIR-V and/or PTX) to PyHelios installation directory."""
+        # GPU backends look for shader files in plugins/radiation/ relative to the working directory
+        shader_source_dir = self.build_dir / 'plugins' / 'radiation'
+        if not shader_source_dir.exists():
             if 'radiation' in self.selected_plugins:
                 raise RuntimeError(
-                    "CRITICAL: Radiation plugin was requested but OptiX PTX files not found!\n\n"
-                    "The radiation plugin requires OptiX for GPU acceleration.\n"
-                    "OptiX PTX files should be generated during CMake build.\n\n"
+                    "CRITICAL: Radiation plugin was requested but shader build directory not found!\n\n"
+                    "The radiation plugin requires GPU backend shader files.\n"
+                    "Shader files (SPIR-V for Vulkan, PTX for OptiX) should be generated during CMake build.\n\n"
                     "To fix this issue:\n"
-                    "1. Ensure CUDA toolkit is properly installed\n"
-                    "2. Verify OptiX is available in helios-core/plugins/radiation/lib/OptiX/\n"
-                    "3. Check CMake configuration enables OptiX compilation\n"
+                    "1. Ensure Vulkan loader is installed (macOS/Linux; bundled on Windows)\n"
+                    "2. Or ensure CUDA toolkit is installed (NVIDIA GPU backend)\n"
+                    "3. Check CMake configuration enables at least one GPU backend\n"
                     "4. Run build with --clean to rebuild from scratch\n\n"
-                    f"Expected PTX directory: {ptx_source_dir}\n"
+                    f"Expected shader directory: {shader_source_dir}\n"
                     "PyHelios follows fail-fast policy - builds must fail when dependencies are missing."
                 )
             else:
                 # Radiation plugin not selected - this is expected
-                print("Radiation plugin not selected - skipping PTX file copy")
+                print("Radiation plugin not selected - skipping shader file copy")
                 return
 
-        ptx_files = list(ptx_source_dir.glob('*.ptx'))
-        if not ptx_files:
+        spv_files = list(shader_source_dir.glob('*.spv'))
+        ptx_files = list(shader_source_dir.glob('*.ptx'))
+        optixir_files = list(shader_source_dir.glob('*.optixir'))
+
+        if not spv_files and not ptx_files and not optixir_files:
             if 'radiation' in self.selected_plugins:
                 raise RuntimeError(
-                    "CRITICAL: Radiation plugin build completed but no PTX files generated!\n\n"
-                    "This indicates OptiX compilation failed during CMake build.\n"
-                    "PTX files are required for GPU-accelerated ray tracing.\n\n"
+                    "CRITICAL: Radiation plugin build completed but no shader files generated!\n\n"
+                    "No SPIR-V (.spv), PTX (.ptx), or OptiXIR (.optixir) files found in the build directory.\n"
+                    "At least one GPU backend must produce shader files.\n\n"
                     "To fix this issue:\n"
-                    "1. Check CMake build logs for OptiX compilation errors\n"
-                    "2. Verify CUDA nvcc compiler is available and working\n"
-                    "3. Ensure OptiX SDK is properly configured\n"
-                    "4. Run build with --verbose to see detailed compilation output\n\n"
-                    f"Build directory checked: {ptx_source_dir}\n"
+                    "1. Check CMake build logs for shader compilation errors\n"
+                    "2. For Vulkan: verify glslangValidator is available\n"
+                    "3. For OptiX 6.5: verify CUDA nvcc compiler is available\n"
+                    "4. For OptiX 8: verify CUDA toolkit and OptiX 8 SDK are available\n"
+                    "5. Run build with --verbose to see detailed compilation output\n\n"
+                    f"Build directory checked: {shader_source_dir}\n"
                     "PyHelios follows fail-fast policy - incomplete builds are not acceptable."
                 )
             else:
-                print("Radiation plugin not selected - no PTX files expected")
+                print("Radiation plugin not selected - no shader files expected")
                 return
-            
-        # Copy PTX files to PyHelios installation directory
+
+        # Copy shader files to PyHelios installation directory
         # RadiationModel will copy them to working directory as needed
         pyhelios_root = self.output_dir.parent.parent
-        ptx_dest_dir = pyhelios_root / 'plugins' / 'radiation'
-        ptx_dest_dir.mkdir(parents=True, exist_ok=True)
-        
-        for ptx_file in ptx_files:
-            dest_file = ptx_dest_dir / ptx_file.name
-            shutil.copy2(ptx_file, dest_file)
-            
-        print(f"Copied {len(ptx_files)} PTX files to: {ptx_dest_dir}")
+        shader_dest_dir = pyhelios_root / 'plugins' / 'radiation'
+        shader_dest_dir.mkdir(parents=True, exist_ok=True)
+
+        for shader_file in spv_files + ptx_files + optixir_files:
+            dest_file = shader_dest_dir / shader_file.name
+            shutil.copy2(shader_file, dest_file)
+
+        if spv_files:
+            print(f"Copied {len(spv_files)} SPIR-V shaders to: {shader_dest_dir}")
+        if ptx_files:
+            print(f"Copied {len(ptx_files)} PTX files to: {shader_dest_dir}")
+        if optixir_files:
+            print(f"Copied {len(optixir_files)} OptiXIR files to: {shader_dest_dir}")
         print("RadiationModel will copy these to working directory as needed")
     
     def build(self, cmake_args: Optional[List[str]] = None) -> Path:
@@ -1578,74 +1565,10 @@ class HeliosBuilder:
         
         library_path = self.find_built_library()
         output_library = self.copy_to_output(library_path)
-        self.copy_ptx_files()
+        self.copy_radiation_shader_files()
         print(f"Build completed successfully: {output_library}")
         print(f"Built with plugins: {final_plugins}")
         return output_library
-
-    def _patch_zlib_cmake_for_windows(self) -> None:
-        """
-        Patch zlib's CMakeLists.txt on Windows to disable the shared library target
-        that causes resource compilation errors with win32/zlib1.rc.
-        """
-        zlib_cmake_path = self.helios_root / "core" / "lib" / "zlib" / "CMakeLists.txt"
-        
-        if not zlib_cmake_path.exists():
-            print("Warning: zlib CMakeLists.txt not found, skipping patch")
-            return
-            
-        print("Patching zlib CMakeLists.txt to disable shared library on Windows...")
-        
-        try:
-            # Read the original file
-            with open(zlib_cmake_path, 'r') as f:
-                content = f.read()
-            
-            # Check if already patched (to avoid double-patching)
-            if "# PYHELIOS PATCH: Disabled shared library" in content:
-                print("zlib CMakeLists.txt already patched")
-                return
-        except Exception as e:
-            print(f"Warning: Failed to read zlib CMakeLists.txt: {e}")
-            return
-            
-        # Patch: comment out the shared library creation and related lines
-        patches = [
-            # Comment out the shared library creation
-            ("add_library(zlib SHARED", "# PYHELIOS PATCH: Disabled shared library\n# add_library(zlib SHARED"),
-            # Comment out the include directories for shared lib
-            ("target_include_directories(zlib PUBLIC", "# target_include_directories(zlib PUBLIC"),
-            # Comment out all properties for shared lib
-            ("set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)", "# set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)"),
-            ("set_target_properties(zlib PROPERTIES SOVERSION 1)", "# set_target_properties(zlib PROPERTIES SOVERSION 1)"),
-            ("    set_target_properties(zlib PROPERTIES VERSION ${ZLIB_FULL_VERSION})", "    # set_target_properties(zlib PROPERTIES VERSION ${ZLIB_FULL_VERSION})"),
-            ("   set_target_properties(zlib zlibstatic PROPERTIES OUTPUT_NAME z)", "   set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z)"),
-            ("     set_target_properties(zlib PROPERTIES LINK_FLAGS", "     # set_target_properties(zlib PROPERTIES LINK_FLAGS"),
-            ("    set_target_properties(zlib PROPERTIES SUFFIX \"1.dll\")", "    # set_target_properties(zlib PROPERTIES SUFFIX \"1.dll\")"),
-            # Update install targets to exclude zlib shared library
-            ("    install(TARGETS zlib zlibstatic", "    install(TARGETS zlibstatic"),
-            # Add static runtime linking for zlib
-            ("add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})", 
-             "add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})\n# PYHELIOS PATCH: Use static MSVC runtime\nif(MSVC)\n    set_target_properties(zlibstatic PROPERTIES MSVC_RUNTIME_LIBRARY \"MultiThreaded$<$<CONFIG:Debug>:Debug>\")\nendif()"),
-            # Disable problematic resource compilation
-            ("if(NOT MINGW)\n    set(ZLIB_DLL_SRCS\n        win32/zlib1.rc # If present will override custom build rule below.\n    )\nendif()",
-             "# PYHELIOS PATCH: Disable resource compilation to avoid RC errors\n# if(NOT MINGW)\n#     set(ZLIB_DLL_SRCS\n#         win32/zlib1.rc # If present will override custom build rule below.\n#     )\n# endif()"),
-        ]
-        
-        for old, new in patches:
-            if old in content:
-                content = content.replace(old, new)
-                print(f"  Patched: {old[:50]}...")
-        
-        # Write the patched file back
-        try:
-            with open(zlib_cmake_path, 'w') as f:
-                f.write(content)
-            print("zlib CMakeLists.txt patched successfully")
-        except Exception as e:
-            print(f"Warning: Failed to write patched zlib CMakeLists.txt: {e}")
-            raise HeliosBuildError(f"Could not patch zlib CMakeLists.txt: {e}")
-
 
 def get_default_plugins() -> List[str]:
     """
@@ -1654,12 +1577,12 @@ def get_default_plugins() -> List[str]:
     Currently integrated plugins in PyHelios:
     - visualizer: OpenGL-based 3D visualization
     - weberpenntree: Procedural tree generation
-    - radiation: OptiX-accelerated ray tracing (GPU optional)
+    - radiation: GPU-accelerated ray tracing via Vulkan/OptiX backends
     - energybalance: GPU-accelerated thermal modeling and energy balance
     - solarposition: Solar position calculations and sun angle modeling
     - photosynthesis: Photosynthesis modeling and carbon assimilation
     - plantarchitecture: Advanced plant structure and architecture modeling with procedural plant library
-    - skyviewfactor: Sky view factor calculation for urban and environmental analysis
+    - leafoptics: Implementation of PROSPECT-PRO leaf optical model
 
     Returns:
         List of default plugins

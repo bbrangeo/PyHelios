@@ -132,7 +132,7 @@ PYHELIOS_API void evaluateAirEnergyBalanceForUUIDs(EnergyBalanceModel* energy_mo
  * @param energy_model Pointer to the EnergyBalanceModel
  * @param label Name of the primitive data to add (e.g., "vapor_pressure_deficit")
  */
-PYHELIOS_API void optionalOutputPrimitiveData(EnergyBalanceModel* energy_model, const char* label);
+PYHELIOS_API void energyBalanceOptionalOutputPrimitiveData(EnergyBalanceModel* energy_model, const char* label);
 
 /**
  * @brief Print default value report for all primitives
@@ -147,6 +147,32 @@ PYHELIOS_API void printDefaultValueReport(EnergyBalanceModel* energy_model);
  * @param uuid_count Number of UUIDs in the array
  */
 PYHELIOS_API void printDefaultValueReportForUUIDs(EnergyBalanceModel* energy_model, const unsigned int* uuids, unsigned int uuid_count);
+
+//=============================================================================
+// GPU Acceleration Control (Only available when compiled with CUDA)
+//=============================================================================
+
+/**
+ * @brief Enable GPU acceleration for energy balance calculations
+ * @param energy_model Pointer to the EnergyBalanceModel
+ * @note Only available when compiled with CUDA support
+ */
+PYHELIOS_API void enableGPUAcceleration(EnergyBalanceModel* energy_model);
+
+/**
+ * @brief Disable GPU acceleration and force CPU mode
+ * @param energy_model Pointer to the EnergyBalanceModel
+ * @note Only available when compiled with CUDA support
+ */
+PYHELIOS_API void disableGPUAcceleration(EnergyBalanceModel* energy_model);
+
+/**
+ * @brief Check if GPU acceleration is currently enabled
+ * @param energy_model Pointer to the EnergyBalanceModel
+ * @return 1 if GPU acceleration is enabled, 0 if not, -1 on error
+ * @note Only available when compiled with CUDA support
+ */
+PYHELIOS_API int isGPUAccelerationEnabled(EnergyBalanceModel* energy_model);
 
 #ifdef __cplusplus
 }

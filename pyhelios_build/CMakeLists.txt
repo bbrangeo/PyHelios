@@ -2,14 +2,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(helios)
 
-#-------- MACOS C++ STANDARD HEADERS FIX ---------#
-# Fix for macOS Command Line Tools not finding C++ standard headers
-if(APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include")
-    message(STATUS "PyHelios: Added macOS C++ standard headers paths")
-endif()
-
 #-------- USER INPUTS ---------#
 
 #provide the path to Helios base directory, either as an absolute path or a path relative to the location of this file
@@ -29,13 +21,22 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PluginSelection.cmake")
 setup_plugin_system()
 
 #-------- MANYLINUX COMPATIBILITY FIX ---------#
-# Apply z_size_t compatibility fix globally for all dependencies
+# Fix zlib header resolution for manylinux containers.
+# Helios core's CMakeLists.txt adds the zlib SOURCE directory to include paths,
+# but zlib's CMake build renames zconf.h -> zconf.h.included in the source dir
+# and generates a new zconf.h in the BUILD directory. Without the build directory
+# in the include path, the compiler falls back to the system zconf.h from
+# zlib-devel (zlib 1.2.7 on CentOS 7) which doesn't define z_size_t.
+# We add the zlib build directory to the global include path so the generated
+# zconf.h (matching the bundled zlib 1.3.1 zlib.h) is found first.
+include_directories("${CMAKE_BINARY_DIR}/lib/zlib")
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     if(DEFINED ENV{CIBUILDWHEEL} OR DEFINED ENV{AUDITWHEEL_PLAT} OR "$ENV{AUDITWHEEL_PLAT}" MATCHES "manylinux")
         message(STATUS "PyHelios: Applying manylinux z_size_t compatibility fix globally")
         # Force inclusion of stddef.h for all C/C++ compilations to ensure size_t is available
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include stddef.h")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include stddef.h") 
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include stddef.h")
         message(STATUS "PyHelios: Applied global stddef.h inclusion for manylinux compatibility")
     endif()
 endif()
@@ -44,6 +45,15 @@ endif()
 # Include Helios core build system
 # This will create the executable target ${EXECUTABLE_NAME} automatically
 include( "${BASE_DIRECTORY}/core/CMake_project.cmake" )
+
+#-------- EXCLUDE UNNECESSARY THIRD-PARTY TARGETS ---------#
+# zlib's CMakeLists.txt unconditionally creates a shared library target ("zlib")
+# in addition to the static one ("zlibstatic"). We only need zlibstatic, and the
+# shared target causes resource compilation errors on Windows (win32/zlib1.rc).
+# Exclude it from the default build rather than patching the submodule source.
+if(TARGET zlib)
+    set_target_properties(zlib PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
 
 #-------- CUDA SETUP FOR RADIATION PLUGIN ---------#
 # Find CUDA if radiation plugin is enabled
@@ -54,6 +64,19 @@ if("radiation" IN_LIST PLUGINS)
     endif()
 endif()
 
+#-------- RADIATION PLUGIN VULKAN HEADER FIX ---------#
+# The radiation plugin's selfTest.cpp unconditionally includes VulkanDevice.h and
+# VulkanComputeBackend.h, which require vulkan/vulkan.h and vk_mem_alloc.h.
+# However, the radiation CMakeLists only adds these include paths when HAVE_VULKAN
+# is true. On Linux CUDA containers (OptiX-only), HAVE_VULKAN is false, so
+# selfTest.cpp fails to compile. We add the VMA include dir here to fix this.
+# (Vulkan SDK headers are installed in the Docker image by build-wheels.yml.)
+if("radiation" IN_LIST PLUGINS AND TARGET radiation)
+    target_include_directories(radiation PRIVATE
+        "${BASE_DIRECTORY}/plugins/radiation/lib/vma"
+    )
+    message(STATUS "PyHelios: Added VMA include directory for radiation selfTest compilation")
+endif()
 
 #-------- PYHELIOS INTERFACE ---------#
 # Create PyHelios interface library after Helios setup
@@ -75,6 +98,10 @@ endif()
 
 if("radiation" IN_LIST PLUGINS)
     list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_radiation.cpp)
+endif()
+
+if("skyviewfactor" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_skyviewfactor.cpp)
 endif()
 
 if("energybalance" IN_LIST PLUGINS)
@@ -101,8 +128,12 @@ if("plantarchitecture" IN_LIST PLUGINS)
     list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_plantarchitecture.cpp)
 endif()
 
-if("skyviewfactor" IN_LIST PLUGINS)
-    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_skyviewfactor.cpp)
+if("leafoptics" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_leafoptics.cpp)
+endif()
+
+if("lidar" IN_LIST PLUGINS)
+    list(APPEND PYHELIOS_WRAPPER_SOURCES ../native/src/pyhelios_wrapper_lidar.cpp)
 endif()
 
 # Only build static library if not building for wheels
@@ -112,14 +143,6 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
     # Add Windows-specific compile definitions for static library
     if(WIN32)
         target_compile_definitions(pyhelios_interface PRIVATE BUILDING_PYHELIOS_DLL)
-    endif()
-    
-    # Add macOS-specific compile options for C++ standard headers
-    if(APPLE)
-        target_compile_options(pyhelios_interface PRIVATE
-            -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1
-            -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include
-        )
     endif()
 endif()
 
@@ -139,6 +162,10 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
             ${BASE_DIRECTORY}/plugins/visualizer/lib/glfw-3.3.2/include
             ${BASE_DIRECTORY}/plugins/visualizer/lib/glm
         )
+        # Silence OpenGL deprecation warnings on macOS
+        if(APPLE)
+            target_compile_definitions(pyhelios_interface PRIVATE GL_SILENCE_DEPRECATION)
+        endif()
     endif()
 endif()
 
@@ -156,6 +183,14 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
             ${BASE_DIRECTORY}/plugins/radiation/include
             ${BASE_DIRECTORY}/plugins/radiation/lib/json
         )
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("skyviewfactor" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/skyviewfactor/include
+    )
     endif()
 endif()
 
@@ -208,10 +243,22 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
 endif()
 
 if(NOT DEFINED ENV{CIBUILDWHEEL})
-    if("skyviewfactor" IN_LIST PLUGINS)
+    if("leafoptics" IN_LIST PLUGINS)
         target_include_directories(pyhelios_interface PRIVATE
-            ${BASE_DIRECTORY}/plugins/skyviewfactor/include
-            ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/json
+            ${BASE_DIRECTORY}/plugins/leafoptics/include
+        )
+    endif()
+endif()
+
+if(NOT DEFINED ENV{CIBUILDWHEEL})
+    if("lidar" IN_LIST PLUGINS)
+        target_include_directories(pyhelios_interface PRIVATE
+            ${BASE_DIRECTORY}/plugins/lidar/include
+            ${BASE_DIRECTORY}/plugins/lidar/lib/s_hull_pro
+            ${BASE_DIRECTORY}/plugins/collisiondetection/include
+            ${BASE_DIRECTORY}/plugins/visualizer/include
+            ${BASE_DIRECTORY}/plugins/visualizer/lib/glfw-3.3.2/include
+            ${BASE_DIRECTORY}/plugins/visualizer/lib/glm
         )
     endif()
 endif()
@@ -231,14 +278,12 @@ if(NOT DEFINED ENV{CIBUILDWHEEL})
     endif()
 endif()
 
-
 if(NOT DEFINED ENV{CIBUILDWHEEL})
     # Add CUDA include directories if CUDA toolkit was found and radiation plugin is selected
     if("radiation" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
         target_include_directories(pyhelios_interface PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
     endif()
 endif()
-
 
 if(NOT DEFINED ENV{CIBUILDWHEEL})
     # Link interface to helios library using keyword signature for compatibility
@@ -263,20 +308,7 @@ set_target_properties(pyhelios_shared PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
-    CXX_VISIBILITY_PRESET default
-    VISIBILITY_INLINES_HIDDEN ON
 )
-
-# Add export flags for proper symbol visibility
-target_compile_definitions(pyhelios_shared PRIVATE HELIOS_BUILD)
-
-# Add macOS-specific compile options for C++ standard headers
-if(APPLE)
-    target_compile_options(pyhelios_shared PRIVATE
-        -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1
-        -isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include
-    )
-endif()
 
 # Add same include directories
 target_include_directories(pyhelios_shared PRIVATE
@@ -292,6 +324,10 @@ if("visualizer" IN_LIST PLUGINS)
         ${BASE_DIRECTORY}/plugins/visualizer/lib/glfw-3.3.2/include
         ${BASE_DIRECTORY}/plugins/visualizer/lib/glm
     )
+    # Silence OpenGL deprecation warnings on macOS
+    if(APPLE)
+        target_compile_definitions(pyhelios_shared PRIVATE GL_SILENCE_DEPRECATION)
+    endif()
 endif()
 
 if("weberpenntree" IN_LIST PLUGINS)
@@ -304,6 +340,12 @@ if("radiation" IN_LIST PLUGINS)
     target_include_directories(pyhelios_shared PRIVATE
         ${BASE_DIRECTORY}/plugins/radiation/include
         ${BASE_DIRECTORY}/plugins/radiation/lib/json
+    )
+endif()
+
+if("skyviewfactor" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_shared PRIVATE
+        ${BASE_DIRECTORY}/plugins/skyviewfactor/include
     )
 endif()
 
@@ -337,10 +379,20 @@ if("plantarchitecture" IN_LIST PLUGINS)
     )
 endif()
 
-if("skyviewfactor" IN_LIST PLUGINS)
+if("leafoptics" IN_LIST PLUGINS)
     target_include_directories(pyhelios_shared PRIVATE
-        ${BASE_DIRECTORY}/plugins/skyviewfactor/include
-        ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/json
+        ${BASE_DIRECTORY}/plugins/leafoptics/include
+    )
+endif()
+
+if("lidar" IN_LIST PLUGINS)
+    target_include_directories(pyhelios_shared PRIVATE
+        ${BASE_DIRECTORY}/plugins/lidar/include
+        ${BASE_DIRECTORY}/plugins/lidar/lib/s_hull_pro
+        ${BASE_DIRECTORY}/plugins/collisiondetection/include
+        ${BASE_DIRECTORY}/plugins/visualizer/include
+        ${BASE_DIRECTORY}/plugins/visualizer/lib/glfw-3.3.2/include
+        ${BASE_DIRECTORY}/plugins/visualizer/lib/glm
     )
 endif()
 
@@ -357,26 +409,8 @@ if("radiation" IN_LIST PLUGINS)
     endif()
 endif()
 
-# Add platform-specific OptiX include directories for skyviewfactor plugin (shared library)
-if("skyviewfactor" IN_LIST PLUGINS)
-    if(WIN32)
-        target_include_directories(pyhelios_shared PRIVATE
-            ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/OptiX/windows64-6.5.0/include
-        )
-    else()
-        target_include_directories(pyhelios_shared PRIVATE
-            ${BASE_DIRECTORY}/plugins/skyviewfactor/lib/OptiX/linux64-6.5.0/include
-        )
-    endif()
-endif()
-
 # Add CUDA include directories if CUDA toolkit was found and radiation plugin is selected (shared library)
 if("radiation" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
-    target_include_directories(pyhelios_shared PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
-endif()
-
-# Add CUDA include directories if CUDA toolkit was found and skyviewfactor plugin is selected (shared library)
-if("skyviewfactor" IN_LIST PLUGINS AND CUDAToolkit_FOUND)
     target_include_directories(pyhelios_shared PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 endif()
 
@@ -420,11 +454,29 @@ if(WIN32)
         "/NODEFAULTLIB:msvcrt.lib"
         "/NODEFAULTLIB:msvcrtd.lib"
     )
+
+    # Delay-load GPU driver DLLs so the library can be loaded on systems
+    # without GPU drivers (e.g. headless CI). The DLL is only needed when
+    # GPU-accelerated features (radiation, etc.) are actually called.
+    target_link_libraries(pyhelios_shared PRIVATE delayimp.lib)
+    target_link_options(pyhelios_shared PRIVATE
+        "/DELAYLOAD:vulkan-1.dll"
+    )
 elseif(APPLE)
     set_target_properties(pyhelios_shared PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         OUTPUT_NAME "helios"
     )
+    # MoltenVK (Vulkan on macOS) requires these system frameworks
+    if("radiation" IN_LIST PLUGINS)
+        target_link_libraries(pyhelios_shared PUBLIC
+            "-framework Metal"
+            "-framework QuartzCore"
+            "-framework IOSurface"
+            "-framework IOKit"
+            "-framework Foundation"
+        )
+    endif()
 else() # Linux
     set_target_properties(pyhelios_shared PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
@@ -434,21 +486,22 @@ endif()
 
 # Copy OptiX DLL to lib directory for Windows wheel packaging
 if("radiation" IN_LIST PLUGINS AND WIN32)
-    # Determine OptiX version and DLL name
+    # Determine OptiX version and DLL name (use absolute path for POST_BUILD commands)
+    get_filename_component(ABS_BASE_DIRECTORY "${BASE_DIRECTORY}" ABSOLUTE)
     if(OPTIX_VERSION_LEGACY)
-        set(OPTIX_PATH ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-5.1.1/)
+        set(OPTIX_SRC_PATH "${ABS_BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-5.1.1/")
         set(OPTIX_DLL "optix.51.dll")
     else()
-        set(OPTIX_PATH ${BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-6.5.0/)
+        set(OPTIX_SRC_PATH "${ABS_BASE_DIRECTORY}/plugins/radiation/lib/OptiX/windows64-6.5.0/")
         set(OPTIX_DLL "optix.6.5.0.dll")
     endif()
 
-    # Copy OptiX DLL to lib directory for wheel packaging
-    # The radiation plugin already copies it to CMAKE_BINARY_DIR, we just move it to lib/
+    # Copy OptiX DLL directly from source to lib directory for wheel packaging
     add_custom_command(TARGET pyhelios_shared POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_BINARY_DIR}/${OPTIX_DLL}"
+        "${OPTIX_SRC_PATH}bin64/${OPTIX_DLL}"
         "${CMAKE_BINARY_DIR}/lib/${OPTIX_DLL}"
-        COMMENT "Moving OptiX DLL to lib directory for wheel packaging"
+        COMMENT "Copying OptiX DLL to lib directory for wheel packaging"
     )
 endif()
+

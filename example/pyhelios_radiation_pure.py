@@ -11,8 +11,7 @@ import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils import apply_surface_properties, SurfaceType
-from sky_view_factor_calculation import SkyViewFactorCalculator, calculate_svf_grid
-from simple_svf_calculator import create_svf_heatmap
+
 
 """
 Type de Radiation	Plage de longueur d'onde	Application principale	Effet principal
@@ -85,7 +84,7 @@ def compute_MRT(context, ground_patches, output_dir, sigma=5.67e-8):
             uuid = ground_patches[j][i]
 
             # Flux long-onde descendant (atmosphère, W/m²)
-            L_down = context.getPrimitiveData(uuid, "LW")
+            L_down = context.getPrimitiveData(uuid, "radiation_flux_LW")
             # Flux émis par le patch (W/m²)
             Tg = context.getPrimitiveData(uuid, "temperature")
             emissivity = context.getPrimitiveData(uuid, "emissivity") or 0.96
@@ -106,6 +105,8 @@ def compute_MRT(context, ground_patches, output_dir, sigma=5.67e-8):
         index=[f"y{j}" for j in range(ny)],
         columns=[f"x{i}" for i in range(nx)],
     )
+
+    os.makedirs(output_dir, exist_ok=True)
 
     csv_path = os.path.join(output_dir, "MRT_map.csv")
     df_MRT.to_csv(csv_path)
@@ -185,9 +186,18 @@ def getAmbientLongwaveFlux(temperature_K: float, humidity_rel: float) -> float:
     return eps * sigma * (temperature_K**4)
 
 
+def _default_wpt_species(species):
+    """Resolve tree species when caller passes None."""
+    if species is not None:
+        return species
+    if WPTType is not None:
+        return WPTType.APPLE
+    return "APPLE"
+
+
 def create_sample_tree(
     context: Context,
-    species: WPTType = WPTType.APPLE,
+    species=None,
     recursion_depth: int = 3,
     trunk_subdivisions: int = 12,
     branch_subdivisions: int = 12,
@@ -213,6 +223,12 @@ def create_sample_tree(
     print("Creating sample tree...")
 
     try:
+        if WeberPennTree is None:
+            raise RuntimeError(
+                "WeberPennTree plugin is not available. "
+                "Rebuild with: python build_scripts/build_helios.py --plugins weberpenntree"
+            )
+        species = _default_wpt_species(species)
         with WeberPennTree(context) as wpt:
             # Set tree parameters for a nice-looking tree
             wpt.setBranchRecursionLevel(recursion_depth)
@@ -537,7 +553,6 @@ def main():
         #
         # create_svf_heatmap(grid_results)
 
-        exit()
         # === Simulation horaire ===
         ombres_par_heure = {}  # dict {hour: DataFrame}
         all_UUIDs = context.getAllUUIDs()
@@ -915,5 +930,6 @@ if __name__ == "__main__":
     output_dir = "resultats_ombres"
     os.makedirs(output_dir, exist_ok=True)
 
-    hours = [6, 10, 12, 14, 18]  # Days to advance
+    # hours = [6, 10, 12, 14, 18]  # Days to advance
+    hours = [14]  # Days to advance
     main()
