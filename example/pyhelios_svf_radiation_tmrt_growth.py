@@ -171,7 +171,7 @@ def run_growth_tmrt_example(
  
                 loaded_plants = []
                 for i in range(8):  # 3x3 = 9 plants
-                    filename = Path(f"/Users/Boris/Documents/TIPEE/PyHelios/soybean_canopy_{age}days/plant_{i}.xml")
+                    filename = Path(f"soybean_canopy_{age}days/plant_{i}.xml")
                     plant_ids = plant_architecture.readPlantStructureXML(str(filename), quiet=True)
                     loaded_plants.extend(plant_ids)
         
