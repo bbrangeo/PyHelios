@@ -175,12 +175,14 @@ def create_sample_tree(
             # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for trunk_uuid in trunk_uuids:
                 context.setPrimitiveDataFloat(trunk_uuid, "reflectivity_SW", 0.6)
+                context.setPrimitiveDataFloat(trunk_uuid, "emissivity", 0.90)
                 context.setPrimitiveDataString(trunk_uuid, "plant_part", "trunk")
                 context.setPrimitiveDataString(trunk_uuid, "species", str(species))
 
             # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for branch_uuid in branch_uuids:
                 context.setPrimitiveDataFloat(branch_uuid, "reflectivity_SW", 0.6)
+                context.setPrimitiveDataFloat(branch_uuid, "emissivity", 0.90)
                 context.setPrimitiveDataString(branch_uuid, "plant_part", "branch")
                 context.setPrimitiveDataString(branch_uuid, "species", str(species))
 
@@ -199,6 +201,7 @@ def create_sample_tree(
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_PAR", 0.45)
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_NIR", 0.4)
                 context.setPrimitiveDataString(leaf_uuid, "plant_part", "leaf")
+                context.setPrimitiveDataFloat(leaf_uuid, "emissivity", 0.95)
                 context.setPrimitiveDataString(leaf_uuid, "species", str(species))
 
             print(
@@ -370,7 +373,8 @@ def main():
             context.setPrimitiveDataFloat(
                 bat_uuid, "reflectivity_SW", 0.35
             )  # Exemple pour l'arbre
-
+            context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
+            
             # Récupère la normale de la primitive
             normal = context.getPrimitiveNormal(bat_uuid)
 
