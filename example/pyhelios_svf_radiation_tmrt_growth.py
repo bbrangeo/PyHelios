@@ -160,70 +160,22 @@ def run_growth_tmrt_example(
         context.setPrimitiveDataUInt(reference_ground_uuid, "twosided_flag", 0)
 
         with PlantArchitecture(context) as plant_architecture:
-            print("\ncreate_canopy\n")
-            # create_canopy(plant_architecture)
-            # Configure which organs participate in collision detection
-            plant_architecture.setCollisionRelevantOrgans(
-                include_internodes=True,   # Include stems
-                include_leaves=True,       # Include leaf blades
-                include_petioles=False,    # Exclude petioles (performance)
-                include_flowers=False,     # Exclude flowers
-                include_fruit=False        # Exclude fruit
-            )
-            
-            # Enable collision detection
-            #plant_architecture.enableSoftCollisionAvoidance()
-            # Disable collision detection
-            plant_architecture.disableCollisionDetection()
-
-            apple_ring_ids = create_apple_ring_around_building(
-                context=context,
-                plant_architecture=plant_architecture,
-                building_uuids=bat_uuids,
-                tree_model_label=TREE_MODEL_LABEL,
-                count_per_side=TREE_RING_COUNT_PER_SIDE,
-                spacing=TREE_RING_SPACING,
-                offset=TREE_RING_OFFSET,
-                age=TREE_AGE,
-                build_parameters=TREE_BUILD_PARAMETERS,
-                
-            )
-            print(f"Arbres apple ajoutes autour du batiment: {len(apple_ring_ids)}")
+           
             all_uuids = context.getAllUUIDs()
 
-            for growth_step in growth_steps_days:
-                plant_architecture.advanceTime(growth_step * 365)
-                print(f"\n===== Growth step: +{growth_step} years =====")
+            for age in growth_steps_days:
+                #plant_architecture.advanceTime(age)
+                print(f"\n===== Growth step: +{age} =====")
 
-                if platform.system() == "Darwin":
-                    with Visualizer(800, 600, headless=False) as visualizer:
-                        visualizer.buildContextGeometry(context)
-                        bg_color = RGBcolor(0.1, 0.1, 0.15)
-                        visualizer.setBackgroundColor(bg_color)
-                        light_dir = vec3(1, 1, 1)
-                        visualizer.setLightDirection(light_dir)
-                        visualizer.setLightingModel("phong_shadowed")
-                        visualizer.setBackgroundSkyTexture()
-
-                        radius = 15
-                        theta = 0.35
-                        phi = 0.4 * math.pi
-                        x = radius * math.sin(theta) * math.cos(phi)
-                        y = radius * math.sin(theta) * math.sin(phi)
-                        z = radius * math.cos(theta)
-                        camera_position = vec3(x, y, z)
-                        look_at = vec3(0, 0, 2)
-                        visualizer.setCameraPosition(camera_position, look_at)
-                        visualizer.buildContextGeometry(context)
-
-                        print("Opening interactive visualization window...")
-                        print("Controls:")
-                        print("  - Mouse scroll: Zoom in/out")
-                        print("  - Left mouse + drag: Rotate camera")
-                        print("  - Right mouse + drag: Pan camera")
-                        print("  - Arrow keys: Camera movement")
-                        print("  - Close window to continue")
-                        visualizer.plotInteractive()
+                plant_architecture.loadPlantModelFromLibrary("soybean")
+ 
+                loaded_plants = []
+                for i in range(8):  # 3x3 = 9 plants
+                    filename = Path(f"/Users/Boris/Documents/TIPEE/PyHelios/soybean_canopy_{age}days/plant_{i}.xml")
+                    plant_ids = plant_architecture.readPlantStructureXML(str(filename), quiet=True)
+                    loaded_plants.extend(plant_ids)
+        
+                print(f"Loaded {len(loaded_plants)} plants from canopy")
 
                 for hour in hours:
                     print(f"\nHOUR: {hour}")
@@ -357,12 +309,12 @@ def run_growth_tmrt_example(
                             )
                             figure_path = os.path.join(
                                 output_dir,
-                                f"tmrt_growth_{growth_step:02d}y_{hour:02d}h.png",
+                                f"tmrt_growth_{age:02d}days_{hour:02d}h.png",
                             )
                             plt.figure(figsize=(7, 5))
                             plt.imshow(df_tmrt.values, cmap="inferno", origin="lower")
                             plt.colorbar(label="TMRT (degC)")
-                            plt.title(f"TMRT growth={growth_step}y hour={hour:02d}h")
+                            plt.title(f"TMRT growth={age}days hour={hour:02d}h")
                             plt.tight_layout()
                             plt.savefig(figure_path, dpi=180)
                             plt.close()
@@ -372,13 +324,76 @@ def run_growth_tmrt_example(
                             )
                             print(
                                 "Growth step / hour / SW reference:",
-                                growth_step,
+                                age,
                                 hour,
                                 irradiance_reference,
                             )
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+    # Create library directory
+    library_dir = Path("soybean_library")
+    library_dir.mkdir(exist_ok=True)
+    # Save plants at multiple growth stages
+    growth_stages = [10, 20, 30, 40, 50]  # days
+    
+    with Context() as context:
+        bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
+        with PlantArchitecture(context) as plantarch:
+            plantarch.loadPlantModelFromLibrary("soybean")
+             # Fast (for rapid prototyping or large-scale simulations)
+            plantarch.setSoftCollisionAvoidanceParameters(
+                view_half_angle_deg=60.0,
+                look_ahead_distance=0.08,
+                sample_count=128,
+                inertia_weight=0.5
+            )
+            # Configure which organs participate in collision detection
+            plantarch.setCollisionRelevantOrgans(
+                include_internodes=True,   # Include stems
+                include_leaves=True,       # Include leaf blades
+                include_petioles=False,    # Exclude petioles (performance)
+                include_flowers=False,     # Exclude flowers
+                include_fruit=False        # Exclude fruit
+            )
+            
+            # Enable collision detection
+            #plant_architecture.enableSoftCollisionAvoidance()
+            # Disable collision detection
+            plantarch.disableCollisionDetection()
+            
+            plant_ids = create_apple_ring_around_building(
+                    context=context,
+                    plant_architecture=plantarch,
+                    building_uuids=bat_uuids,
+                    tree_model_label=TREE_MODEL_LABEL,
+                    count_per_side=TREE_RING_COUNT_PER_SIDE,
+                    spacing=TREE_RING_SPACING,
+                    offset=TREE_RING_OFFSET,
+                    age=0.0,
+                    build_parameters=TREE_BUILD_PARAMETERS,
+                    
+            )
+
+            for age in growth_stages:
+                print("\ncreate_canopy\n")
+                # Grow canopy
+                plantarch.advanceTime(age)
+        
+                # Save each plant
+                canopy_dir = Path(f"{TREE_MODEL_LABEL}_canopy_{age}days")
+                canopy_dir.mkdir(exist_ok=True)
+        
+                for i, plant_id in enumerate(plant_ids):
+                    filename = canopy_dir / f"plant_{i}.xml"
+                    plantarch.writePlantStructureXML(plant_id, str(filename))
+ 
+                    print(f"Saved {len(plant_ids)} plants to {canopy_dir}")
+    
+    print(f"\nCreated library with {len(growth_stages)} growth stages")
+    print(f"Library location: {library_dir.absolute()}")
+
     run_growth_tmrt_example(
         longitude=-1.15,
         latitude=46.166672,
@@ -386,6 +401,6 @@ if __name__ == "__main__":
         pressure_pa=101300.0,
         turbidity=0.05,
         hours=[10, 12, 14],
-        growth_steps_days=[5, 10, 15, 20],
+        growth_steps_days=growth_stages,
         output_dir="resultats_ombres_growth",
     )
