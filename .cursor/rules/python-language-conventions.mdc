@@ -1,0 +1,48 @@
+---
+description: Python naming in English and docstrings in French
+globs: **/*.py
+alwaysApply: true
+---
+
+# Python Language Conventions
+
+## Naming in English
+- Use English for all technical identifiers.
+- This includes module and file names, function and method names, class names, constants, and variables.
+- Do not mix French and English within a single identifier.
+
+```python
+# BAD
+def calculerRiskScore():
+    return 0.42
+
+# GOOD
+def compute_risk_score():
+    return 0.42
+```
+
+```python
+# BAD
+class AnalyseurBatiment:
+    pass
+
+# GOOD
+class BuildingAnalyzer:
+    pass
+```
+
+## Docstrings in French
+- Write all module, class, and function docstrings in French.
+- Keep docstrings clear, concise, and focused on behavior and intent.
+
+```python
+# BAD
+def compute_risk_score(values):
+    """Compute weighted risk score from normalized features."""
+    return sum(values)
+
+# GOOD
+def compute_risk_score(values):
+    """Calcule le score de risque pondere a partir de variables normalisees."""
+    return sum(values)
+```

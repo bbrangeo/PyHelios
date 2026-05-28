@@ -589,32 +589,31 @@ def main():
                 
                         # Configure longwave radiation band
                         rad.addRadiationBand("LW")
-                        rad.disableEmission("LW")
+                        #rad.disableEmission("LW")
                         rad.setDirectRayCount(
                             "LW", 100
                         )  # plus de rayons = plus de précision
                         rad.setDiffuseRayCount("LW", 1000)
 
                         rad.addRadiationBand("NIR")
+                         # pas d'émission thermique en NIR
                         rad.disableEmission("NIR")
                         rad.setScatteringDepth("NIR", 3)
-
-                        # Configure shortwave radiation band
-                        rad.addRadiationBand("SW")
-                        rad.disableEmission("SW")
-                        rad.setScatteringDepth("SW", 3)
-                        rad.setDirectRayCount(
-                            "SW", 100
-                        )  # plus de rayons = plus de précision
-                        rad.setDiffuseRayCount("SW", 1000)
-
-                        rad.addRadiationBand("PAR")
-                        rad.disableEmission("PAR")
-                        rad.setScatteringDepth("PAR", 3)
-
                         rad.setDirectRayCount("NIR", 100)
                         rad.setDiffuseRayCount("NIR", 1000)
 
+                        # Configure shortwave radiation band
+                        rad.addRadiationBand("SW")
+                        # pas d'émission thermique en SW
+                        rad.disableEmission("SW")
+                        rad.setScatteringDepth("SW", 3)
+                        rad.setDirectRayCount( "SW", 100)  # plus de rayons = plus de précision
+                        rad.setDiffuseRayCount("SW", 1000)
+
+                        rad.addRadiationBand("PAR")
+                        # pas d'émission thermique en PAR
+                        rad.disableEmission("PAR")
+                        rad.setScatteringDepth("PAR", 3)
                         rad.setDirectRayCount("PAR", 100)
                         rad.setDiffuseRayCount("PAR", 1000)
 
