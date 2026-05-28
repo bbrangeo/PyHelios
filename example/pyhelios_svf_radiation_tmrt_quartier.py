@@ -229,6 +229,105 @@ def create_canopy(plantarch: PlantArchitecture) -> None:
         age=365.0,
     )
 
+def discretize_terrain_as_patches(context, terrain_uuids, nx, ny):
+    """
+    Remplace le terrain OBJ par une grille de patches au même niveau.
+    """
+    # Récupérer la bounding box du terrain
+    all_vertices = []
+    for uuid in terrain_uuids:
+        verts = context.getPrimitiveVertices(uuid)
+        all_vertices.extend(verts)
+    
+    xs = [v.x for v in all_vertices]
+    ys = [v.y for v in all_vertices]
+    zs = [v.z for v in all_vertices]
+    
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    z_mean = np.mean(zs)
+    
+    print(f"Terrain bbox: x=[{x_min:.1f}, {x_max:.1f}], "
+          f"y=[{y_min:.1f}, {y_max:.1f}], z_mean={z_mean:.1f}")
+    
+    dx = (x_max - x_min) / nx
+    dy = (y_max - y_min) / ny
+    
+    patch_uuids = []
+    patch_grid = []
+    
+    for j in range(ny):
+        row = []
+        for i in range(nx):
+            cx = x_min + (i + 0.5) * dx
+            cy = y_min + (j + 0.5) * dy
+            
+            color = (
+                RGBcolor(0.5, 0.5, 0.5) if (i + j) % 2 == 0 else RGBcolor(0.0, 1.0, 1.0)
+            )
+            patch_uuid = context.addPatch(
+                center=vec3(cx, cy, z_mean + 0.01),  # juste au-dessus
+                size=vec2(dx, dy),
+                color=color
+            )
+            # Propriétés identiques au terrain
+            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_SW", 0.25)
+            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_PAR", 0.10)
+            context.setPrimitiveDataFloat(patch_uuid, "reflectivity_NIR", 0.50)
+            context.setPrimitiveDataFloat(patch_uuid, "emissivity", 0.95)
+            context.setPrimitiveDataFloat(patch_uuid, "temperature", 25.0)
+            context.setPrimitiveDataUInt(patch_uuid, "twosided_flag", 0)
+            context.setPrimitiveDataString(patch_uuid, "surface_type", "ground")
+            
+            row.append(patch_uuid)
+            patch_uuids.append(patch_uuid)
+        patch_grid.append(row)
+    
+    # Supprimer les triangles du terrain OBJ original
+    for uuid in terrain_uuids:
+        context.deletePrimitive(uuid)
+    
+    print(f"Terrain discrétisé en {nx}x{ny} = {nx*ny} patches "
+          f"(dx={dx:.1f}m, dy={dy:.1f}m)")
+    
+    return patch_uuids, patch_grid, dx, dy
+
+def create_sensor_grid(context, terrain_uuids, size_total, nx, ny, z_offset=1.5):
+    """
+    Crée une grille de capteurs SVF au-dessus du terrain.
+    z_offset = hauteur piéton (1.5m) ou au sol (0.05m)
+    """
+    sensor_uuids = []
+    sensor_grid = []
+    
+    dx = size_total.x / nx
+    dy = size_total.y / ny
+    x0 = -size_total.x / 2 + dx / 2
+    y0 = -size_total.y / 2 + dy / 2
+    
+    for j in range(ny):
+        row = []
+        for i in range(nx):
+            cx = x0 + i * dx
+            cy = y0 + j * dy
+            
+            color = (
+                RGBcolor(0.5, 0.5, 0.5) if (i + j) % 2 == 0 else RGBcolor(0.0, 1.0, 1.0)
+            )
+            # Patch capteur très petit, transparent
+            sensor_uuid = context.addPatch(
+                center=vec3(cx, cy, z_offset),
+                size=vec2(dx, dy),  # petit patch capteur
+                color=color
+            )
+            context.setPrimitiveDataString(sensor_uuid, "surface_type", "sensor")
+            context.setPrimitiveDataUInt(sensor_uuid, "twosided_flag", 0)
+            
+            row.append(sensor_uuid)
+            sensor_uuids.append(sensor_uuid)
+        sensor_grid.append(row)
+    
+    return sensor_uuids, sensor_grid
 
 def create_ground_patch(
     context: Context, center: vec3, size_total: vec2, dx: float, dy: float
@@ -290,9 +389,7 @@ def main():
     with Context() as context:
 
         _tree_id, _tree_uuids, leaf_uuids = create_sample_tree(context=context)
-        ground_uuids, ground_patches = create_ground_patch(
-            context, center, size_total, dx, dy
-        )
+        
 
         # uuids = context.loadOBJ("models/LABINTECH.obj")
         #bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
@@ -340,11 +437,25 @@ def main():
             context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
             context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
             context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
+            context.setPrimitiveDataFloat(terrain_uuid, "emissivity", 0.95)
+
             context.setPrimitiveDataFloat(
                 terrain_uuid, "reflectivity_LW", 0.03
             )  # faible réflexion IR lointain
             context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
-        #
+        
+         # Grille 100x85 de capteurs au-dessus du quartier
+        sensor_uuids, sensor_grid = create_sensor_grid(
+            context, terrain_uuids, size_total, 
+            nx=100, ny=100, z_offset=21  # hauteur piéton
+        )
+        
+        
+        # _, ground_patches, dx, dy = discretize_terrain_as_patches(
+        #     context, terrain_uuids, nx=100, ny=85
+        # )
+        
+
         # water_uuids = context.loadOBJ(
         #     "models/Mesh_Water.obj",
         #     origin=vec3(0, 0, 0),  # position du modèle
@@ -366,10 +477,12 @@ def main():
 
         # vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 
-        # for bat_uuid in bat_uuids:
-        #     context.setPrimitiveDataFloat(
-        #         bat_uuid, "reflectivity_SW", 0.35
-        #     )  # Exemple pour l'arbre
+        for bat_uuid in bat_uuids:
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
+            context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0)
 
         #     # Récupère la normale de la primitive
         #     normal = context.getPrimitiveNormal(bat_uuid)
@@ -398,15 +511,15 @@ def main():
             raise e
 
         # Calculate sky view factors
-        # print(len(ground_uuids))
+        # print(len(sensor_uuids))
         # try:
         #     # Configure the model
-        #     svf_model.set_ray_count(400)  # Use 2000 rays for good accuracy
-        #     svf_model.set_max_ray_length(400.0)  # Maximum ray length of 100 units
+        #     svf_model.set_ray_count(500)  # Use 2000 rays for good accuracy
+        #     svf_model.set_max_ray_length(300.0)  # Maximum ray length of 100 units
         #     svf_model.set_message_flag(True)  # Enable console output
 
         #     svfs, uuid_to_svf = svf_model.calculate_sky_view_factors_for_primitives(
-        #         uuids=ground_uuids, num_threads=8
+        #         uuids=sensor_uuids, num_threads=36
         #     )
 
         #     print("svfs", svfs)

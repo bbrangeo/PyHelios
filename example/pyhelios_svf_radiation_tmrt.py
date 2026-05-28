@@ -370,10 +370,11 @@ def main():
         vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 
         for bat_uuid in bat_uuids:
-            context.setPrimitiveDataFloat(
-                bat_uuid, "reflectivity_SW", 0.35
-            )
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
             context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0)
 
             # Récupère la normale de la primitive
             normal = context.getPrimitiveNormal(bat_uuid)

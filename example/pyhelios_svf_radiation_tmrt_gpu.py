@@ -370,10 +370,11 @@ def main():
         vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 
         for bat_uuid in bat_uuids:
-            context.setPrimitiveDataFloat(
-                bat_uuid, "reflectivity_SW", 0.35
-            )  # Exemple pour l'arbre
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
+            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
             context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0)
             
             # Récupère la normale de la primitive
             normal = context.getPrimitiveNormal(bat_uuid)
@@ -968,6 +969,6 @@ if __name__ == "__main__":
     output_dir = "resultats_ombres"
     os.makedirs(output_dir, exist_ok=True)
 
-    hours = [6, 10, 12, 14, 18]  # Days to advance
+    hours = [6,7,8,9,10,11,12,13,14,15,16,17,18]  # Days to advance
     # hours = [12]  # Days to advance
     main()
