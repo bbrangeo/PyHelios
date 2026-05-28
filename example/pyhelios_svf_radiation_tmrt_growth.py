@@ -162,6 +162,20 @@ def run_growth_tmrt_example(
         with PlantArchitecture(context) as plant_architecture:
             print("\ncreate_canopy\n")
             # create_canopy(plant_architecture)
+            # Configure which organs participate in collision detection
+            plant_architecture.setCollisionRelevantOrgans(
+                include_internodes=True,   # Include stems
+                include_leaves=True,       # Include leaf blades
+                include_petioles=False,    # Exclude petioles (performance)
+                include_flowers=False,     # Exclude flowers
+                include_fruit=False        # Exclude fruit
+            )
+            
+            # Enable collision detection
+            #plant_architecture.enableSoftCollisionAvoidance()
+            # Disable collision detection
+            plant_architecture.disableCollisionDetection()
+
             apple_ring_ids = create_apple_ring_around_building(
                 context=context,
                 plant_architecture=plant_architecture,
