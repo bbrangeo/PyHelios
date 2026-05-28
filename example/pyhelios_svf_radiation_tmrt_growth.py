@@ -1,6 +1,7 @@
 import math
 import os
 import platform
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -21,6 +22,7 @@ from pyhelios import (
     PhotosynthesisModel,
     PlantArchitecture,
     RadiationModel,
+    SkyViewFactorModel,
     SolarPosition,
     StomatalConductanceModel,
     Visualizer,
@@ -116,6 +118,77 @@ def create_apple_ring_around_building(
     return plant_ids
 
 
+def compute_ground_sky_view_factors(
+    context: Context,
+    ground_uuids: List[int],
+    ray_count: int = 400,
+    max_ray_length: float = 400.0,
+    num_threads: int = 8,
+) -> None:
+    """Calcule et enregistre sky_view_factor sur les patches de sol."""
+    svf_model = SkyViewFactorModel(context)
+    svf_model.set_ray_count(ray_count)
+    svf_model.set_max_ray_length(max_ray_length)
+    svf_model.set_message_flag(True)
+    svf_model.calculate_sky_view_factors_for_primitives(
+        uuids=ground_uuids, num_threads=num_threads
+    )
+
+
+def get_plant_primitive_uuids(
+    plant_architecture: PlantArchitecture, plant_ids: List[int]
+) -> List[int]:
+    """Retourne tous les UUID de primitives associes a des plants."""
+    plant_uuids: List[int] = []
+    for plant_id in plant_ids:
+        plant_uuids.extend(plant_architecture.getAllPlantUUIDs(plant_id))
+    return plant_uuids
+
+
+def configure_soybean_plant_primitives(
+    context: Context,
+    plant_architecture: PlantArchitecture,
+    plant_ids: List[int],
+) -> List[int]:
+    """Configure les proprietes optiques et thermiques des plants soybean."""
+    plant_uuids = get_plant_primitive_uuids(plant_architecture, plant_ids)
+    if not plant_uuids:
+        return plant_uuids
+
+    context.setPrimitiveDataFloat(plant_uuids, "reflectivity_SW", 0.20)
+    context.setPrimitiveDataFloat(plant_uuids, "reflectivity_PAR", 0.10)
+    context.setPrimitiveDataFloat(plant_uuids, "reflectivity_NIR", 0.45)
+    context.setPrimitiveDataFloat(plant_uuids, "transmissivity_PAR", 0.45)
+    context.setPrimitiveDataFloat(plant_uuids, "transmissivity_NIR", 0.40)
+    context.setPrimitiveDataFloat(plant_uuids, "emissivity", 0.95)
+    context.setPrimitiveDataFloat(plant_uuids, "emissivity_LW", 0.95)
+    context.setPrimitiveDataFloat(plant_uuids, "emissivity_PAR", 0.95)
+    context.setPrimitiveDataFloat(plant_uuids, "emissivity_NIR", 0.95)
+    return plant_uuids
+
+
+def apply_energy_balance_inputs(
+    context: Context,
+    uuids: List[int],
+    air_temperature_k: float,
+    air_humidity: float,
+    wind_speed: float,
+    pressure_pa: float,
+) -> None:
+    """Applique les donnees primitives requises par EnergyBalanceModel."""
+    if not uuids:
+        return
+
+    context.setPrimitiveDataFloat(uuids, "air_temperature", air_temperature_k)
+    context.setPrimitiveDataFloat(uuids, "air_humidity", air_humidity)
+    context.setPrimitiveDataFloat(uuids, "wind_speed", wind_speed)
+    context.setPrimitiveDataFloat(uuids, "air_pressure", pressure_pa)
+    context.setPrimitiveDataFloat(uuids, "temperature", air_temperature_k)
+    context.setPrimitiveDataFloat(uuids, "emissivity_LW", 0.95)
+    context.setPrimitiveDataFloat(uuids, "emissivity_PAR", 0.95)
+    context.setPrimitiveDataFloat(uuids, "emissivity_NIR", 0.95)
+
+
 def run_growth_tmrt_example(
     longitude: float,
     latitude: float,
@@ -160,9 +233,6 @@ def run_growth_tmrt_example(
         context.setPrimitiveDataUInt(reference_ground_uuid, "twosided_flag", 0)
 
         with PlantArchitecture(context) as plant_architecture:
-           
-            all_uuids = context.getAllUUIDs()
-
             for age in growth_steps_days:
                 #plant_architecture.advanceTime(age)
                 print(f"\n===== Growth step: +{age} =====")
@@ -177,6 +247,14 @@ def run_growth_tmrt_example(
         
                 print(f"Loaded {len(loaded_plants)} plants from canopy")
 
+                plant_uuids = configure_soybean_plant_primitives(
+                    context, plant_architecture, loaded_plants
+                )
+                leaf_uuids = plant_uuids
+
+                print("Computing sky view factors for ground patches...")
+                compute_ground_sky_view_factors(context, ground_uuids)
+
                 for hour in hours:
                     print(f"\nHOUR: {hour}")
                     context.setTime(hour=hour)
@@ -184,11 +262,6 @@ def run_growth_tmrt_example(
                     air_temperature_k = 288.15 + 10 * math.sin(math.pi * (hour - 6) / 12)
                     air_humidity = 0.6 - 0.2 * math.sin(math.pi * (hour - 6) / 12)
                     wind_speed = get_ramped_value(0.9, 1.0, hour, 6, 19)
-
-                    for uuid in all_uuids:
-                        context.setPrimitiveDataFloat(uuid, "air_temperature", air_temperature_k)
-                        context.setPrimitiveDataFloat(uuid, "air_humidity", air_humidity)
-                        context.setPrimitiveDataFloat(uuid, "wind_speed", wind_speed)
 
                     with SolarPosition(context, utc_offset, latitude, longitude) as solar_position:
                         solar_position.setAtmosphericConditions(
@@ -268,6 +341,28 @@ def run_growth_tmrt_example(
                             radiation.setDiffuseRadiationFlux("LW", lw_flux)
                             radiation.updateGeometry()
 
+                            simulation_uuids = context.getAllUUIDs()
+                            apply_energy_balance_inputs(
+                                context,
+                                simulation_uuids,
+                                air_temperature_k,
+                                air_humidity,
+                                wind_speed,
+                                pressure_pa,
+                            )
+                            context.setPrimitiveDataFloat(
+                                bat_uuids, "emissivity_LW", 0.90
+                            )
+                            context.setPrimitiveDataFloat(
+                                bat_uuids, "emissivity_PAR", 0.90
+                            )
+                            context.setPrimitiveDataFloat(
+                                bat_uuids, "emissivity_NIR", 0.90
+                            )
+                            context.setPrimitiveDataFloat(ground_uuids, "emissivity_LW", 0.90)
+                            context.setPrimitiveDataFloat(ground_uuids, "emissivity_PAR", 0.90)
+                            context.setPrimitiveDataFloat(ground_uuids, "emissivity_NIR", 0.90)
+
                             with BoundaryLayerConductanceModel(
                                 context
                             ) as boundary_layer_model:
@@ -331,7 +426,6 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    from pathlib import Path
     # Create library directory
     library_dir = Path("soybean_library")
     library_dir.mkdir(exist_ok=True)
