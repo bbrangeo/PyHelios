@@ -177,14 +177,12 @@ def create_sample_tree(
                 context.setPrimitiveDataFloat(trunk_uuid, "reflectivity_SW", 0.6)
                 context.setPrimitiveDataString(trunk_uuid, "plant_part", "trunk")
                 context.setPrimitiveDataString(trunk_uuid, "species", str(species))
-                context.setPrimitiveDataFloat(trunk_uuid, "emissivity", 0.90)
 
             # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for branch_uuid in branch_uuids:
                 context.setPrimitiveDataFloat(branch_uuid, "reflectivity_SW", 0.6)
                 context.setPrimitiveDataString(branch_uuid, "plant_part", "branch")
                 context.setPrimitiveDataString(branch_uuid, "species", str(species))
-                context.setPrimitiveDataFloat(branch_uuid, "emissivity", 0.90)
 
             # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for leaf_uuid in leaf_uuids:
@@ -200,7 +198,6 @@ def create_sample_tree(
 
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_PAR", 0.45)
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_NIR", 0.4)
-                context.setPrimitiveDataFloat(leaf_uuid, "emissivity", 0.95)
                 context.setPrimitiveDataString(leaf_uuid, "plant_part", "leaf")
                 context.setPrimitiveDataString(leaf_uuid, "species", str(species))
 
@@ -298,16 +295,16 @@ def main():
         )
 
         # uuids = context.loadOBJ("models/LABINTECH.obj")
-        bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
-        # bat_uuids = context.loadOBJ(
-        #     "models/Mesh_Buildings.obj",
-        #     origin=vec3(0, 0, 0),  # position du modèle
-        #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-        #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-        #     color=RGBcolor(0.55, 0.36, 0.23),  # marron moyen
-        #     upaxis="ZUP",  # axe vertical
-        #     silent=False,
-        # )
+        #bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
+        bat_uuids = context.loadOBJ(
+            "example/models/Mesh_Buildings.obj",
+            origin=vec3(0, 0, 0),  # position du modèle
+            scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+            rotation=make_SphericalCoord(0, 0),  # pas de rotation
+            color=RGBcolor(0.55, 0.36, 0.23),  # marron moyen
+            upaxis="ZUP",  # axe vertical
+            silent=False,
+        )
         # pedestrian_uuids = context.loadOBJ(
         #     "models/Mesh_Pedestrian.obj",
         #     origin=vec3(0, 0, 0.2),  # position du modèle
@@ -326,27 +323,27 @@ def main():
         #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_PAR", 0.10)
         #     context.setPrimitiveDataFloat(pedestrian_uuid, "reflectivity_NIR", 0.35)
 
-        # terrain_uuids = context.loadOBJ(
-        #     "models/Mesh_Terrain.obj",
-        #     origin=vec3(0, 0, 0.5),  # position du modèle
-        #     scale=vec3(1, 1, 1),  # pas de mise à l’échelle
-        #     rotation=make_SphericalCoord(0, 0),  # pas de rotation
-        #     color=RGBcolor(0.25, 0.25, 0.25),
-        #     upaxis="ZUP",  # axe vertical
-        #     silent=False,
-        # )
-        #
-        # for terrain_uuid in terrain_uuids:
-        #     # Propriétés optiques de l'herbe
-        #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_SW", 0.25)
-        #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_PAR", 0.10)
-        #     context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
-        #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
-        #     context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
-        #     context.setPrimitiveDataFloat(
-        #         terrain_uuid, "reflectivity_LW", 0.03
-        #     )  # faible réflexion IR lointain
-        #     context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
+        terrain_uuids = context.loadOBJ(
+            "example/models/Mesh_Terrain.obj",
+            origin=vec3(0, 0, 0.5),  # position du modèle
+            scale=vec3(1, 1, 1),  # pas de mise à l’échelle
+            rotation=make_SphericalCoord(0, 0),  # pas de rotation
+            color=RGBcolor(0.25, 0.25, 0.25),
+            upaxis="ZUP",  # axe vertical
+            silent=False,
+        )
+        
+        for terrain_uuid in terrain_uuids:
+            # Propriétés optiques de l'herbe
+            context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_SW", 0.25)
+            context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_PAR", 0.10)
+            context.setPrimitiveDataFloat(terrain_uuid, "reflectivity_NIR", 0.50)
+            context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_PAR", 0.05)
+            context.setPrimitiveDataFloat(terrain_uuid, "transmissivity_NIR", 0.10)
+            context.setPrimitiveDataFloat(
+                terrain_uuid, "reflectivity_LW", 0.03
+            )  # faible réflexion IR lointain
+            context.setPrimitiveDataString(terrain_uuid, "surface_type", "grass")
         #
         # water_uuids = context.loadOBJ(
         #     "models/Mesh_Water.obj",
@@ -367,20 +364,19 @@ def main():
         #     context.setPrimitiveDataFloat(water_uuid, "reflectivity_LW", 0.03)
         #     context.setPrimitiveDataString(water_uuid, "surface_type", "water")
 
-        vertical_walls = []  # Liste pour stocker les UUID des parois verticales
+        # vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 
-        for bat_uuid in bat_uuids:
-            context.setPrimitiveDataFloat(
-                bat_uuid, "reflectivity_SW", 0.35
-            )
-            context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
+        # for bat_uuid in bat_uuids:
+        #     context.setPrimitiveDataFloat(
+        #         bat_uuid, "reflectivity_SW", 0.35
+        #     )  # Exemple pour l'arbre
 
-            # Récupère la normale de la primitive
-            normal = context.getPrimitiveNormal(bat_uuid)
+        #     # Récupère la normale de la primitive
+        #     normal = context.getPrimitiveNormal(bat_uuid)
 
-            # On vérifie si la normale est proche de (0, 0, 1) ou (0, 0, -1), donc une paroi verticale
-            if np.isclose(normal.z, 0, atol=0.1):
-                vertical_walls.append(bat_uuid)
+        #     # On vérifie si la normale est proche de (0, 0, 1) ou (0, 0, -1), donc une paroi verticale
+        #     if np.isclose(normal.z, 0, atol=0.1):
+        #         vertical_walls.append(bat_uuid)
 
         # Affichage des UUID des parois verticales identifiées
         # print(f"Parois verticales identifiées : {vertical_walls}")
@@ -403,72 +399,72 @@ def main():
 
         # Calculate sky view factors
         # print(len(ground_uuids))
-        try:
-            # Configure the model
-            svf_model.set_ray_count(400)  # Use 2000 rays for good accuracy
-            svf_model.set_max_ray_length(400.0)  # Maximum ray length of 100 units
-            svf_model.set_message_flag(True)  # Enable console output
+        # try:
+        #     # Configure the model
+        #     svf_model.set_ray_count(400)  # Use 2000 rays for good accuracy
+        #     svf_model.set_max_ray_length(400.0)  # Maximum ray length of 100 units
+        #     svf_model.set_message_flag(True)  # Enable console output
 
-            svfs, uuid_to_svf = svf_model.calculate_sky_view_factors_for_primitives(
-                uuids=ground_uuids, num_threads=8
-            )
+        #     svfs, uuid_to_svf = svf_model.calculate_sky_view_factors_for_primitives(
+        #         uuids=ground_uuids, num_threads=8
+        #     )
 
-            print("svfs", svfs)
-            print("uuid_to_svf", uuid_to_svf)
+        #     print("svfs", svfs)
+        #     print("uuid_to_svf", uuid_to_svf)
 
-            print("✓ Sky view factors calculated successfully")
-            success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
+        #     print("✓ Sky view factors calculated successfully")
+        #     success = svf_model.export_sky_view_factors("skyviewfactor_results.txt")
 
-            svf_model.load_sky_view_factors("skyviewfactor_results.txt")
-            sample_points = svf_model.get_sample_points()
-            print(sample_points)
-            # svf_result = svf_model.get_sky_view_factors()
+        #     svf_model.load_sky_view_factors("skyviewfactor_results.txt")
+        #     sample_points = svf_model.get_sample_points()
+        #     print(sample_points)
+        #     # svf_result = svf_model.get_sky_view_factors()
 
-        except Exception as e:
-            print(f"✗ Failed to calculate sky view factors: {e}")
+        # except Exception as e:
+        #     print(f"✗ Failed to calculate sky view factors: {e}")
 
-        print(f"Ray count: {svf_model.get_ray_count()}")
-        print(f"Max ray length: {svf_model.get_max_ray_length()}")
-        print(f"CUDA available: {svf_model.is_cuda_available()}")
-        print(f"OptiX available: {svf_model.is_optix_available()}")
+        # print(f"Ray count: {svf_model.get_ray_count()}")
+        # print(f"Max ray length: {svf_model.get_max_ray_length()}")
+        # print(f"CUDA available: {svf_model.is_cuda_available()}")
+        # print(f"OptiX available: {svf_model.is_optix_available()}")
 
-        df = pd.read_csv(
-            "skyviewfactor_results.txt",
-            delimiter=" ",
-            skiprows=1,
-            comment="#",
-            names=["Point_ID", "X", "Y", "Z", "SkyViewFactor"],
-            encoding="utf-8",
-        )
+        # df = pd.read_csv(
+        #     "skyviewfactor_results.txt",
+        #     delimiter=" ",
+        #     skiprows=1,
+        #     comment="#",
+        #     names=["Point_ID", "X", "Y", "Z", "SkyViewFactor"],
+        #     encoding="utf-8",
+        # )
 
-        print(df.head(10))
-        # Créer une grille vide de SkyViewFactor (initialisée à NaN)
-        grid = np.full((nx, ny), np.nan)
+        # print(df.head(10))
+        # # Créer une grille vide de SkyViewFactor (initialisée à NaN)
+        # grid = np.full((nx, ny), np.nan)
 
-        # # Assigner les valeurs de SkyViewFactor dans la grille
-        for _, row in df.iterrows():
-            # Convertir les coordonnées X, Y en indices de grille
-            x_idx = int((row["X"] + size_total.x / 2) // dx)
-            y_idx = int((row["Y"] + size_total.y / 2) // dy)
-            grid[x_idx, y_idx] = row["SkyViewFactor"]
+        # # # Assigner les valeurs de SkyViewFactor dans la grille
+        # for _, row in df.iterrows():
+        #     # Convertir les coordonnées X, Y en indices de grille
+        #     x_idx = int((row["X"] + size_total.x / 2) // dx)
+        #     y_idx = int((row["Y"] + size_total.y / 2) // dy)
+        #     grid[x_idx, y_idx] = row["SkyViewFactor"]
 
-        import matplotlib.pyplot as plt
+        # import matplotlib.pyplot as plt
 
-        # Ploter la heatmap
-        plt.figure(figsize=(8, 6))
-        plt.imshow(
-            grid,
-            cmap="viridis",
-            interpolation="nearest",
-            extent=[0, size_total.x, 0, size_total.y],
-        )
+        # # Ploter la heatmap
+        # plt.figure(figsize=(8, 6))
+        # plt.imshow(
+        #     grid,
+        #     cmap="viridis",
+        #     interpolation="nearest",
+        #     extent=[0, size_total.x, 0, size_total.y],
+        # )
 
-        plt.colorbar(label="Sky View Factor")
-        plt.title("Heatmap des Sky View Factors")
-        plt.xlabel("X (m)")
-        plt.ylabel("Y (m)")
-        plt.savefig("Heatmap des Sky View Factors.png")
-        plt.show()
+        # plt.colorbar(label="Sky View Factor")
+        # plt.title("Heatmap des Sky View Factors")
+        # plt.xlabel("X (m)")
+        # plt.ylabel("Y (m)")
+        # plt.savefig("Heatmap des Sky View Factors.png")
+        # plt.show()
 
         if platform.system() == "Darwin":
             # Create visualizer (smaller window for demo)
@@ -534,6 +530,7 @@ def main():
                 # Show interactive visualization
                 visualizer.plotInteractive()
 
+        exit()
         # print(context.getAllPrimitiveInfo())
         # === Simulation horaire ===
         ombres_par_heure = {}  # dict {hour: DataFrame}
@@ -960,8 +957,8 @@ if __name__ == "__main__":
     # Paramètres du sol
     # center = vec3(0, 50, 0)
     center = vec3(0, 0, 0)
-    # size_total = vec2(450, 150)     # taille globale du sol (m)
-    size_total = vec2(50, 50)  # taille globale du sol (m)
+    size_total = vec2(1000, 850)     # taille globale du sol (m)
+    #size_total = vec2(50, 50)  # taille globale du sol (m)
     nx, ny = 30, 30  # nombre de subdivisions
 
     dx = size_total.x / nx
