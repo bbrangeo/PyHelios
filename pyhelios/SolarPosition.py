@@ -7,11 +7,64 @@ time-dependent solar functions for atmospheric physics and plant modeling.
 """
 
 from typing import List, Tuple, Optional, Union
+from contextlib import contextmanager
+from pathlib import Path
+import logging
+import os
 from .wrappers import USolarPositionWrapper as solar_wrapper
 from .Context import Context
 from .plugins.registry import get_plugin_registry
 from .exceptions import HeliosError
 from .wrappers.DataTypes import Time, Date, vec3, SphericalCoord
+from .assets import get_asset_manager
+
+
+logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _solarposition_working_directory():
+    """
+    Temporarily switch working directory so Prague sky dataset can be resolved.
+
+    The C++ SolarPosition plugin uses a hardcoded relative path:
+    plugins/solarposition/lib/prague_sky_model/PragueSkyModelReduced.dat
+    """
+    asset_manager = get_asset_manager()
+    working_dir = asset_manager._get_helios_build_path()
+
+    if not working_dir or not working_dir.exists():
+        current_dir = Path(__file__).parent
+        packaged_build = current_dir / "assets" / "build"
+        if packaged_build.exists():
+            working_dir = packaged_build
+        else:
+            repo_root = current_dir.parent
+            build_lib_dir = repo_root / "pyhelios_build" / "build" / "lib"
+            working_dir = build_lib_dir.parent
+
+    dataset_path = (
+        Path(working_dir)
+        / "plugins"
+        / "solarposition"
+        / "lib"
+        / "prague_sky_model"
+        / "PragueSkyModelReduced.dat"
+    )
+    if not dataset_path.exists():
+        raise RuntimeError(
+            f"Prague sky model dataset not found at {dataset_path}. "
+            "Run: python build_scripts/build_helios.py --plugins solarposition"
+        )
+
+    original_dir = os.getcwd()
+    try:
+        os.chdir(working_dir)
+        logger.debug(f"Changed working directory to {working_dir} for SolarPosition asset access")
+        yield working_dir
+    finally:
+        os.chdir(original_dir)
+        logger.debug(f"Restored working directory to {original_dir}")
 
 
 class SolarPositionError(HeliosError):
@@ -712,7 +765,8 @@ class SolarPosition:
             ...         solar.updatePragueSkyModel()
         """
         try:
-            solar_wrapper.enablePragueSkyModel(self._solar_pos)
+            with _solarposition_working_directory():
+                solar_wrapper.enablePragueSkyModel(self._solar_pos)
         except Exception as e:
             raise SolarPositionError(f"Failed to enable Prague Sky Model: {e}")
 

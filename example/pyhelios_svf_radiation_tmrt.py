@@ -572,12 +572,21 @@ def main():
                 solar_position.setAtmosphericConditions( pressure, air_temperature_K, air_humidity, turbidity ) #pressure, temperature, humidity, turbidity
                 sun_dir = solar_position.getSunDirectionVector()
                 # solar_position.enableCloudCalibration("cloud_cover")
+                
+                # Activer le Prague Sky Model
+                solar_position.enablePragueSkyModel()
+                
+                # Calculer la distribution (coûteux : ~1100 requêtes avec OpenMP)
+                solar_position.updatePragueSkyModel(ground_albedo=0.3)
+                
+                # Pour les heures suivantes, éviter de recalculer si rien n'a changé
+                if solar_position.pragueSkyModelNeedsUpdate(ground_albedo=0.3):
+                    solar_position.updatePragueSkyModel(ground_albedo=0.3)
               
-
                 try:
                     with RadiationModel(context) as rad:
                         sun_source = rad.addCollimatedRadiationSource(sun_dir)
-
+                
                         # Configure longwave radiation band
                         rad.addRadiationBand("LW")
                         rad.disableEmission("LW")
@@ -660,7 +669,7 @@ def main():
                         print(f"R_dir : {R_dir:.1f} W/m²")
 
                         SW = PAR + NIR  
-                        print(f"SW : {SW:.1f} W/m²")
+                        print(f"SW (flux solaire total) : {SW:.1f} W/m²")
                         # ou calculé séparément
                         rad.setSourceFlux(sun_source, "SW", SW * (1.0 - diffuse_fraction))
                         rad.setDiffuseRadiationFlux("SW", SW * diffuse_fraction)
