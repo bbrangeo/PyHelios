@@ -393,9 +393,13 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(uuid, "reflectivity_SW", 0.0)
             context.setPrimitiveDataFloat(uuid, "reflectivity_PAR", 0.0)
             context.setPrimitiveDataFloat(uuid, "reflectivity_NIR", 0.0)
-            context.setPrimitiveDataFloat(uuid, "emissivity_LW", 0.97)  # corps humain
+            # Transparents : le rayonnement traverse sans être absorbé
+            context.setPrimitiveDataFloat(uuid, "transmissivity_SW", 1.0)
+            context.setPrimitiveDataFloat(uuid, "transmissivity_PAR", 1.0)
+            context.setPrimitiveDataFloat(uuid, "transmissivity_NIR", 1.0)
+            context.setPrimitiveDataFloat(uuid, "emissivity_LW", 0.97)
             context.setPrimitiveDataFloat(uuid, "temperature", 25.0 + 273.15)
-            context.setPrimitiveDataUInt(uuid, "twosided_flag", 1)  # reçoit de toutes les directions
+            context.setPrimitiveDataUInt(uuid, "twosided_flag", 1)
             context.setPrimitiveDataString(uuid, "surface_type", "sensor")
 
 
@@ -458,6 +462,10 @@ def run_growth_tmrt_example(
                 energy_balance_model.addRadiationBand("PAR")
                 energy_balance_model.addRadiationBand("NIR")
                 energy_balance_model.enableAirEnergyBalance()
+
+                photosynthesis_model = PhotosynthesisModel(context)
+                photosynthesis_model.setFarquharModelCoefficients(FarquharModelCoefficients())
+                photosynthesis_model.setModelTypeFarquhar()
 
                 for i, hour in enumerate(hours):
                     print(f"\nHOUR: {hour}")
@@ -589,13 +597,7 @@ def run_growth_tmrt_example(
                                 dt_sec=30.0, time_advance_sec=3600.0
                             )
 
-                            photosynthesis_model = PhotosynthesisModel(context)
-                            photosynthesis_model.setFarquharModelCoefficients(
-                                FarquharModelCoefficients()
-                            )
-                            photosynthesis_model.setModelTypeFarquhar()
                             photosynthesis_model.runForPrimitives(leaf_uuids)
-
 
                             A_canopy = 0.0
                             E_canopy = 0.0
