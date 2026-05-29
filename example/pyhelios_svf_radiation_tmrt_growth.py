@@ -414,7 +414,7 @@ def run_growth_tmrt_example(
         vertical_walls = apply_building_surface_properties(context, bat_uuids)
 
         reference_ground_uuid = context.addPatch(
-            center=vec3(-100, -100, 1.5),
+            center=vec3(-30, -30, 1.5),  # plus proche, hors du domaine mais pas trop loin
             size=vec2(dx, dy),
         )
         apply_ground_surface_properties(context, [reference_ground_uuid])
