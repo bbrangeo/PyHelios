@@ -334,10 +334,13 @@ def save_growth_stage_canopies(
                 build_parameters=build_parameters,
             )
 
+            previous_age = 0
             for age in growth_stages_days:
-                print(f"\nGrowth stage export: +{age} days")
-                plant_architecture.advanceTime(age)
-
+                dt = age - previous_age
+                print(f"\nGrowth stage export: avance de {dt} jours (âge cible = {age} jours)")
+                plant_architecture.advanceTime(dt)
+                previous_age = age
+                
                 canopy_dir = Path(f"{tree_model_label}_canopy_{age}days")
                 canopy_dir.mkdir(exist_ok=True)
 
