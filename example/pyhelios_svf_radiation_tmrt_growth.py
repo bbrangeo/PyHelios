@@ -3,13 +3,12 @@ import os
 import platform
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
+import pandas as pd
 import matplotlib.pyplot as plt
-
+import numpy as np
 from example.pyhelios_radiation_pure import compute_MRT
 import example.pyhelios_svf_radiation_tmrt as tmrt_base
 from example.pyhelios_svf_radiation_tmrt import (
-    create_canopy,
     create_ground_patch,
     create_sample_tree,
     getAmbientLongwaveFlux,
@@ -277,7 +276,7 @@ def run_growth_tmrt_example(
     output_dir: str,
 ) -> None:
     """Execute une simulation TMRT avec croissance de canopee sur plusieurs etapes."""
-    center = vec3(0, 0, 0)
+    center = vec3(0, 0, 1.5) # 1.5m au-dessus du sol
     size_total = vec2(50, 50)
     nx, ny = 100, 100
     dx = size_total.x / nx
@@ -293,6 +292,7 @@ def run_growth_tmrt_example(
             context, center, size_total, dx, dy
         )
         bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
+        vertical_walls = []
         for bat_uuid in bat_uuids:
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
@@ -300,6 +300,16 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(bat_uuid, "emissivity_LW", 0.90)
             # temperature — Kelvin. T de surface initiale avant mise à jour par EnergyBalance.
             context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0 + 273.15)
+
+                   # Récupère la normale de la primitive
+            normal = context.getPrimitiveNormal(bat_uuid)
+
+            # On vérifie si la normale est proche de (0, 0, 1) ou (0, 0, -1), donc une paroi verticale
+            if np.isclose(normal.z, 0, atol=0.1):
+                vertical_walls.append(bat_uuid)
+
+        # Affichage des UUID des parois verticales identifiées
+        # print(f"Parois verticales identifiées : {vertical_walls}")
 
         reference_ground_uuid = context.addPatch(
             center=vec3(-100, -100, 0),
@@ -486,6 +496,53 @@ def run_growth_tmrt_example(
                             photosynthesis_model.setModelTypeFarquhar()
                             photosynthesis_model.runForPrimitives(leaf_uuids)
 
+
+                            A_canopy = 0.0
+                            E_canopy = 0.0
+                            for UUID in leaf_uuids:
+                                E = context.getPrimitiveData(UUID, "latent_flux")
+                                A = context.getPrimitiveData(UUID, "net_photosynthesis")
+                                E_canopy += E / 44000 * 1000
+                                # mmol H2O / m^2 / sec
+                                A_canopy += A  # umol CO2 / m^2 / sec
+
+                                WUE = A / (E / 44000 * 1000)  # umol CO2/mmol H2O
+                                context.setPrimitiveDataFloat(UUID, "WUE", WUE)
+
+                            WUE_canopy = A_canopy / E_canopy  # umol CO2/mmol H2O
+                            print(f"WUE of the canopy = {WUE_canopy} umol CO2/mmol H2O")
+
+                            # Cartographie pseudocouleur Helios sur toutes les primitives
+                            # all_uuids = context.getAllUUIDs()
+                            # context.colorPrimitiveByDataPseudocolor(
+                            #     uuids=all_uuids,
+                            #     primitive_data="radiation_flux_SW",
+                            #     colormap="hot",
+                            #     ncolors=256,
+                            # )
+
+                            # Calcul du flux sur chaque paroi verticale
+                            wall_fluxes = []
+                            for wall_uuid in vertical_walls:
+                                flux = context.getPrimitiveData(
+                                    wall_uuid, "radiation_flux_SW"
+                                )
+                                if flux:
+                                    wall_fluxes.append(flux)
+                                else:
+                                    wall_fluxes.append(0.0)
+
+                            # Matrice des flux par heure
+                            _df_flux = pd.DataFrame(
+                                wall_fluxes,
+                                index=[f"Wall {i}" for i in range(len(wall_fluxes))],
+                                columns=[f"hour_{hour}"],
+                            )
+
+                            print(
+                                f"Heure {hour:02d}h : Flux sur murs = {np.sum(wall_fluxes):.1f} W/m²"
+                            )
+
                             df_tmrt = compute_MRT(
                                 context, ground_patches, output_dir, sigma=5.67e-8
                             )
@@ -494,10 +551,11 @@ def run_growth_tmrt_example(
                                 f"tmrt_growth_{age:02d}days_{hour:02d}h.png",
                             )
                             plt.figure(figsize=(7, 5))
-                            plt.imshow(df_tmrt.values, cmap="inferno", origin="lower")
+                            plt.imshow(df_tmrt.values, cmap="inferno", origin="lower", vmin=20, vmax=70)
                             plt.colorbar(label="TMRT (degC)")
                             plt.title(f"TMRT growth={age}days hour={hour:02d}h")
                             plt.tight_layout()
+                            
                             plt.savefig(figure_path, dpi=180)
                             plt.close()
 
@@ -524,7 +582,7 @@ if __name__ == "__main__":
         utc_offset=1,
         pressure_pa=101300.0,
         turbidity=0.05,
-        hours=[10, 12, 14],
+        hours=[12],
         growth_steps_days=growth_stages,
         output_dir="resultats_ombres_growth",
     )
