@@ -371,7 +371,7 @@ def apply_surface_properties(
         # Propriétés LW (Long Wave) - Conservation d'énergie
         context.setPrimitiveDataFloat(uuid, "reflectivity_LW", props.albedo_lw)
         context.setPrimitiveDataFloat(uuid, "transmissivity_LW", props.transmissivity_lw)
-        context.setPrimitiveDataFloat(uuid, "emissivity", props.emissivity)
+        context.setPrimitiveDataFloat(uuid, "emissivity_LW", props.emissivity)
         
         # Propriétés physiques
         context.setPrimitiveDataString(uuid, "surface_type", surface_type.value)

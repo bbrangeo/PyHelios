@@ -6,6 +6,11 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from example.improved_radiation_calculation import (
+    SURFACE_PROPERTIES,
+    SurfaceType,
+    apply_surface_properties,
+)
 from example.pyhelios_radiation_pure import compute_MRT
 import example.pyhelios_svf_radiation_tmrt as tmrt_base
 from example.pyhelios_svf_radiation_tmrt import (
@@ -151,24 +156,59 @@ def configure_plant_primitives(
     plant_architecture: PlantArchitecture,
     plant_ids: List[int],
 ) -> List[int]:
-    """Configure les proprietes optiques des feuilles pour RadiationModel (bandes SW/PAR/NIR/LW)."""
+    """Applique les proprietes optiques feuille (SURFACE_PROPERTIES) aux plants."""
     plant_uuids = get_plant_primitive_uuids(plant_architecture, plant_ids)
     if not plant_uuids:
         return plant_uuids
 
-    # reflectivity_* — sans unité, défaut 0. Réflectivité hémisphérique pour la bande *.
-    context.setPrimitiveDataFloat(plant_uuids, "reflectivity_SW", 0.20)
-    context.setPrimitiveDataFloat(plant_uuids, "reflectivity_PAR", 0.10)
-    context.setPrimitiveDataFloat(plant_uuids, "reflectivity_NIR", 0.45)
-    # transmissivity_* — sans unité, défaut 0. Absorptivité = 1 - rho - tau.
+    apply_surface_properties(context, plant_uuids, SurfaceType.LEAF)
+    leaf_props = SURFACE_PROPERTIES[SurfaceType.LEAF]
+    # transmissivity_* — canopy : valeurs complementaires non presentes dans SurfaceProperties.
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_PAR", 0.45)
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_NIR", 0.40)
-    # emissivity_* — sans unité. Utilisé seulement si l'émission est active pour la bande (LW ici).
-    # Émission PAR/NIR/SW désactivée dans run_growth_tmrt_example ; valeurs utiles pour la diffusion (rho+tau+eps=1).
-    context.setPrimitiveDataFloat(plant_uuids, "emissivity_LW", 0.95)
-    context.setPrimitiveDataFloat(plant_uuids, "emissivity_PAR", 0.95)
-    context.setPrimitiveDataFloat(plant_uuids, "emissivity_NIR", 0.95)
+    # emissivity_* PAR/NIR — diffusion (emission SW/PAR/NIR desactivee dans la simulation).
+    context.setPrimitiveDataFloat(plant_uuids, "emissivity_PAR", leaf_props.emissivity)
+    context.setPrimitiveDataFloat(plant_uuids, "emissivity_NIR", leaf_props.emissivity)
+    for plant_uuid in plant_uuids:
+        context.setPrimitiveDataString(plant_uuid, "plant_part", "leaf")
     return plant_uuids
+
+
+def apply_ground_surface_properties(
+    context: Context,
+    ground_uuids: List[int],
+    initial_temperature_k: float = 25.5 + 273.15,
+) -> None:
+    """Applique SOIL (SURFACE_PROPERTIES) et options sol unilateral."""
+    if not ground_uuids:
+        return
+    apply_surface_properties(context, ground_uuids, SurfaceType.SOIL)
+    for ground_uuid in ground_uuids:
+        context.setPrimitiveDataFloat(ground_uuid, "temperature", initial_temperature_k)
+        context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
+        context.setPrimitiveDataString(ground_uuid, "plant_part", "soil")
+
+
+def apply_building_surface_properties(
+    context: Context,
+    bat_uuids: List[int],
+    initial_temperature_k: float = 25.0 + 273.15,
+) -> List[int]:
+    """Applique CONCRETE aux primitives du batiment ; retourne les parois verticales."""
+    vertical_walls: List[int] = []
+    if not bat_uuids:
+        return vertical_walls
+
+    apply_surface_properties(context, bat_uuids, SurfaceType.CONCRETE)
+    concrete_props = SURFACE_PROPERTIES[SurfaceType.CONCRETE]
+    for bat_uuid in bat_uuids:
+        context.setPrimitiveDataFloat(bat_uuid, "temperature", initial_temperature_k)
+        context.setPrimitiveDataFloat(bat_uuid, "emissivity_PAR", concrete_props.emissivity)
+        context.setPrimitiveDataFloat(bat_uuid, "emissivity_NIR", concrete_props.emissivity)
+        normal = context.getPrimitiveNormal(bat_uuid)
+        if np.isclose(normal.z, 0, atol=0.1):
+            vertical_walls.append(bat_uuid)
+    return vertical_walls
 
 
 def apply_energy_balance_inputs(
@@ -188,12 +228,8 @@ def apply_energy_balance_inputs(
     context.setPrimitiveDataFloat(uuids, "air_humidity", air_humidity)
     context.setPrimitiveDataFloat(uuids, "wind_speed", wind_speed)
     context.setPrimitiveDataFloat(uuids, "air_pressure", pressure_pa)
-    # temperature — Kelvin, float. T de surface pour émission ε·σ·T⁴ (mise à jour par EnergyBalance après run).
+    # temperature — Kelvin ; T de surface (mise a jour par EnergyBalance apres run).
     context.setPrimitiveDataFloat(uuids, "temperature", air_temperature_k)
-    # emissivity_* — requis pour les bandes à émission active (LW) ; EnergyBalance peut affiner T à chaque pas.
-    context.setPrimitiveDataFloat(uuids, "emissivity_LW", 0.95)
-    context.setPrimitiveDataFloat(uuids, "emissivity_PAR", 0.95)
-    context.setPrimitiveDataFloat(uuids, "emissivity_NIR", 0.95)
 
 
 def save_growth_stage_canopies(
@@ -291,35 +327,17 @@ def run_growth_tmrt_example(
         ground_uuids, ground_patches = create_ground_patch(
             context, center, size_total, dx, dy
         )
+        apply_ground_surface_properties(context, ground_uuids)
+        soil_albedo = SURFACE_PROPERTIES[SurfaceType.SOIL].albedo_sw
+
         bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
-        vertical_walls = []
-        for bat_uuid in bat_uuids:
-            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
-            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
-            context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
-            context.setPrimitiveDataFloat(bat_uuid, "emissivity_LW", 0.90)
-            # temperature — Kelvin. T de surface initiale avant mise à jour par EnergyBalance.
-            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0 + 273.15)
-
-                   # Récupère la normale de la primitive
-            normal = context.getPrimitiveNormal(bat_uuid)
-
-            # On vérifie si la normale est proche de (0, 0, 1) ou (0, 0, -1), donc une paroi verticale
-            if np.isclose(normal.z, 0, atol=0.1):
-                vertical_walls.append(bat_uuid)
-
-        # Affichage des UUID des parois verticales identifiées
-        # print(f"Parois verticales identifiées : {vertical_walls}")
+        vertical_walls = apply_building_surface_properties(context, bat_uuids)
 
         reference_ground_uuid = context.addPatch(
             center=vec3(-100, -100, 0),
             size=vec2(dx, dy),
         )
-        context.setPrimitiveDataString(reference_ground_uuid, "surface_type", "soil")
-        context.setPrimitiveDataFloat(reference_ground_uuid, "reflectivity_SW", 0.3)
-        context.setPrimitiveDataFloat(reference_ground_uuid, "emissivity_LW", 0.90)
-        # twosided_flag — uint 0 : sol unilatéral (émission/absorption vers +normal uniquement).
-        context.setPrimitiveDataUInt(reference_ground_uuid, "twosided_flag", 0)
+        apply_ground_surface_properties(context, [reference_ground_uuid])
 
         with PlantArchitecture(context) as plant_architecture:
             loaded_plants = []
@@ -370,7 +388,7 @@ def run_growth_tmrt_example(
                         )
                         sun_dir = solar_position.getSunDirectionVector()
                         solar_position.enablePragueSkyModel()
-                        solar_position.updatePragueSkyModel(ground_albedo=0.3)
+                        solar_position.updatePragueSkyModel(ground_albedo=soil_albedo)
 
                         with RadiationModel(context) as radiation:
                             sun_source = radiation.addCollimatedRadiationSource(sun_dir)
@@ -452,14 +470,6 @@ def run_growth_tmrt_example(
                                 wind_speed,
                                 pressure_pa,
                             )
-                            # emissivity_* avant re-run LW : rho+tau+eps=1 en diffusion (doc Radiative Emission).
-                            context.setPrimitiveDataFloat(bat_uuids, "emissivity_LW", 0.90)
-                            context.setPrimitiveDataFloat(bat_uuids, "emissivity_PAR", 0.90)
-                            context.setPrimitiveDataFloat(bat_uuids, "emissivity_NIR", 0.90)
-                            context.setPrimitiveDataFloat(ground_uuids, "emissivity_LW", 0.90)
-                            context.setPrimitiveDataFloat(ground_uuids, "emissivity_PAR", 0.90)
-                            context.setPrimitiveDataFloat(ground_uuids, "emissivity_NIR", 0.90)
-
                             with BoundaryLayerConductanceModel(
                                 context
                             ) as boundary_layer_model:
@@ -501,7 +511,7 @@ def run_growth_tmrt_example(
                             energy_balance_model.evaluateAirEnergyBalance(      # T air converge
                                 dt_sec=30.0, time_advance_sec=3600.0
                             )
-                            
+
                             photosynthesis_model = PhotosynthesisModel(context)
                             photosynthesis_model.setFarquharModelCoefficients(
                                 FarquharModelCoefficients()
