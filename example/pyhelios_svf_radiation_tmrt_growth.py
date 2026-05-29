@@ -615,7 +615,7 @@ def run_growth_tmrt_example(
                                 WUE = A / E_mmol if abs(E_mmol) > 1e-10 else 0.0
                                 context.setPrimitiveDataFloat(UUID, "WUE", WUE)
 
-                            WUE_canopy = A_canopy / E_canopy  # umol CO2/mmol H2O
+                            WUE_canopy = A_canopy / E_canopy if abs(E_canopy) > 1e-10 else 0.0
                             print(f"WUE of the canopy = {WUE_canopy} umol CO2/mmol H2O")
 
                             # Cartographie pseudocouleur Helios sur toutes les primitives
@@ -677,9 +677,7 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    # growth_stages = [10, 20, 30, 40, 50]  # jours
-    # growth_stages = [1 * 365, 2 * 365, 4 * 365, 6 * 365, 8 * 365, 10 * 365]
-    growth_stages = [10 * 365]
+    growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans)
 
     save_growth_stage_canopies(growth_stages_days=growth_stages)
 
