@@ -363,7 +363,7 @@ def run_growth_tmrt_example(
     output_dir: str,
 ) -> None:
     """Execute une simulation TMRT avec croissance de canopee sur plusieurs etapes."""
-    center = vec3(0, 0, 1.5) # 1.5m au-dessus du sol
+    center = vec3(0, 0, 0)
     size_total = vec2(50, 50)
     nx, ny = 100, 100
     dx = size_total.x / nx
@@ -383,11 +383,27 @@ def run_growth_tmrt_example(
         apply_ground_surface_properties(context, ground_uuids)
         soil_albedo = SURFACE_PROPERTIES[SurfaceType.SOIL].albedo_sw
 
+        # Capteurs MRT à z=1.5m (hauteur piéton, petits, juste pour mesurer)
+        center_sensors = vec3(0, 0, 1.5)
+        sensor_uuids, sensor_patches = create_ground_patch(
+            context, center_sensors, size_total, dx, dy
+        )
+        # Capteurs transparents : ne perturbent pas le bilan radiatif
+        for uuid in sensor_uuids:
+            context.setPrimitiveDataFloat(uuid, "reflectivity_SW", 0.0)
+            context.setPrimitiveDataFloat(uuid, "reflectivity_PAR", 0.0)
+            context.setPrimitiveDataFloat(uuid, "reflectivity_NIR", 0.0)
+            context.setPrimitiveDataFloat(uuid, "emissivity_LW", 0.97)  # corps humain
+            context.setPrimitiveDataFloat(uuid, "temperature", 25.0 + 273.15)
+            context.setPrimitiveDataUInt(uuid, "twosided_flag", 1)  # reçoit de toutes les directions
+            context.setPrimitiveDataString(uuid, "surface_type", "sensor")
+
+
         bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
         vertical_walls = apply_building_surface_properties(context, bat_uuids)
 
         reference_ground_uuid = context.addPatch(
-            center=vec3(-100, -100, 0),
+            center=vec3(-100, -100, 1.5),
             size=vec2(dx, dy),
         )
         apply_ground_surface_properties(context, [reference_ground_uuid])
@@ -432,6 +448,16 @@ def run_growth_tmrt_example(
 
                 # print("Computing sky view factors for ground patches...")
                 # compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
+                simulation_uuids = context.getAllUUIDs()
+
+                stomatal_model = StomatalConductanceModel(context)
+                stomatal_model.setBMFCoefficientsFromLibrary(stomatal_species, uuids=leaf_uuids)
+
+                energy_balance_model = EnergyBalanceModel(context)
+                energy_balance_model.addRadiationBand("LW")
+                energy_balance_model.addRadiationBand("PAR")
+                energy_balance_model.addRadiationBand("NIR")
+                energy_balance_model.enableAirEnergyBalance()
 
                 for i, hour in enumerate(hours):
                     print(f"\nHOUR: {hour}")
@@ -520,7 +546,18 @@ def run_growth_tmrt_example(
                             radiation.setDiffuseRadiationFlux("LW", lw_flux)
                             radiation.updateGeometry()
 
-                            simulation_uuids = context.getAllUUIDs()
+                            # --- Bilan energetique (apres radiation + stomatal) ---
+                            # air_temperature sur toutes les primitives AVANT le premier run().
+                            apply_energy_balance_inputs(
+                                context,
+                                simulation_uuids,
+                                air_temperature_k,
+                                air_humidity,
+                                wind_speed,
+                                pressure_pa,
+                                reset_surface_temperature=(i == 0),
+                            )
+
                             with BoundaryLayerConductanceModel(
                                 context
                             ) as boundary_layer_model:
@@ -534,29 +571,7 @@ def run_growth_tmrt_example(
 
                             radiation.runBand(["SW", "PAR", "NIR", "LW"])
 
-                            stomatal_model = StomatalConductanceModel(context)
-                            stomatal_model.setBMFCoefficientsFromLibrary(
-                                stomatal_species, uuids=leaf_uuids
-                            )
                             stomatal_model.run(leaf_uuids)
-
-                            # --- Bilan energetique (apres radiation + stomatal) ---
-                            # air_temperature sur toutes les primitives AVANT le premier run().
-                            apply_energy_balance_inputs(
-                                context,
-                                simulation_uuids,
-                                air_temperature_k,
-                                air_humidity,
-                                wind_speed,
-                                pressure_pa,
-                                reset_surface_temperature=(i == 0),
-                            )
-
-                            energy_balance_model = EnergyBalanceModel(context)
-                            energy_balance_model.addRadiationBand("LW")
-                            energy_balance_model.addRadiationBand("PAR")
-                            energy_balance_model.addRadiationBand("NIR")
-                            energy_balance_model.enableAirEnergyBalance()
 
                             # Passe 1 : surfaces puis couche limite atmospherique (T_ABL).
                             energy_balance_model.run()
@@ -591,7 +606,8 @@ def run_growth_tmrt_example(
                                 # mmol H2O / m^2 / sec
                                 A_canopy += A  # umol CO2 / m^2 / sec
 
-                                WUE = A / (E / 44000 * 1000)  # umol CO2/mmol H2O
+                                E_mmol = E / 44000 * 1000
+                                WUE = A / E_mmol if abs(E_mmol) > 1e-10 else 0.0
                                 context.setPrimitiveDataFloat(UUID, "WUE", WUE)
 
                             WUE_canopy = A_canopy / E_canopy  # umol CO2/mmol H2O
@@ -629,11 +645,11 @@ def run_growth_tmrt_example(
                             )
 
                             df_tmrt = compute_MRT(
-                                context, ground_patches, output_dir, sigma=5.67e-8
+                                context, sensor_patches, output_dir, sigma=5.67e-8
                             )
                             figure_path = os.path.join(
                                 output_dir,
-                                f"tmrt_growth_{age:02d}days_{hour:02d}h.png",
+                                f"tmrt_growth_{age:02d}days_{hour:02d}h.png"
                             )
                             plt.figure(figsize=(7, 5))
                             plt.imshow(df_tmrt.values, cmap="inferno", origin="lower", vmin=20, vmax=70)
