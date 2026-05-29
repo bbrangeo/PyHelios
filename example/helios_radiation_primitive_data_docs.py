@@ -1,4 +1,4 @@
-"""Reference Helios RadiationModel input/output primitive data labels.
+"""Référence des libellés de données primitives d'entrée/sortie du plugin RadiationModel Helios.
 
 Documentation officielle :
 https://plantsimulationlab.github.io/Helios/_radiation_doc.html#Input/Output_Primitive_Data

@@ -10,7 +10,7 @@ import pandas as pd
 
 from example.pyhelios_radiation_pure import compute_MRT
 
-# RadiationModel — Input Primitive Data : voir example/helios_radiation_primitive_data_docs.py
+# RadiationModel — données primitives d'entrée : voir example/helios_radiation_primitive_data_docs.py
 
 """
 Type de Radiation	Plage de longueur d'onde	Application principale	Effet principal
@@ -155,13 +155,13 @@ def create_sample_tree(
             )
         species = _default_wpt_species(species)
         with WeberPennTree(context) as wpt:
-            # Set tree parameters for a nice-looking tree
+            # Paramètres de l'arbre pour un rendu soigné
             wpt.setBranchRecursionLevel(recursion_depth)
             wpt.setTrunkSegmentResolution(trunk_subdivisions)
             wpt.setBranchSegmentResolution(branch_subdivisions)
             wpt.setLeafSubdivisions(*leaf_subdivisions)
 
-            # Build a tree at a specific location
+            # Construire un arbre à un emplacement donné
             tree_origin = vec3(10, 0, 0)
 
             tree_id = wpt.buildTree(
@@ -169,17 +169,17 @@ def create_sample_tree(
                 origin=tree_origin,
             )
 
-            # Get tree UUIDs for potential future use
+            # UUID des primitives de l'arbre
             trunk_uuids = wpt.getTrunkUUIDs(tree_id)
             branch_uuids = wpt.getBranchUUIDs(tree_id)
             leaf_uuids = wpt.getLeafUUIDs(tree_id)
 
             for trunk_uuid in trunk_uuids:
-                # reflectivity_* — unitless hemispherical reflectivity per band (default 0).
+                # reflectivity_* — sans unité, réflectivité hémisphérique par bande (défaut 0).
                 context.setPrimitiveDataFloat(trunk_uuid, "reflectivity_SW", 0.6)
                 context.setPrimitiveDataString(trunk_uuid, "plant_part", "trunk")
                 context.setPrimitiveDataString(trunk_uuid, "species", str(species))
-                # emissivity_LW — unitless; used when LW emission is enabled.
+                # emissivity_LW — sans unité ; utilisé quand l'émission LW est active.
                 context.setPrimitiveDataFloat(trunk_uuid, "emissivity_LW", 0.90)
 
             for branch_uuid in branch_uuids:
@@ -192,7 +192,7 @@ def create_sample_tree(
                 context.setPrimitiveDataFloat(leaf_uuid, "reflectivity_SW", 0.2)
                 context.setPrimitiveDataFloat(leaf_uuid, "reflectivity_PAR", 0.1)
                 context.setPrimitiveDataFloat(leaf_uuid, "reflectivity_NIR", 0.45)
-                # transmissivity_* — unitless; absorptivity = 1 - rho - tau.
+                # transmissivity_* — sans unité ; absorptivité = 1 - rho - tau.
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_PAR", 0.45)
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_NIR", 0.4)
                 context.setPrimitiveDataFloat(leaf_uuid, "emissivity_LW", 0.95)
@@ -262,7 +262,7 @@ def create_ground_patch(
             color = (
                 RGBcolor(0.5, 0.5, 0.5) if (i + j) % 2 == 0 else RGBcolor(0.0, 1.0, 1.0)
             )
-            # color=RGBcolor(0.4, 0.3, 0.2),  # Brown soil
+            # color=RGBcolor(0.4, 0.3, 0.2),  # sol brun
             ground_uuid = context.addPatch(
                 center=vec3(cx, cy, 0), size=vec2(dx, dy), color=color
             )
@@ -273,9 +273,9 @@ def create_ground_patch(
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_PAR", 0.15)
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_NIR", 0.4)
             context.setPrimitiveDataFloat(ground_uuid, "emissivity_LW", 0.9)
-            # temperature — Kelvin, float. Surface T for emission (ε·σ·T⁴); updated by EnergyBalance.
+            # temperature — Kelvin, float. T de surface pour émission (ε·σ·T⁴) ; mise à jour par EnergyBalance.
             context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5 + 273.15)
-            # twosided_flag — uint 0: one-sided ground (top face toward +normal only).
+            # twosided_flag — uint 0 : sol unilatéral (face supérieure vers +normal uniquement).
             context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
 
             row_patches.append(ground_uuid)
@@ -388,7 +388,7 @@ def main():
             center=vec3(-100, -100, 0), size=vec2(dx, dy), color=RGBcolor(0.2, 0.7, 0.2)
         )
 
-        # Create SkyViewFactor model
+        # Créer le modèle SkyViewFactor
         print("\nCreating SkyViewFactor model...")
         try:
             svf_model = SkyViewFactorModel(context)
@@ -397,13 +397,13 @@ def main():
             print(f"✗ Failed to create SkyViewFactor model: {e}")
             raise e
 
-        # Calculate sky view factors
+        # Calcul des facteurs de vue du ciel
         # print(len(ground_uuids))
         try:
-            # Configure the model
-            svf_model.set_ray_count(400)  # Use 2000 rays for good accuracy
-            svf_model.set_max_ray_length(400.0)  # Maximum ray length of 100 units
-            svf_model.set_message_flag(True)  # Enable console output
+            # Configurer le modèle
+            svf_model.set_ray_count(400)  # nombre de rayons (précision)
+            svf_model.set_max_ray_length(400.0)  # longueur maximale des rayons
+            svf_model.set_message_flag(True)  # messages console
 
             svfs, uuid_to_svf = svf_model.calculate_sky_view_factors_for_primitives(
                 uuids=ground_uuids, num_threads=8
@@ -467,20 +467,20 @@ def main():
         plt.show()
 
         if platform.system() == "Darwin":
-            # Create visualizer (smaller window for demo)
+            # Visualiseur (fenêtre réduite pour démo)
             with Visualizer(800, 600, headless=False) as visualizer:
-                # Load all geometry into visualizer
+                # Charger la géométrie dans le visualiseur
                 visualizer.buildContextGeometry(context)
 
-                # Configure scene
-                bg_color = RGBcolor(0.1, 0.1, 0.15)  # Dark blue background
+                # Configurer la scène
+                bg_color = RGBcolor(0.1, 0.1, 0.15)  # fond bleu foncé
                 visualizer.setBackgroundColor(bg_color)
-                light_dir = vec3(1, 1, 1)  # Directional lighting
+                light_dir = vec3(1, 1, 1)  # éclairage directionnel
                 visualizer.setLightDirection(light_dir)
                 visualizer.setLightingModel(
                     "phong_shadowed"
-                )  # Nice lighting with shadows
-                # visualizer.setLightingModel(visualizer.LIGHTING_NONE)    # Nice lighting with shadows
+                )  # éclairage Phong avec ombres
+                # visualizer.setLightingModel(visualizer.LIGHTING_NONE)    # sans éclairage
                 # visualizer.buildContextGeometry(context)
 
                 #visualizer.colorContextPrimitivesByData("radiation_flux_SW")
@@ -489,13 +489,13 @@ def main():
                 #visualizer.setColorbarRange(200, 1000)
                 #visualizer.setColorbarTitle("Radiation Flux")
 
-                # sum the "SW" and "LW" fluxes for each primitive and store the result to new primitive data called "total_flux"
+                # somme des flux SW et LW par primitive → donnée primitive total_flux
                 #context.aggregatePrimitiveDataSum( allUUIDs, {"radiation_flux_SW", "radiation_flux_LW"}, "total_flux" )
                 #visualizer.colorContextPrimitivesByData( "total_flux" )
 
-                # Set a good camera position to view the scene
-                camera_pos = vec3(8, 8, 6)  # Camera position
-                look_at = vec3(1.5, 4.5, 3.5)  # Look at center of geometry
+                # Position initiale de la caméra
+                camera_pos = vec3(8, 8, 6)  # position caméra
+                look_at = vec3(1.5, 4.5, 3.5)  # point de visée au centre
                 visualizer.setCameraPosition(camera_pos, look_at)
                 visualizer.setBackgroundSkyTexture()
 
@@ -527,7 +527,7 @@ def main():
                 print("  - Arrow keys: Camera movement")
                 print("  - Close window to continue")
 
-                # Show interactive visualization
+                # Visualisation interactive
                 visualizer.plotInteractive()
 
         # print(context.getAllPrimitiveInfo())
@@ -561,7 +561,7 @@ def main():
             print(f"Vitesse du vent : {wind_speed:.2f} m/s\n")
 
             for uuid in all_UUIDs:
-                # EnergyBalance inputs (not in radiation Input Primitive Data table).
+                # Entrées EnergyBalance (hors tableau données primitives d'entrée radiation).
                 context.setPrimitiveDataFloat(
                     uuid, "air_temperature", air_temperature_K
                 )
@@ -569,7 +569,7 @@ def main():
                 context.setPrimitiveDataFloat(uuid, "wind_speed", wind_speed)
 
             with SolarPosition(context, UTC, latitude, longitude) as solar_position:
-                  # Set atmospheric conditions globally
+                  # Conditions atmosphériques globales
                 solar_position.setAtmosphericConditions( pressure, air_temperature_K, air_humidity, turbidity ) #pressure, temperature, humidity, turbidity
                 sun_dir = solar_position.getSunDirectionVector()
                 # solar_position.enableCloudCalibration("cloud_cover")
@@ -588,7 +588,7 @@ def main():
                     with RadiationModel(context) as rad:
                         sun_source = rad.addCollimatedRadiationSource(sun_dir)
                 
-                        # Configure longwave radiation band
+                        # Configuration de la bande grande longueur d'onde (LW)
                         rad.addRadiationBand("LW")
                         #rad.disableEmission("LW")
                         rad.setDirectRayCount(
@@ -603,7 +603,7 @@ def main():
                         rad.setDirectRayCount("NIR", 100)
                         rad.setDiffuseRayCount("NIR", 1000)
 
-                        # Configure shortwave radiation band
+                        # Configuration de la bande onde courte (SW)
                         rad.addRadiationBand("SW")
                         # pas d'émission thermique en SW
                         rad.disableEmission("SW")
@@ -653,14 +653,14 @@ def main():
                             f"Diffuse fraction of solar radiation : {diffuse_fraction:.3f} ({diffuse_fraction*100:.1f}%)"
                         )
                         
-                        # Calculate solar flux using stored atmospheric conditions
-                        R = solar_position.getSolarFlux() # flux perpendicular to sun (W/m^2)
-                        zenith = solar_position.getSunZenith() #zenithal angle (radians)
-                        R_horiz = R*math.cos(zenith) #flux on horizontal surface
-                
-                        f_diff = solar_position.getDiffuseFraction() #fraction of diffuse radiation
-                    
-                        R_dir = R*(1.0-f_diff) #direct component of flux (W/m^2)
+                        # Flux solaire à partir des conditions atmosphériques
+                        R = solar_position.getSolarFlux()  # flux perpendiculaire au soleil (W/m²)
+                        zenith = solar_position.getSunZenith()  # angle zénithal (rad)
+                        R_horiz = R * math.cos(zenith)  # flux sur surface horizontale
+
+                        f_diff = solar_position.getDiffuseFraction()  # fraction diffuse
+
+                        R_dir = R * (1.0 - f_diff)  # composante directe (W/m²)
 
                         print(f"R : {R:.1f} W/m²")
                         print(f"zenith : {zenith:.1f} radians")
@@ -684,7 +684,7 @@ def main():
 
                         rad.updateGeometry()
 
-                        #  Step 6: Setting Up the Energy Balance Model
+                        # Étape 6 : modèle de bilan énergétique
                         
                         with BoundaryLayerConductanceModel(
                             context
@@ -699,17 +699,17 @@ def main():
 
                         rad.runBand(["SW", "PAR", "NIR", "LW"])
 
-                        # Step 7: Setting Up the Stomatal Conductance Model
+                        # Étape 7 : modèle de conductance stomatique
                         stomatalconductance = StomatalConductanceModel(context)
-                        # Set model coefficients using species library
+                        # Coefficients BMF depuis la bibliothèque d'espèces
                         stomatalconductance.setBMFCoefficientsFromLibrary(
                             "Apple", uuids=leaf_uuids
                         )
-                        # Run steady-state calculation
+                        # Calcul en régime permanent
                         stomatalconductance.run(leaf_uuids)
-                        # Or run dynamic simulation with timestep
-                        # stomatal.run(dt=60.0)  # 60 second timestep
-                        # # Set custom BMF coefficients for specific leaves
+                        # Ou simulation dynamique avec pas de temps
+                        # stomatal.run(dt=60.0)  # pas de 60 s
+                        # # Coefficients BMF personnalisés pour certaines feuilles
                         # bmf_coeffs = BMFCoefficients(Em=258.25, i0=38.65, k=232916.82, b=609.67)
                         # stomatal.setBMFCoefficients(bmf_coeffs, uuids=[leaf_uuid])
 
@@ -724,7 +724,7 @@ def main():
                         #     dt_sec=30.0, time_advance_sec=3600.0
                         # )
 
-                        # Run the longwave band, stomatal conductance plugin, and energy balance plugin again to update primitive temperature values
+                        # Relancer LW, stomatal et energy balance pour mettre à jour les températures de surface
                         rad.runBand("LW")
 
                         stomatalconductance.run(leaf_uuids)
@@ -762,7 +762,7 @@ def main():
                         WUE_canopy = A_canopy / E_canopy  # umol CO2/mmol H2O
                         print(f"WUE of the canopy = {WUE_canopy} umol CO2/mmol H2O")
 
-                        # Apply Helios pseudocolor mapping to all primitives
+                        # Cartographie pseudocouleur Helios sur toutes les primitives
                         # all_uuids = context.getAllUUIDs()
                         # context.colorPrimitiveByDataPseudocolor(
                         #     uuids=all_uuids,
@@ -928,7 +928,7 @@ if __name__ == "__main__":
 
     # from pyhelios.types import Location
     #with Context() as context:
-        # Set location explicitly
+        # Définir explicitement la position géographique
     #    context.setLocation(longitude, latitude, 1)             # latitude, longitude, UTC offset
     #    context.setLocation(Location(latitude, longitude, 1))   # equivalent
         
@@ -940,18 +940,18 @@ if __name__ == "__main__":
     pressure = 101300
 
 
-    # Guidance for selecting turbidity values:
+    # Guide pour choisir la turbidité :
 
-    # 0.02: Very clear sky (remote/clean atmosphere) - default value
-    # 0.03-0.05: Clear sky (typical for rural areas)
-    # 0.1: Light haze or light pollution
-    # 0.2-0.3: Hazy conditions (urban/polluted atmosphere)
-    # >0.4: Very hazy or heavily polluted atmosphere
-    # Higher turbidity values result in:
-    # - Reduced direct solar radiation
-    # - Increased fraction of diffuse radiation
-    # - Whitening of the sky (reduced blue color)
-    # - Enhanced circumsolar brightening (bright region around the sun)
+    # 0.02 : ciel très clair (atmosphère propre) — valeur par défaut
+    # 0.03-0.05 : ciel clair (zones rurales)
+    # 0.1 : brume légère ou pollution faible
+    # 0.2-0.3 : conditions voilées (urbain / pollué)
+    # >0.4 : atmosphère très turbide ou fortement polluée
+    # Turbidité élevée :
+    # - rayonnement direct solaire réduit
+    # - fraction diffuse accrue
+    # - ciel plus blanchâtre (moins de bleu)
+    # - auréole circumsolaire plus marquée
     turbidity = 0.05
 
     # Paramètres du sol

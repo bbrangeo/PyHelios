@@ -29,7 +29,7 @@ from pyhelios import (
 )
 from pyhelios.types import FarquharModelCoefficients, RGBcolor, vec2, vec3
 
-# RadiationModel — Input Primitive Data : voir example/helios_radiation_primitive_data_docs.py
+# RadiationModel — données primitives d'entrée : voir example/helios_radiation_primitive_data_docs.py
 
 # Configuration globale des arbres apple autour du bâtiment
 TREE_RING_COUNT_PER_SIDE = 2
@@ -157,15 +157,15 @@ def configure_plant_primitives(
     if not plant_uuids:
         return plant_uuids
 
-    # reflectivity_* — unitless, default 0. Hemispherical reflectivity for band *.
+    # reflectivity_* — sans unité, défaut 0. Réflectivité hémisphérique pour la bande *.
     context.setPrimitiveDataFloat(plant_uuids, "reflectivity_SW", 0.20)
     context.setPrimitiveDataFloat(plant_uuids, "reflectivity_PAR", 0.10)
     context.setPrimitiveDataFloat(plant_uuids, "reflectivity_NIR", 0.45)
-    # transmissivity_* — unitless, default 0. Absorptivity is computed as 1 - rho - tau.
+    # transmissivity_* — sans unité, défaut 0. Absorptivité = 1 - rho - tau.
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_PAR", 0.45)
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_NIR", 0.40)
-    # emissivity_* — unitless. NOTE: only used when emission is enabled for that band (LW here).
-    # PAR/NIR/SW emission is disabled in run_growth_tmrt_example; values still affect scattering (rho+tau+eps=1).
+    # emissivity_* — sans unité. Utilisé seulement si l'émission est active pour la bande (LW ici).
+    # Émission PAR/NIR/SW désactivée dans run_growth_tmrt_example ; valeurs utiles pour la diffusion (rho+tau+eps=1).
     context.setPrimitiveDataFloat(plant_uuids, "emissivity_LW", 0.95)
     context.setPrimitiveDataFloat(plant_uuids, "emissivity_PAR", 0.95)
     context.setPrimitiveDataFloat(plant_uuids, "emissivity_NIR", 0.95)
@@ -184,14 +184,14 @@ def apply_energy_balance_inputs(
     if not uuids:
         return
 
-    # EnergyBalanceModel inputs (not listed in radiation doc Input Primitive Data table).
+    # Entrées EnergyBalanceModel (hors tableau données primitives d'entrée de la doc radiation).
     context.setPrimitiveDataFloat(uuids, "air_temperature", air_temperature_k)
     context.setPrimitiveDataFloat(uuids, "air_humidity", air_humidity)
     context.setPrimitiveDataFloat(uuids, "wind_speed", wind_speed)
     context.setPrimitiveDataFloat(uuids, "air_pressure", pressure_pa)
-    # temperature — Kelvin, float. Surface T for epsilon*sigma*T^4 emission (updated by EnergyBalance after run).
+    # temperature — Kelvin, float. T de surface pour émission ε·σ·T⁴ (mise à jour par EnergyBalance après run).
     context.setPrimitiveDataFloat(uuids, "temperature", air_temperature_k)
-    # emissivity_* — only needed for bands with emission enabled (LW); EnergyBalance may refine T each step.
+    # emissivity_* — requis pour les bandes à émission active (LW) ; EnergyBalance peut affiner T à chaque pas.
     context.setPrimitiveDataFloat(uuids, "emissivity_LW", 0.95)
     context.setPrimitiveDataFloat(uuids, "emissivity_PAR", 0.95)
     context.setPrimitiveDataFloat(uuids, "emissivity_NIR", 0.95)
@@ -298,7 +298,7 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
             context.setPrimitiveDataFloat(bat_uuid, "emissivity_LW", 0.90)
-            # temperature — Kelvin. Initial surface T before EnergyBalance updates primitives.
+            # temperature — Kelvin. T de surface initiale avant mise à jour par EnergyBalance.
             context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0 + 273.15)
 
         reference_ground_uuid = context.addPatch(
@@ -308,7 +308,7 @@ def run_growth_tmrt_example(
         context.setPrimitiveDataString(reference_ground_uuid, "surface_type", "soil")
         context.setPrimitiveDataFloat(reference_ground_uuid, "reflectivity_SW", 0.3)
         context.setPrimitiveDataFloat(reference_ground_uuid, "emissivity_LW", 0.90)
-        # twosided_flag — uint 0: one-sided ground (emit/absorb toward +normal only).
+        # twosided_flag — uint 0 : sol unilatéral (émission/absorption vers +normal uniquement).
         context.setPrimitiveDataUInt(reference_ground_uuid, "twosided_flag", 0)
 
         with PlantArchitecture(context) as plant_architecture:
@@ -340,10 +340,11 @@ def run_growth_tmrt_example(
                 plant_uuids = configure_plant_primitives(
                     context, plant_architecture, loaded_plants
                 )
+
                 leaf_uuids = plant_uuids
 
-                print("Computing sky view factors for ground patches...")
-                compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
+                # print("Computing sky view factors for ground patches...")
+                # compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
 
                 for hour in hours:
                     print(f"\nHOUR: {hour}")
@@ -368,7 +369,6 @@ def run_growth_tmrt_example(
                             radiation.setDirectRayCount("LW", 100)
                             radiation.setDiffuseRayCount("LW", 1000)
                             radiation.setScatteringDepth("LW", 3)  # same as SW/PAR/NIR; or 1–5
-
 
                             radiation.addRadiationBand("NIR")
                             radiation.disableEmission("NIR")
@@ -442,7 +442,7 @@ def run_growth_tmrt_example(
                                 wind_speed,
                                 pressure_pa,
                             )
-                            # emissivity_* before LW re-run: rho+tau+eps=1 when scattering (doc Radiative Emission).
+                            # emissivity_* avant re-run LW : rho+tau+eps=1 en diffusion (doc Radiative Emission).
                             context.setPrimitiveDataFloat(bat_uuids, "emissivity_LW", 0.90)
                             context.setPrimitiveDataFloat(bat_uuids, "emissivity_PAR", 0.90)
                             context.setPrimitiveDataFloat(bat_uuids, "emissivity_NIR", 0.90)
@@ -513,7 +513,7 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    # growth_stages = [10, 20, 30, 40, 50]  # days
+    # growth_stages = [10, 20, 30, 40, 50]  # jours
     growth_stages = [1 * 365, 2 * 365, 4 * 365, 6 * 365, 8 * 365, 10 * 365]
 
     # save_growth_stage_canopies(growth_stages_days=growth_stages)
