@@ -261,18 +261,26 @@ def apply_energy_balance_inputs(
     air_humidity: float,
     wind_speed: float,
     pressure_pa: float,
+    reset_surface_temperature: bool = False,
 ) -> None:
-    """Applique les donnees primitives pour EnergyBalance et l'emission thermique (RadiationModel)."""
+    """Applique les entrees atmosphériques requises par EnergyBalanceModel sur toutes les primitives.
+
+    Doit etre appele avant le premier ``energy_balance_model.run()`` de l'heure :
+    ``air_temperature`` sert de Ta par primitive et initialise T_ABL via la moyenne
+    de canopée au premier pas de ``evaluateAirEnergyBalance``.
+    """
     if not uuids:
         return
 
-    # Entrées EnergyBalanceModel (hors tableau données primitives d'entrée de la doc radiation).
+    # Toujours a jour pour l'heure courante (Ta dans run(), condition initiale T_ABL).
     context.setPrimitiveDataFloat(uuids, "air_temperature", air_temperature_k)
     context.setPrimitiveDataFloat(uuids, "air_humidity", air_humidity)
     context.setPrimitiveDataFloat(uuids, "wind_speed", wind_speed)
     context.setPrimitiveDataFloat(uuids, "air_pressure", pressure_pa)
-    # temperature — Kelvin ; T de surface (mise a jour par EnergyBalance apres run).
-    context.setPrimitiveDataFloat(uuids, "temperature", air_temperature_k)
+
+    # T de surface : ne pas ecraser les resultats EB entre les passes horaires.
+    if reset_surface_temperature:
+        context.setPrimitiveDataFloat(uuids, "temperature", air_temperature_k)
 
 
 def save_growth_stage_canopies(
@@ -425,7 +433,7 @@ def run_growth_tmrt_example(
                 # print("Computing sky view factors for ground patches...")
                 # compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
 
-                for hour in hours:
+                for i, hour in enumerate(hours):
                     print(f"\nHOUR: {hour}")
                     context.setTime(hour=hour)
 
@@ -513,14 +521,6 @@ def run_growth_tmrt_example(
                             radiation.updateGeometry()
 
                             simulation_uuids = context.getAllUUIDs()
-                            apply_energy_balance_inputs(
-                                context,
-                                simulation_uuids,
-                                air_temperature_k,
-                                air_humidity,
-                                wind_speed,
-                                pressure_pa,
-                            )
                             with BoundaryLayerConductanceModel(
                                 context
                             ) as boundary_layer_model:
@@ -540,26 +540,37 @@ def run_growth_tmrt_example(
                             )
                             stomatal_model.run(leaf_uuids)
 
+                            # --- Bilan energetique (apres radiation + stomatal) ---
+                            # air_temperature sur toutes les primitives AVANT le premier run().
+                            apply_energy_balance_inputs(
+                                context,
+                                simulation_uuids,
+                                air_temperature_k,
+                                air_humidity,
+                                wind_speed,
+                                pressure_pa,
+                                reset_surface_temperature=(i == 0),
+                            )
+
                             energy_balance_model = EnergyBalanceModel(context)
                             energy_balance_model.addRadiationBand("LW")
                             energy_balance_model.addRadiationBand("PAR")
                             energy_balance_model.addRadiationBand("NIR")
+                            energy_balance_model.enableAirEnergyBalance()
+
+                            # Passe 1 : surfaces puis couche limite atmospherique (T_ABL).
                             energy_balance_model.run()
-                            print("Energy balance model run")
-                            
-                            # --- Passe 1 : températures initiales ---
-                            energy_balance_model.run()                          # T surfaces (état initial)
-                            energy_balance_model.evaluateAirEnergyBalance(      # T air évolue
+                            energy_balance_model.evaluateAirEnergyBalance(
                                 dt_sec=30.0, time_advance_sec=3600.0
                             )
 
-                            # --- Mise à jour LW avec les nouvelles températures ---
+                            # Mise a jour LW avec les nouvelles temperatures de surface
                             radiation.runBand("LW")                             # ré-émission LW avec T mises à jour
                             stomatal_model.run(leaf_uuids)                      # stomates réagissent à la nouvelle T
 
-                            # --- Passe 2 : convergence ---
-                            energy_balance_model.run()                          # T surfaces corrigées
-                            energy_balance_model.evaluateAirEnergyBalance(      # T air converge
+                            # Passe 2 : convergence surface + air
+                            energy_balance_model.run()
+                            energy_balance_model.evaluateAirEnergyBalance(
                                 dt_sec=30.0, time_advance_sec=3600.0
                             )
 
