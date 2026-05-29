@@ -145,7 +145,7 @@ def get_plant_primitive_uuids(
     return plant_uuids
 
 
-def configure_soybean_plant_primitives(
+def configure_plant_primitives(
     context: Context,
     plant_architecture: PlantArchitecture,
     plant_ids: List[int],
@@ -187,6 +187,75 @@ def apply_energy_balance_inputs(
     context.setPrimitiveDataFloat(uuids, "emissivity_LW", 0.95)
     context.setPrimitiveDataFloat(uuids, "emissivity_PAR", 0.95)
     context.setPrimitiveDataFloat(uuids, "emissivity_NIR", 0.95)
+
+
+def save_growth_stage_canopies(
+    growth_stages_days: List[int],
+    building_obj_path: str = "example/models/MAISON_EP_1.obj",
+    tree_model_label: str = TREE_MODEL_LABEL,
+    count_per_side: int = TREE_RING_COUNT_PER_SIDE,
+    spacing: float = TREE_RING_SPACING,
+    offset: float = TREE_RING_OFFSET,
+    build_parameters: Optional[Dict[str, float]] = TREE_BUILD_PARAMETERS,
+    initial_age_days: float = 0.0,
+    enable_collision_detection: bool = False,
+) -> List[Path]:
+    """Cree un anneau d'arbres autour du batiment et exporte les structures XML par stade de croissance."""
+    if not growth_stages_days:
+        raise ValueError("growth_stages_days ne doit pas etre vide.")
+
+    canopy_dirs: List[Path] = []
+
+    with Context() as context:
+        bat_uuids = context.loadOBJ(building_obj_path)
+        with PlantArchitecture(context) as plant_architecture:
+            plant_architecture.loadPlantModelFromLibrary(tree_model_label)
+            plant_architecture.setSoftCollisionAvoidanceParameters(
+                view_half_angle_deg=60.0,
+                look_ahead_distance=0.08,
+                sample_count=128,
+                inertia_weight=0.5,
+            )
+            plant_architecture.setCollisionRelevantOrgans(
+                include_internodes=True,
+                include_leaves=True,
+                include_petioles=False,
+                include_flowers=False,
+                include_fruit=False,
+            )
+            if enable_collision_detection:
+                plant_architecture.enableSoftCollisionAvoidance()
+            else:
+                plant_architecture.disableCollisionDetection()
+
+            plant_ids = create_apple_ring_around_building(
+                context=context,
+                plant_architecture=plant_architecture,
+                building_uuids=bat_uuids,
+                tree_model_label=tree_model_label,
+                count_per_side=count_per_side,
+                spacing=spacing,
+                offset=offset,
+                age=initial_age_days,
+                build_parameters=build_parameters,
+            )
+
+            for age in growth_stages_days:
+                print(f"\nGrowth stage export: +{age} days")
+                plant_architecture.advanceTime(age)
+
+                canopy_dir = Path(f"{tree_model_label}_canopy_{age}days")
+                canopy_dir.mkdir(exist_ok=True)
+
+                for plant_index, plant_id in enumerate(plant_ids):
+                    filename = canopy_dir / f"plant_{plant_index}.xml"
+                    plant_architecture.writePlantStructureXML(plant_id, str(filename))
+
+                canopy_dirs.append(canopy_dir)
+                print(f"Saved {len(plant_ids)} plants to {canopy_dir}")
+
+    print(f"\nCreated library with {len(growth_stages_days)} growth stages")
+    return canopy_dirs
 
 
 def run_growth_tmrt_example(
@@ -233,21 +302,32 @@ def run_growth_tmrt_example(
         context.setPrimitiveDataUInt(reference_ground_uuid, "twosided_flag", 0)
 
         with PlantArchitecture(context) as plant_architecture:
+            loaded_plants = []
+
             for age in growth_steps_days:
+                # Supprimer les plantes de l'étape précédente
+                if loaded_plants:
+                    for pid in loaded_plants:
+                        plant_architecture.deletePlant(pid)
+                
+                # Charger les nouvelles
+                loaded_plants = []
+
                 #plant_architecture.advanceTime(age)
                 print(f"\n===== Growth step: +{age} =====")
 
                 plant_architecture.loadPlantModelFromLibrary(TREE_MODEL_LABEL)
  
-                loaded_plants = []
-                for i in range(8):  # 3x3 = 9 plants
-                    filename = Path(f"soybean_canopy_{age}days/plant_{i}.xml")
-                    plant_ids = plant_architecture.readPlantStructureXML(str(filename), quiet=True)
+                canopy_dir = Path(f"{TREE_MODEL_LABEL}_canopy_{age}days")
+                plant_files = sorted(canopy_dir.glob("plant_*.xml"))
+                
+                for filepath in plant_files:
+                    plant_ids = plant_architecture.readPlantStructureXML(str(filepath), quiet=True)
                     loaded_plants.extend(plant_ids)
         
                 print(f"Loaded {len(loaded_plants)} plants from canopy")
 
-                plant_uuids = configure_soybean_plant_primitives(
+                plant_uuids = configure_plant_primitives(
                     context, plant_architecture, loaded_plants
                 )
                 leaf_uuids = plant_uuids
@@ -277,6 +357,8 @@ def run_growth_tmrt_example(
                             radiation.addRadiationBand("LW")
                             radiation.setDirectRayCount("LW", 100)
                             radiation.setDiffuseRayCount("LW", 1000)
+                            radiation.setScatteringDepth("LW", 3)  # same as SW/PAR/NIR; or 1–5
+
 
                             radiation.addRadiationBand("NIR")
                             radiation.disableEmission("NIR")
@@ -426,65 +508,10 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    # Save plants at multiple growth stages
     # growth_stages = [10, 20, 30, 40, 50]  # days
-    growth_stages = [1*365, 2*365, 4*365, 6*365, 8*365, 10*365]  # days
+    growth_stages = [1 * 365, 2 * 365, 4 * 365, 6 * 365, 8 * 365, 10 * 365]
 
-    with Context() as context:
-        bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
-        with PlantArchitecture(context) as plantarch:
-            plantarch.loadPlantModelFromLibrary(TREE_MODEL_LABEL)
-             # Fast (for rapid prototyping or large-scale simulations)
-            plantarch.setSoftCollisionAvoidanceParameters(
-                view_half_angle_deg=60.0,
-                look_ahead_distance=0.08,
-                sample_count=128,
-                inertia_weight=0.5
-            )
-            # Configure which organs participate in collision detection
-            plantarch.setCollisionRelevantOrgans(
-                include_internodes=True,   # Include stems
-                include_leaves=True,       # Include leaf blades
-                include_petioles=False,    # Exclude petioles (performance)
-                include_flowers=False,     # Exclude flowers
-                include_fruit=False        # Exclude fruit
-            )
-            
-            # Enable collision detection
-            #plant_architecture.enableSoftCollisionAvoidance()
-            # Disable collision detection
-            plantarch.disableCollisionDetection()
-            
-            plant_ids = create_apple_ring_around_building(
-                    context=context,
-                    plant_architecture=plantarch,
-                    building_uuids=bat_uuids,
-                    tree_model_label=TREE_MODEL_LABEL,
-                    count_per_side=TREE_RING_COUNT_PER_SIDE,
-                    spacing=TREE_RING_SPACING,
-                    offset=TREE_RING_OFFSET,
-                    age=0.0,
-                    build_parameters=TREE_BUILD_PARAMETERS,
-                    
-            )
-
-            for age in growth_stages:
-                print("\ncreate_canopy\n")
-                # Grow canopy
-                plantarch.advanceTime(age)
-        
-                # Save each plant
-                canopy_dir = Path(f"{TREE_MODEL_LABEL}_canopy_{age}days")
-                canopy_dir.mkdir(exist_ok=True)
-        
-                for i, plant_id in enumerate(plant_ids):
-                    filename = canopy_dir / f"plant_{i}.xml"
-                    plantarch.writePlantStructureXML(plant_id, str(filename))
- 
-                    print(f"Saved {len(plant_ids)} plants to {canopy_dir}")
-    
-    print(f"\nCreated library with {len(growth_stages)} growth stages")
-    print(f"Library location: {library_dir.absolute()}")
+    # save_growth_stage_canopies(growth_stages_days=growth_stages)
 
     run_growth_tmrt_example(
         longitude=-1.15,
