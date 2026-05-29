@@ -35,7 +35,7 @@ TREE_RING_SPACING = 3.5
 TREE_RING_OFFSET = 2.5
 TREE_AGE = 365.0
 TREE_BUILD_PARAMETERS: Optional[Dict[str, float]] = None
-TREE_MODEL_LABEL = "soybean"
+TREE_MODEL_LABEL: str = "peach"
 
 
 def get_xy_bounds_from_uuids(context: Context, uuids: List[str]) -> Tuple[float, float, float, float]:
@@ -237,7 +237,7 @@ def run_growth_tmrt_example(
                 #plant_architecture.advanceTime(age)
                 print(f"\n===== Growth step: +{age} =====")
 
-                plant_architecture.loadPlantModelFromLibrary("soybean")
+                plant_architecture.loadPlantModelFromLibrary(TREE_MODEL_LABEL)
  
                 loaded_plants = []
                 for i in range(8):  # 3x3 = 9 plants
@@ -426,16 +426,14 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    # Create library directory
-    library_dir = Path("soybean_library")
-    library_dir.mkdir(exist_ok=True)
     # Save plants at multiple growth stages
-    growth_stages = [10, 20, 30, 40, 50]  # days
-    
+    # growth_stages = [10, 20, 30, 40, 50]  # days
+    growth_stages = [1*365, 2*365, 4*365, 6*365, 8*365, 10*365]  # days
+
     with Context() as context:
         bat_uuids = context.loadOBJ("example/models/MAISON_EP_1.obj")
         with PlantArchitecture(context) as plantarch:
-            plantarch.loadPlantModelFromLibrary("soybean")
+            plantarch.loadPlantModelFromLibrary(TREE_MODEL_LABEL)
              # Fast (for rapid prototyping or large-scale simulations)
             plantarch.setSoftCollisionAvoidanceParameters(
                 view_half_angle_deg=60.0,
