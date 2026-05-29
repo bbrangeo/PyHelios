@@ -660,7 +660,7 @@ if __name__ == "__main__":
     # growth_stages = [1 * 365, 2 * 365, 4 * 365, 6 * 365, 8 * 365, 10 * 365]
     growth_stages = [10 * 365]
 
-    # save_growth_stage_canopies(growth_stages_days=growth_stages)
+    save_growth_stage_canopies(growth_stages_days=growth_stages)
 
     run_growth_tmrt_example(
         longitude=-1.15,
