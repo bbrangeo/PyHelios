@@ -402,8 +402,10 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(uuid, "transmissivity_SW", 1.0)
             context.setPrimitiveDataFloat(uuid, "transmissivity_PAR", 1.0)
             context.setPrimitiveDataFloat(uuid, "transmissivity_NIR", 1.0)
-            context.setPrimitiveDataFloat(uuid, "emissivity_LW", 0.97)
+
             context.setPrimitiveDataFloat(uuid, "emissivity", 0.97)
+            for band in ("LW", "PAR", "NIR"):
+                context.setPrimitiveDataFloat(uuid, f"emissivity_{band}", 0.97)
 
             context.setPrimitiveDataFloat(uuid, "temperature", 25.0 + 273.15)
             context.setPrimitiveDataUInt(uuid, "twosided_flag", 1)
