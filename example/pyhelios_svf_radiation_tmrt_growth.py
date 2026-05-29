@@ -679,6 +679,8 @@ def run_growth_tmrt_example(
                                 irradiance_reference,
                             )
 
+                            context.writeOBJ(f"{output_dir}/scene_{age:02d}days_{hour:02d}h.obj")
+
 
 if __name__ == "__main__":
     growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
