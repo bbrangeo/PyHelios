@@ -10,6 +10,8 @@ import pandas as pd
 
 from example.pyhelios_radiation_pure import compute_MRT
 
+# RadiationModel — Input Primitive Data : voir example/helios_radiation_primitive_data_docs.py
+
 """
 Type de Radiation	Plage de longueur d'onde	Application principale	Effet principal
 SW (Short Wave)	0.1 µm - 4 µm	Chaleur solaire, photosynthèse, énergies renouvelables.	Chaleur directe reçue par la surface terrestre.
@@ -172,35 +174,28 @@ def create_sample_tree(
             branch_uuids = wpt.getBranchUUIDs(tree_id)
             leaf_uuids = wpt.getLeafUUIDs(tree_id)
 
-            # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for trunk_uuid in trunk_uuids:
+                # reflectivity_* — unitless hemispherical reflectivity per band (default 0).
                 context.setPrimitiveDataFloat(trunk_uuid, "reflectivity_SW", 0.6)
                 context.setPrimitiveDataString(trunk_uuid, "plant_part", "trunk")
                 context.setPrimitiveDataString(trunk_uuid, "species", str(species))
-                context.setPrimitiveDataFloat(trunk_uuid, "emissivity", 0.90)
+                # emissivity_LW — unitless; used when LW emission is enabled.
+                context.setPrimitiveDataFloat(trunk_uuid, "emissivity_LW", 0.90)
 
-            # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for branch_uuid in branch_uuids:
                 context.setPrimitiveDataFloat(branch_uuid, "reflectivity_SW", 0.6)
                 context.setPrimitiveDataString(branch_uuid, "plant_part", "branch")
                 context.setPrimitiveDataString(branch_uuid, "species", str(species))
-                context.setPrimitiveDataFloat(branch_uuid, "emissivity", 0.90)
+                context.setPrimitiveDataFloat(branch_uuid, "emissivity_LW", 0.90)
 
-            # Associer l'albédo à l'objet entier (plutôt qu'à des primitives)
             for leaf_uuid in leaf_uuids:
-                context.setPrimitiveDataFloat(
-                    leaf_uuid, "reflectivity_SW", 0.2
-                )  # Exemple pour l'arbre
-                context.setPrimitiveDataFloat(
-                    leaf_uuid, "reflectivity_PAR", 0.1
-                )  # Exemple pour l'arbre
-                context.setPrimitiveDataFloat(
-                    leaf_uuid, "reflectivity_NIR", 0.45
-                )  # Exemple pour l'arbre
-
+                context.setPrimitiveDataFloat(leaf_uuid, "reflectivity_SW", 0.2)
+                context.setPrimitiveDataFloat(leaf_uuid, "reflectivity_PAR", 0.1)
+                context.setPrimitiveDataFloat(leaf_uuid, "reflectivity_NIR", 0.45)
+                # transmissivity_* — unitless; absorptivity = 1 - rho - tau.
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_PAR", 0.45)
                 context.setPrimitiveDataFloat(leaf_uuid, "transmissivity_NIR", 0.4)
-                context.setPrimitiveDataFloat(leaf_uuid, "emissivity", 0.95)
+                context.setPrimitiveDataFloat(leaf_uuid, "emissivity_LW", 0.95)
                 context.setPrimitiveDataString(leaf_uuid, "plant_part", "leaf")
                 context.setPrimitiveDataString(leaf_uuid, "species", str(species))
 
@@ -274,13 +269,13 @@ def create_ground_patch(
             context.setPrimitiveDataString(ground_uuid, "plant_part", "soil")
             context.setPrimitiveDataString(ground_uuid, "surface_type", "soil")
 
-            # Application de la donnée de réflectivité
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_SW", albedo)
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_PAR", 0.15)
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_NIR", 0.4)
-            context.setPrimitiveDataFloat(ground_uuid, "emissivity", 0.9)
-            context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5+273.15)
-            # Make sure that the ground is only able to intercept radiation from the top
+            context.setPrimitiveDataFloat(ground_uuid, "emissivity_LW", 0.9)
+            # temperature — Kelvin, float. Surface T for emission (ε·σ·T⁴); updated by EnergyBalance.
+            context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5 + 273.15)
+            # twosided_flag — uint 0: one-sided ground (top face toward +normal only).
             context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
 
             row_patches.append(ground_uuid)
@@ -373,8 +368,8 @@ def main():
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
-            context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
-            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0+273.15)
+            context.setPrimitiveDataFloat(bat_uuid, "emissivity_LW", 0.90)
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0 + 273.15)
 
             # Récupère la normale de la primitive
             normal = context.getPrimitiveNormal(bat_uuid)
@@ -566,6 +561,7 @@ def main():
             print(f"Vitesse du vent : {wind_speed:.2f} m/s\n")
 
             for uuid in all_UUIDs:
+                # EnergyBalance inputs (not in radiation Input Primitive Data table).
                 context.setPrimitiveDataFloat(
                     uuid, "air_temperature", air_temperature_K
                 )

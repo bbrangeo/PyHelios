@@ -29,6 +29,8 @@ from pyhelios import (
 )
 from pyhelios.types import FarquharModelCoefficients, RGBcolor, vec2, vec3
 
+# RadiationModel — Input Primitive Data : voir example/helios_radiation_primitive_data_docs.py
+
 # Configuration globale des arbres apple autour du bâtiment
 TREE_RING_COUNT_PER_SIDE = 2
 TREE_RING_SPACING = 3.5
@@ -150,17 +152,20 @@ def configure_plant_primitives(
     plant_architecture: PlantArchitecture,
     plant_ids: List[int],
 ) -> List[int]:
-    """Configure les proprietes optiques et thermiques des plants soybean."""
+    """Configure les proprietes optiques des feuilles pour RadiationModel (bandes SW/PAR/NIR/LW)."""
     plant_uuids = get_plant_primitive_uuids(plant_architecture, plant_ids)
     if not plant_uuids:
         return plant_uuids
 
+    # reflectivity_* — unitless, default 0. Hemispherical reflectivity for band *.
     context.setPrimitiveDataFloat(plant_uuids, "reflectivity_SW", 0.20)
     context.setPrimitiveDataFloat(plant_uuids, "reflectivity_PAR", 0.10)
     context.setPrimitiveDataFloat(plant_uuids, "reflectivity_NIR", 0.45)
+    # transmissivity_* — unitless, default 0. Absorptivity is computed as 1 - rho - tau.
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_PAR", 0.45)
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_NIR", 0.40)
-    context.setPrimitiveDataFloat(plant_uuids, "emissivity", 0.95)
+    # emissivity_* — unitless. NOTE: only used when emission is enabled for that band (LW here).
+    # PAR/NIR/SW emission is disabled in run_growth_tmrt_example; values still affect scattering (rho+tau+eps=1).
     context.setPrimitiveDataFloat(plant_uuids, "emissivity_LW", 0.95)
     context.setPrimitiveDataFloat(plant_uuids, "emissivity_PAR", 0.95)
     context.setPrimitiveDataFloat(plant_uuids, "emissivity_NIR", 0.95)
@@ -175,15 +180,18 @@ def apply_energy_balance_inputs(
     wind_speed: float,
     pressure_pa: float,
 ) -> None:
-    """Applique les donnees primitives requises par EnergyBalanceModel."""
+    """Applique les donnees primitives pour EnergyBalance et l'emission thermique (RadiationModel)."""
     if not uuids:
         return
 
+    # EnergyBalanceModel inputs (not listed in radiation doc Input Primitive Data table).
     context.setPrimitiveDataFloat(uuids, "air_temperature", air_temperature_k)
     context.setPrimitiveDataFloat(uuids, "air_humidity", air_humidity)
     context.setPrimitiveDataFloat(uuids, "wind_speed", wind_speed)
     context.setPrimitiveDataFloat(uuids, "air_pressure", pressure_pa)
+    # temperature — Kelvin, float. Surface T for epsilon*sigma*T^4 emission (updated by EnergyBalance after run).
     context.setPrimitiveDataFloat(uuids, "temperature", air_temperature_k)
+    # emissivity_* — only needed for bands with emission enabled (LW); EnergyBalance may refine T each step.
     context.setPrimitiveDataFloat(uuids, "emissivity_LW", 0.95)
     context.setPrimitiveDataFloat(uuids, "emissivity_PAR", 0.95)
     context.setPrimitiveDataFloat(uuids, "emissivity_NIR", 0.95)
@@ -289,8 +297,9 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
-            context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
-            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0+273.15)
+            context.setPrimitiveDataFloat(bat_uuid, "emissivity_LW", 0.90)
+            # temperature — Kelvin. Initial surface T before EnergyBalance updates primitives.
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0 + 273.15)
 
         reference_ground_uuid = context.addPatch(
             center=vec3(-100, -100, 0),
@@ -298,7 +307,8 @@ def run_growth_tmrt_example(
         )
         context.setPrimitiveDataString(reference_ground_uuid, "surface_type", "soil")
         context.setPrimitiveDataFloat(reference_ground_uuid, "reflectivity_SW", 0.3)
-        context.setPrimitiveDataFloat(reference_ground_uuid, "emissivity", 0.90)
+        context.setPrimitiveDataFloat(reference_ground_uuid, "emissivity_LW", 0.90)
+        # twosided_flag — uint 0: one-sided ground (emit/absorb toward +normal only).
         context.setPrimitiveDataUInt(reference_ground_uuid, "twosided_flag", 0)
 
         with PlantArchitecture(context) as plant_architecture:
@@ -432,15 +442,10 @@ def run_growth_tmrt_example(
                                 wind_speed,
                                 pressure_pa,
                             )
-                            context.setPrimitiveDataFloat(
-                                bat_uuids, "emissivity_LW", 0.90
-                            )
-                            context.setPrimitiveDataFloat(
-                                bat_uuids, "emissivity_PAR", 0.90
-                            )
-                            context.setPrimitiveDataFloat(
-                                bat_uuids, "emissivity_NIR", 0.90
-                            )
+                            # emissivity_* before LW re-run: rho+tau+eps=1 when scattering (doc Radiative Emission).
+                            context.setPrimitiveDataFloat(bat_uuids, "emissivity_LW", 0.90)
+                            context.setPrimitiveDataFloat(bat_uuids, "emissivity_PAR", 0.90)
+                            context.setPrimitiveDataFloat(bat_uuids, "emissivity_NIR", 0.90)
                             context.setPrimitiveDataFloat(ground_uuids, "emissivity_LW", 0.90)
                             context.setPrimitiveDataFloat(ground_uuids, "emissivity_PAR", 0.90)
                             context.setPrimitiveDataFloat(ground_uuids, "emissivity_NIR", 0.90)

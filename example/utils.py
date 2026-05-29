@@ -156,10 +156,10 @@ def apply_surface_properties(
         context.setPrimitiveDataFloat(uuid, "reflectivity_PAR", props.albedo_par)
         context.setPrimitiveDataFloat(uuid, "reflectivity_NIR", props.albedo_nir)
 
-        # Propriétés LW (Long Wave) - Conservation d'énergie
+        # Propriétés LW — RadiationModel lit emissivity_<bande>, pas « emissivity » seul.
         context.setPrimitiveDataFloat(uuid, "reflectivity_LW", props.albedo_lw)
         context.setPrimitiveDataFloat(uuid, "transmissivity_LW", props.transmissivity_lw)
-        context.setPrimitiveDataFloat(uuid, "emissivity", props.emissivity)
+        context.setPrimitiveDataFloat(uuid, "emissivity_LW", props.emissivity)
 
         # Propriétés physiques
         context.setPrimitiveDataString(uuid, "surface_type", surface_type.value)

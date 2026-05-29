@@ -12,6 +12,9 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils import apply_surface_properties, SurfaceType
 
+from example.helios_radiation_primitive_data_docs import get_emissivity_lw
+
+# RadiationModel — Input Primitive Data : voir example/helios_radiation_primitive_data_docs.py
 
 """
 Type de Radiation	Plage de longueur d'onde	Application principale	Effet principal
@@ -85,9 +88,9 @@ def compute_MRT(context, ground_patches, output_dir, sigma=5.67e-8):
 
             # Flux long-onde descendant (atmosphère, W/m²)
             L_down = context.getPrimitiveData(uuid, "radiation_flux_LW")
-            # Flux émis par le patch (W/m²)
+            # Flux émis par le patch (W/m²) — temperature (K), emissivity_LW (doc RadiationModel)
             Tg = context.getPrimitiveData(uuid, "temperature")
-            emissivity = context.getPrimitiveData(uuid, "emissivity") or 0.96
+            emissivity = get_emissivity_lw(context, uuid, default=0.96)
             L_up = emissivity * sigma * (Tg**4)
 
             # Facteur de vue vers le ciel (si disponible)
@@ -346,8 +349,9 @@ def create_ground_patch(
             context.setPrimitiveDataString(ground_uuid, "plant_part", "soil")
             context.setPrimitiveDataString(ground_uuid, "surface_type", "soil")
 
-            context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5)
-            # Make sure that the ground is only able to intercept radiation from the top
+            # temperature — Kelvin (was 25.5 °C without +273.15). Set by apply_surface_properties too.
+            context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5 + 273.15)
+            # twosided_flag — uint 0: one-sided ground patch.
             context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
 
             row_patches.append(ground_uuid)
@@ -451,6 +455,7 @@ def main():
         vertical_walls = []  # Liste pour stocker les UUID des parois verticales
 
         for bat_uuid in bat_uuids:
+            # reflectivity_SW — shortwave band (manual band label in RadiationModel).
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_SW", 0.35)
 
             # Récupère la normale de la primitive
@@ -583,6 +588,7 @@ def main():
             print(f"Vitesse du vent : {wind_speed:.2f} m/s\n")
 
             for uuid in all_UUIDs:
+                # EnergyBalance inputs (not radiation primitive data).
                 context.setPrimitiveDataFloat(
                     uuid, "air_temperature", air_temperature_K
                 )
