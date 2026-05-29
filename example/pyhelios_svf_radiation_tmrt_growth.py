@@ -681,7 +681,7 @@ def run_growth_tmrt_example(
                                 irradiance_reference,
                             )
 
-                            context.writeOBJ(f"{output_dir}/scene_{age:02d}days_{hour:02d}h.obj")
+                context.writeOBJ(f"{output_dir}/scene_growth_{age:02d}days.obj")
 
 
 if __name__ == "__main__":
