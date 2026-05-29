@@ -484,11 +484,24 @@ def run_growth_tmrt_example(
                             energy_balance_model.addRadiationBand("PAR")
                             energy_balance_model.addRadiationBand("NIR")
                             energy_balance_model.run()
+                            print("Energy balance model run")
+                            
+                            # --- Passe 1 : températures initiales ---
+                            energy_balance_model.run()                          # T surfaces (état initial)
+                            energy_balance_model.evaluateAirEnergyBalance(      # T air évolue
+                                dt_sec=30.0, time_advance_sec=3600.0
+                            )
 
-                            radiation.runBand("LW")
-                            stomatal_model.run(leaf_uuids)
-                            energy_balance_model.run()
+                            # --- Mise à jour LW avec les nouvelles températures ---
+                            radiation.runBand("LW")                             # ré-émission LW avec T mises à jour
+                            stomatal_model.run(leaf_uuids)                      # stomates réagissent à la nouvelle T
 
+                            # --- Passe 2 : convergence ---
+                            energy_balance_model.run()                          # T surfaces corrigées
+                            energy_balance_model.evaluateAirEnergyBalance(      # T air converge
+                                dt_sec=30.0, time_advance_sec=3600.0
+                            )
+                            
                             photosynthesis_model = PhotosynthesisModel(context)
                             photosynthesis_model.setFarquharModelCoefficients(
                                 FarquharModelCoefficients()
