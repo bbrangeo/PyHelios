@@ -233,6 +233,8 @@ def apply_ground_surface_properties(
         context.setPrimitiveDataFloat(ground_uuid, "temperature", initial_temperature_k)
         context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
         context.setPrimitiveDataString(ground_uuid, "plant_part", "soil")
+        context.setPrimitiveDataFloat(ground_uuid, "emissivity", 0.95)
+
 
 
 def apply_building_surface_properties(
@@ -401,6 +403,8 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(uuid, "transmissivity_PAR", 1.0)
             context.setPrimitiveDataFloat(uuid, "transmissivity_NIR", 1.0)
             context.setPrimitiveDataFloat(uuid, "emissivity_LW", 0.97)
+            context.setPrimitiveDataFloat(uuid, "emissivity", 0.97)
+
             context.setPrimitiveDataFloat(uuid, "temperature", 25.0 + 273.15)
             context.setPrimitiveDataUInt(uuid, "twosided_flag", 1)
             context.setPrimitiveDataString(uuid, "surface_type", "sensor")
@@ -677,7 +681,7 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans)
+    growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
 
     save_growth_stage_canopies(growth_stages_days=growth_stages)
 
