@@ -279,7 +279,7 @@ def create_ground_patch(
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_PAR", 0.15)
             context.setPrimitiveDataFloat(ground_uuid, "reflectivity_NIR", 0.4)
             context.setPrimitiveDataFloat(ground_uuid, "emissivity", 0.9)
-            context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5)
+            context.setPrimitiveDataFloat(ground_uuid, "temperature", 25.5+273.15)
             # Make sure that the ground is only able to intercept radiation from the top
             context.setPrimitiveDataUInt(ground_uuid, "twosided_flag", 0)
 
@@ -374,7 +374,7 @@ def main():
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
             context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
-            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0)
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0+273.15)
 
             # Récupère la normale de la primitive
             normal = context.getPrimitiveNormal(bat_uuid)

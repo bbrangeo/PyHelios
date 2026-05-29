@@ -271,7 +271,7 @@ def run_growth_tmrt_example(
     """Execute une simulation TMRT avec croissance de canopee sur plusieurs etapes."""
     center = vec3(0, 0, 0)
     size_total = vec2(50, 50)
-    nx, ny = 30, 30
+    nx, ny = 100, 100
     dx = size_total.x / nx
     dy = size_total.y / ny
     os.makedirs(output_dir, exist_ok=True)
@@ -290,7 +290,7 @@ def run_growth_tmrt_example(
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_PAR", 0.20)
             context.setPrimitiveDataFloat(bat_uuid, "reflectivity_NIR", 0.30)
             context.setPrimitiveDataFloat(bat_uuid, "emissivity", 0.90)
-            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0)
+            context.setPrimitiveDataFloat(bat_uuid, "temperature", 25.0+273.15)
 
         reference_ground_uuid = context.addPatch(
             center=vec3(-100, -100, 0),
@@ -333,7 +333,7 @@ def run_growth_tmrt_example(
                 leaf_uuids = plant_uuids
 
                 print("Computing sky view factors for ground patches...")
-                compute_ground_sky_view_factors(context, ground_uuids)
+                compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
 
                 for hour in hours:
                     print(f"\nHOUR: {hour}")
