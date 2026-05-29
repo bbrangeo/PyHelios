@@ -43,6 +43,16 @@ TREE_AGE = 365.0
 TREE_BUILD_PARAMETERS: Optional[Dict[str, float]] = None
 TREE_MODEL_LABEL: str = "olive"
 
+# Correspondance libellé PlantArchitecture → espèce bibliothèque stomatique Helios.
+STOMATAL_SPECIES_BY_TREE_LABEL: Dict[str, str] = {
+    "olive": "Olive",
+    "apple": "Apple",
+    "almond": "Almond",
+    "lemon": "Lemon",
+    "grape": "Grape",
+    "walnut": "Walnut",
+}
+
 
 def get_xy_bounds_from_uuids(context: Context, uuids: List[str]) -> Tuple[float, float, float, float]:
     """Calcule l'emprise XY d'une liste de primitives."""
@@ -141,6 +151,46 @@ def compute_ground_sky_view_factors(
     )
 
 
+def stomatal_species_for_tree_label(tree_model_label: str) -> str:
+    """Retourne le nom d'espèce stomatique Helios associé au libellé de plante."""
+    return STOMATAL_SPECIES_BY_TREE_LABEL.get(tree_model_label.strip().lower(), "Apple")
+
+
+def filter_uuids_by_plant_part(
+    context: Context, uuids: List[int], plant_part: str
+) -> List[int]:
+    """Filtre les UUID dont plant_part correspond (ex. « leaf »)."""
+    matched: List[int] = []
+    for uuid in uuids:
+        if context.doesPrimitiveDataExist(uuid, "plant_part"):
+            if context.getPrimitiveData(uuid, "plant_part") == plant_part:
+                matched.append(uuid)
+    return matched
+
+
+def apply_wpt_sample_tree_surface_properties(
+    context: Context,
+    all_tree_uuids: List[int],
+    wpt_leaf_uuids: List[int],
+) -> None:
+    """Applique SURFACE_PROPERTIES au WeberPennTree (tronc, branches, feuilles)."""
+    if not all_tree_uuids:
+        return
+    leaf_set = set(wpt_leaf_uuids)
+    trunk_branch_uuids = [u for u in all_tree_uuids if u not in leaf_set]
+    if trunk_branch_uuids:
+        apply_surface_properties(context, trunk_branch_uuids, SurfaceType.TRUNK)
+        for uuid in trunk_branch_uuids:
+            context.setPrimitiveDataString(uuid, "plant_part", "trunk")
+    if wpt_leaf_uuids:
+        apply_surface_properties(context, wpt_leaf_uuids, SurfaceType.LEAF)
+        leaf_props = SURFACE_PROPERTIES[SurfaceType.LEAF]
+        context.setPrimitiveDataFloat(wpt_leaf_uuids, "transmissivity_PAR", 0.45)
+        context.setPrimitiveDataFloat(wpt_leaf_uuids, "transmissivity_NIR", 0.40)
+        for uuid in wpt_leaf_uuids:
+            context.setPrimitiveDataString(uuid, "plant_part", "leaf")
+
+
 def get_plant_primitive_uuids(
     plant_architecture: PlantArchitecture, plant_ids: List[int]
 ) -> List[int]:
@@ -162,13 +212,9 @@ def configure_plant_primitives(
         return plant_uuids
 
     apply_surface_properties(context, plant_uuids, SurfaceType.LEAF)
-    leaf_props = SURFACE_PROPERTIES[SurfaceType.LEAF]
     # transmissivity_* — canopy : valeurs complementaires non presentes dans SurfaceProperties.
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_PAR", 0.45)
     context.setPrimitiveDataFloat(plant_uuids, "transmissivity_NIR", 0.40)
-    # emissivity_* PAR/NIR — diffusion (emission SW/PAR/NIR desactivee dans la simulation).
-    context.setPrimitiveDataFloat(plant_uuids, "emissivity_PAR", leaf_props.emissivity)
-    context.setPrimitiveDataFloat(plant_uuids, "emissivity_NIR", leaf_props.emissivity)
     for plant_uuid in plant_uuids:
         context.setPrimitiveDataString(plant_uuid, "plant_part", "leaf")
     return plant_uuids
@@ -200,11 +246,8 @@ def apply_building_surface_properties(
         return vertical_walls
 
     apply_surface_properties(context, bat_uuids, SurfaceType.CONCRETE)
-    concrete_props = SURFACE_PROPERTIES[SurfaceType.CONCRETE]
     for bat_uuid in bat_uuids:
         context.setPrimitiveDataFloat(bat_uuid, "temperature", initial_temperature_k)
-        context.setPrimitiveDataFloat(bat_uuid, "emissivity_PAR", concrete_props.emissivity)
-        context.setPrimitiveDataFloat(bat_uuid, "emissivity_NIR", concrete_props.emissivity)
         normal = context.getPrimitiveNormal(bat_uuid)
         if np.isclose(normal.z, 0, atol=0.1):
             vertical_walls.append(bat_uuid)
@@ -323,7 +366,9 @@ def run_growth_tmrt_example(
 
     with Context() as context:
         context.setDate(2026, 6, 10)
-        _tree_id, _tree_uuids, leaf_uuids = create_sample_tree(context=context)
+        _tree_id, wpt_all_uuids, wpt_leaf_uuids = create_sample_tree(context=context)
+        apply_wpt_sample_tree_surface_properties(context, wpt_all_uuids, wpt_leaf_uuids)
+        
         ground_uuids, ground_patches = create_ground_patch(
             context, center, size_total, dx, dy
         )
@@ -369,7 +414,13 @@ def run_growth_tmrt_example(
                     context, plant_architecture, loaded_plants
                 )
 
-                leaf_uuids = plant_uuids
+                canopy_leaf_uuids = filter_uuids_by_plant_part(
+                    context, plant_uuids, "leaf"
+                )
+                if not canopy_leaf_uuids:
+                    canopy_leaf_uuids = plant_uuids
+                leaf_uuids = canopy_leaf_uuids
+                stomatal_species = stomatal_species_for_tree_label(TREE_MODEL_LABEL)
 
                 # print("Computing sky view factors for ground patches...")
                 # compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
@@ -485,7 +536,7 @@ def run_growth_tmrt_example(
 
                             stomatal_model = StomatalConductanceModel(context)
                             stomatal_model.setBMFCoefficientsFromLibrary(
-                                "Apple", uuids=leaf_uuids
+                                stomatal_species, uuids=leaf_uuids
                             )
                             stomatal_model.run(leaf_uuids)
 
