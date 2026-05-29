@@ -35,7 +35,7 @@ TREE_RING_SPACING = 3.5
 TREE_RING_OFFSET = 2.5
 TREE_AGE = 365.0
 TREE_BUILD_PARAMETERS: Optional[Dict[str, float]] = None
-TREE_MODEL_LABEL: str = "peach"
+TREE_MODEL_LABEL: str = "olive"
 
 
 def get_xy_bounds_from_uuids(context: Context, uuids: List[str]) -> Tuple[float, float, float, float]:
