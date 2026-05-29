@@ -308,7 +308,7 @@ def run_growth_tmrt_example(
                 # Supprimer les plantes de l'étape précédente
                 if loaded_plants:
                     for pid in loaded_plants:
-                        plant_architecture.deletePlant(pid)
+                        plant_architecture.deletePlantInstance(pid)
                 
                 # Charger les nouvelles
                 loaded_plants = []
