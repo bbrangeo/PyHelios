@@ -71,7 +71,7 @@ def get_ramped_value(
     return min_value + (max_value - min_value) * fraction
 
 
-def getAmbientLongwaveFlux(temperature_K: float, humidity_rel: float) -> float:
+def _getAmbientLongwaveFlux(temperature_K: float, humidity_rel: float) -> float:
     """
     Calcule le flux radiatif atmosphérique de grande longueur d’onde (W/m²)
     selon le modèle de Prata (1996).
@@ -618,7 +618,7 @@ def main():
                         rad.setDirectRayCount("PAR", 100)
                         rad.setDiffuseRayCount("PAR", 1000)
 
-                        LW = getAmbientLongwaveFlux(
+                        LW = _getAmbientLongwaveFlux(
                             temperature_K=air_temperature_K, humidity_rel=air_humidity
                         )
                         print(

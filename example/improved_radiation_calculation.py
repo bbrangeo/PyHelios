@@ -125,6 +125,69 @@ SURFACE_PROPERTIES = {
 }
 
 
+# Base de données des propriétés de surface (avec conservation d'énergie)
+SURFACE_PROPERTIES_2 = {
+    SurfaceType.SOIL: SurfaceProperties(
+        # SW ≈ 0.43×PAR + 0.57×NIR = 0.43×0.10 + 0.57×0.40 = 0.27 ≈ 0.25 (acceptable)
+        albedo_sw=0.25, albedo_par=0.10, albedo_nir=0.40,
+        albedo_lw=0.05, emissivity=0.95, transmissivity_lw=0.0, roughness_length=0.01
+    ),
+    SurfaceType.GRASS: SurfaceProperties(
+        # SW ≈ 0.43×0.10 + 0.57×0.40 = 0.27 ≈ 0.25 (acceptable)
+        albedo_sw=0.25, albedo_par=0.10, albedo_nir=0.40,
+        albedo_lw=0.02, emissivity=0.98, transmissivity_lw=0.0, roughness_length=0.05
+    ),
+    SurfaceType.CONCRETE: SurfaceProperties(
+        # SW ≈ 0.43×0.15 + 0.57×0.50 = 0.35 ✓
+        albedo_sw=0.35, albedo_par=0.15, albedo_nir=0.50,
+        albedo_lw=0.10, emissivity=0.90, transmissivity_lw=0.0, roughness_length=0.001
+    ),
+    SurfaceType.ASPHALT: SurfaceProperties(
+        # SW ≈ 0.43×0.05 + 0.57×0.20 = 0.14 ≈ 0.15 ✓
+        albedo_sw=0.15, albedo_par=0.05, albedo_nir=0.20,
+        albedo_lw=0.05, emissivity=0.95, transmissivity_lw=0.0, roughness_length=0.001
+    ),
+    SurfaceType.WATER: SurfaceProperties(
+        # SW ≈ 0.43×0.06 + 0.57×0.02 = 0.037 ≈ 0.07 (angle-dépendant, acceptable)
+        albedo_sw=0.07, albedo_par=0.06, albedo_nir=0.02,
+        albedo_lw=0.03, emissivity=0.97, transmissivity_lw=0.0, roughness_length=0.0001
+    ),
+    SurfaceType.SNOW: SurfaceProperties(
+        # SW ≈ 0.43×0.70 + 0.57×0.85 = 0.785 ≈ 0.80 ✓
+        albedo_sw=0.80, albedo_par=0.70, albedo_nir=0.85,
+        albedo_lw=0.01, emissivity=0.99, transmissivity_lw=0.0, roughness_length=0.001
+    ),
+    SurfaceType.LEAF: SurfaceProperties(
+        # SW ≈ 0.43×0.10 + 0.57×0.45 = 0.30 → corrigé de 0.20 à 0.30
+        albedo_sw=0.30, albedo_par=0.10, albedo_nir=0.45,
+        albedo_lw=0.02, emissivity=0.98, transmissivity_lw=0.0, roughness_length=0.01
+    ),
+    SurfaceType.TRUNK: SurfaceProperties(
+        # Écorce : albédo SW ~0.12, PAR ~0.10, NIR ~0.20 (corrigé depuis 0.60/0.15/0.50)
+        # SW ≈ 0.43×0.10 + 0.57×0.20 = 0.157 ≈ 0.15 ✓
+        albedo_sw=0.15, albedo_par=0.10, albedo_nir=0.20,
+        albedo_lw=0.05, emissivity=0.95, transmissivity_lw=0.0, roughness_length=0.05
+    ),
+    SurfaceType.BRANCH: SurfaceProperties(
+        # Identique à TRUNK (même matériau)
+        albedo_sw=0.15, albedo_par=0.10, albedo_nir=0.20,
+        albedo_lw=0.05, emissivity=0.95, transmissivity_lw=0.0, roughness_length=0.03
+    ),
+}
+
+# Capacités thermiques surfaciques (J/m²·°C) — ρ·Cp·épaisseur effective
+HEAT_CAPACITY: Dict[SurfaceType, float] = {
+    SurfaceType.SOIL:     1_200_000,  # sol humide ~10cm : 1600 kg/m³ × 1500 J/kg·K × 0.05m
+    SurfaceType.GRASS:      800_000,  # couche herbeuse ~5cm
+    SurfaceType.CONCRETE: 2_000_000,  # béton ~10cm : 2300 kg/m³ × 880 J/kg·K × 0.10m
+    SurfaceType.ASPHALT:  1_500_000,  # asphalte ~7cm : 2100 kg/m³ × 1000 J/kg·K × 0.07m
+    SurfaceType.WATER:   20_000_000,  # eau ~5m : 1000 kg/m³ × 4180 J/kg·K × 5m (inertie forte)
+    SurfaceType.SNOW:       300_000,  # neige ~10cm : 300 kg/m³ × 2000 J/kg·K × 0.05m
+    SurfaceType.LEAF:        10_000,  # feuille ~0.3mm : 900 kg/m³ × 3500 J/kg·K × 0.0003m
+    SurfaceType.TRUNK:      500_000,  # écorce+aubier ~5cm : 600 kg/m³ × 1700 J/kg·K × 0.05m
+    SurfaceType.BRANCH:     200_000,  # branche ~2cm
+}
+
 class SolarRadiationCalculator:
     """Calculateur de rayonnement solaire avec modèles avancés."""
     
@@ -361,7 +424,8 @@ def apply_surface_properties(
         surface_type: Type de surface
     """
     props = SURFACE_PROPERTIES[surface_type]
-    
+    cp    = HEAT_CAPACITY[surface_type]
+
     for uuid in uuids:
         # Propriétés SW (Short Wave)
         context.setPrimitiveDataFloat(uuid, "reflectivity_SW", props.albedo_sw)
@@ -378,6 +442,9 @@ def apply_surface_properties(
         # Propriétés physiques
         context.setPrimitiveDataString(uuid, "surface_type", surface_type.value)
         context.setPrimitiveDataFloat(uuid, "roughness_length", props.roughness_length)
+        
+        # --- Thermique instationnaire ---
+        context.setPrimitiveDataFloat(uuid, "heat_capacity", cp)
         
         # Validation de la conservation d'énergie
         lw_sum = props.emissivity + props.transmissivity_lw + props.albedo_lw

@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from example.improved_radiation_calculation import (
-    SURFACE_PROPERTIES,
+    SURFACE_PROPERTIES_2,
     SurfaceType,
     apply_surface_properties,
 )
@@ -40,7 +40,13 @@ TREE_RING_COUNT_PER_SIDE = 2
 TREE_RING_SPACING = 3.5
 TREE_RING_OFFSET = 2.5
 TREE_AGE = 365.0
-TREE_BUILD_PARAMETERS: Optional[Dict[str, float]] = None
+
+# Paramètres disponibles pour les arbres
+TREE_BUILD_PARAMETERS = {
+    "trunk_height":   0.6,   # hauteur tronc en m (défaut 0.6–1.0)
+    "num_scaffolds":  3.0,   # nb branches charpentières (défaut 4, max 8)
+    "scaffold_angle": 45.0,  # angle branches en degrés (défaut 40–50)
+}
 TREE_MODEL_LABEL: str = "olive"
 
 # Correspondance libellé PlantArchitecture → espèce bibliothèque stomatique Helios.
@@ -71,6 +77,26 @@ def get_xy_bounds_from_uuids(context: Context, uuids: List[str]) -> Tuple[float,
 
     return min(xs), max(xs), min(ys), max(ys)
 
+
+def reduce_shoot_parameters(plant_architecture: PlantArchitecture, shoot_types: list) -> None:
+    """Réduit la densité des tiges pour limiter le nombre de primitives."""
+    for shoot_type in shoot_types:
+        try:
+            # Récupérer les paramètres actuels — retourne un dict
+            params = plant_architecture.getCurrentShootParameters(shoot_type)
+
+            # Modifier directement les clés du dictionnaire
+            params["max_nodes"]["parameters"] = [10.0, 14.0]
+            params["max_nodes_per_season"]["parameters"] = [5.0, 7.0]
+            params["internode_length_max"]["parameters"] = [0.08]
+            params["vegetative_bud_break_probability_min"]["parameters"] = [0.015]
+
+            # Réappliquer via defineShootType (pas updateCurrentShootParameters)
+            plant_architecture.defineShootType(shoot_type, params)
+            print(f"  ✓ Paramètres réduits pour: {shoot_type}")
+
+        except Exception as e:
+            print(f"  ✗ shoot type '{shoot_type}' ignoré: {e}")
 
 def create_apple_ring_around_building(
     context: Context,
@@ -122,6 +148,8 @@ def create_apple_ring_around_building(
         raise ValueError("tree_model_label doit etre une chaine non vide.")
 
     plant_architecture.loadPlantModelFromLibrary(tree_model_label)
+
+
     plant_ids: List[int] = []
     for x, y in unique_positions:
         plant_id = plant_architecture.buildPlantInstanceFromLibrary(
@@ -184,7 +212,7 @@ def apply_wpt_sample_tree_surface_properties(
             context.setPrimitiveDataString(uuid, "plant_part", "trunk")
     if wpt_leaf_uuids:
         apply_surface_properties(context, wpt_leaf_uuids, SurfaceType.LEAF)
-        leaf_props = SURFACE_PROPERTIES[SurfaceType.LEAF]
+        leaf_props = SURFACE_PROPERTIES_2[SurfaceType.LEAF]
         context.setPrimitiveDataFloat(wpt_leaf_uuids, "transmissivity_PAR", 0.45)
         context.setPrimitiveDataFloat(wpt_leaf_uuids, "transmissivity_NIR", 0.40)
         for uuid in wpt_leaf_uuids:
@@ -324,6 +352,9 @@ def save_growth_stage_canopies(
             else:
                 plant_architecture.disableCollisionDetection()
 
+            # Réduire la densité avant de construire
+            reduce_shoot_parameters(plant_architecture, ["trunk", "scaffold", "proleptic"])
+
             plant_ids = create_apple_ring_around_building(
                 context=context,
                 plant_architecture=plant_architecture,
@@ -386,29 +417,31 @@ def run_growth_tmrt_example(
             context, center, size_total, dx, dy
         )
         apply_ground_surface_properties(context, ground_uuids)
-        soil_albedo = SURFACE_PROPERTIES[SurfaceType.SOIL].albedo_sw
+        soil_albedo = SURFACE_PROPERTIES_2[SurfaceType.SOIL].albedo_sw
 
         # Capteurs MRT à z=1.5m (hauteur piéton, petits, juste pour mesurer)
         center_sensors = vec3(0, 0, 1.5)
         sensor_uuids, sensor_patches = create_ground_patch(
             context, center_sensors, size_total, dx, dy
         )
-        # Capteurs transparents : ne perturbent pas le bilan radiatif
+        # Capteurs doivent être absorbants (perturbent pas le bilan radiatifas transparents) pour mesurer les flux — reviens à la configuration absorbante discutée plus tôt : sensor_uuids:
         for uuid in sensor_uuids:
-            context.setPrimitiveDataFloat(uuid, "reflectivity_SW", 0.0)
-            context.setPrimitiveDataFloat(uuid, "reflectivity_PAR", 0.0)
-            context.setPrimitiveDataFloat(uuid, "reflectivity_NIR", 0.0)
-            # Transparents : le rayonnement traverse sans être absorbé
-            context.setPrimitiveDataFloat(uuid, "transmissivity_SW", 1.0)
-            context.setPrimitiveDataFloat(uuid, "transmissivity_PAR", 1.0)
-            context.setPrimitiveDataFloat(uuid, "transmissivity_NIR", 1.0)
-
-            context.setPrimitiveDataFloat(uuid, "emissivity", 0.97)
-            for band in ("LW", "PAR", "NIR"):
-                context.setPrimitiveDataFloat(uuid, f"emissivity_{band}", 0.97)
-
-            context.setPrimitiveDataFloat(uuid, "temperature", 25.0 + 273.15)
-            context.setPrimitiveDataUInt(uuid, "twosided_flag", 1)
+            for band in ("SW", "PAR", "NIR"):
+                context.setPrimitiveDataFloat(uuid, f"reflectivity_{band}", 0.0)
+                context.setPrimitiveDataFloat(uuid, f"transmissivity_{band}", 0.0)  # ← absorbant
+            context.setPrimitiveDataFloat(uuid, "reflectivity_LW",  0.0)
+            context.setPrimitiveDataFloat(uuid, "transmissivity_LW", 0.0)
+            context.setPrimitiveDataFloat(uuid, "emissivity",    0.97)
+            context.setPrimitiveDataFloat(uuid, "emissivity_LW", 0.97)
+            context.setPrimitiveDataFloat(uuid, "emissivity_PAR", 0.0)
+            context.setPrimitiveDataFloat(uuid, "emissivity_NIR", 0.0)
+            context.setPrimitiveDataFloat(uuid, "emissivity_SW",  0.0)
+            context.setPrimitiveDataFloat(uuid, "temperature",      298.15)
+            context.setPrimitiveDataFloat(uuid, "air_temperature",  298.15)
+            context.setPrimitiveDataFloat(uuid, "air_humidity",     0.5)
+            context.setPrimitiveDataFloat(uuid, "wind_speed",       1.0)
+            context.setPrimitiveDataFloat(uuid, "air_pressure",     101300.0)
+            context.setPrimitiveDataUInt(uuid,  "twosided_flag", 1)
             context.setPrimitiveDataString(uuid, "surface_type", "sensor")
 
 
@@ -446,6 +479,13 @@ def run_growth_tmrt_example(
                     loaded_plants.extend(plant_ids)
         
                 print(f"Loaded {len(loaded_plants)} plants from canopy")
+                # Récupérer l'aire foliaire totale de la canopée après croissance
+                for plant_id in loaded_plants:
+                    uuids = plant_architecture.getAllPlantUUIDs(plant_id)
+                    for uuid in uuids:
+                        if context.doesPrimitiveDataExist(uuid, "leaf_area"):
+                            lai = context.getPrimitiveData(uuid, "leaf_area")
+                            print(f"LAI of the canopy = {lai} m²/m²")
 
                 plant_uuids = configure_plant_primitives(
                     context, plant_architecture, loaded_plants
@@ -454,14 +494,30 @@ def run_growth_tmrt_example(
                 canopy_leaf_uuids = filter_uuids_by_plant_part(
                     context, plant_uuids, "leaf"
                 )
+
                 if not canopy_leaf_uuids:
                     canopy_leaf_uuids = plant_uuids
                 leaf_uuids = canopy_leaf_uuids
+
                 stomatal_species = stomatal_species_for_tree_label(TREE_MODEL_LABEL)
 
                 # print("Computing sky view factors for ground patches...")
                 # compute_ground_sky_view_factors(context, ground_uuids, ray_count=400, max_ray_length=400.0, num_threads=36)
-                simulation_uuids = context.getAllUUIDs()
+                #simulation_uuids = context.getAllUUIDs()
+                simulation_uuids = (
+                    wpt_all_uuids        # ← 253k branches/troncs WPT
+                    + ground_uuids
+                    + bat_uuids           # 10k murs verticaux
+                    + plant_uuids
+                    + [reference_ground_uuid]
+                )
+                
+                T_DAWN = 288.15
+                context.setPrimitiveDataFloat(simulation_uuids, "temperature",     T_DAWN)
+                context.setPrimitiveDataFloat(simulation_uuids, "air_temperature", T_DAWN)
+                context.setPrimitiveDataFloat(simulation_uuids, "air_humidity",    0.6)
+                context.setPrimitiveDataFloat(simulation_uuids, "wind_speed",      0.9)
+                context.setPrimitiveDataFloat(simulation_uuids, "air_pressure",    pressure_pa)
 
                 stomatal_model = StomatalConductanceModel(context)
                 stomatal_model.setBMFCoefficientsFromLibrary(stomatal_species, uuids=leaf_uuids)
@@ -473,8 +529,10 @@ def run_growth_tmrt_example(
                 energy_balance_model.enableAirEnergyBalance()
 
                 photosynthesis_model = PhotosynthesisModel(context)
-                photosynthesis_model.setFarquharModelCoefficients(FarquharModelCoefficients())
-                photosynthesis_model.setModelTypeFarquhar()
+                #photosynthesis_model.setFarquharModelCoefficients(FarquharModelCoefficients())
+                #photosynthesis_model.setModelTypeFarquhar()
+                photosynthesis_model.setFarquharCoefficientsFromLibrary("Olive", uuids=leaf_uuids)
+ 
 
                 for i, hour in enumerate(hours):
                     print(f"\nHOUR: {hour}")
@@ -484,35 +542,36 @@ def run_growth_tmrt_example(
                     air_humidity = 0.6 - 0.2 * math.sin(math.pi * (hour - 6) / 12)
                     wind_speed = get_ramped_value(0.9, 1.0, hour, 6, 19)
 
-                    with SolarPosition(context, utc_offset, latitude, longitude) as solar_position:
-                        solar_position.setAtmosphericConditions(
-                            pressure_pa, air_temperature_k, air_humidity, turbidity
-                        )
-                        sun_dir = solar_position.getSunDirectionVector()
-                        solar_position.enablePragueSkyModel()
-                        solar_position.updatePragueSkyModel(ground_albedo=soil_albedo)
+                    with RadiationModel(context) as radiation:
+                        radiation.addRadiationBand("LW")
+                        radiation.addRadiationBand("PAR")
+                        radiation.addRadiationBand("NIR")
+                        radiation.addRadiationBand("SW")
 
-                        with RadiationModel(context) as radiation:
+                        with SolarPosition(context, utc_offset, latitude, longitude) as solar_position:
+                            solar_position.setAtmosphericConditions(
+                                pressure_pa, air_temperature_k, air_humidity, turbidity
+                            )
+                            sun_dir = solar_position.getSunDirectionVector()
+                            solar_position.enablePragueSkyModel()
+                            solar_position.updatePragueSkyModel(ground_albedo=soil_albedo)
+                    
                             sun_source = radiation.addCollimatedRadiationSource(sun_dir)
 
-                            radiation.addRadiationBand("LW")
                             radiation.setDirectRayCount("LW", 100)
                             radiation.setDiffuseRayCount("LW", 1000)
                             radiation.setScatteringDepth("LW", 3)  # same as SW/PAR/NIR; or 1–5
 
-                            radiation.addRadiationBand("NIR")
                             radiation.disableEmission("NIR")
                             radiation.setScatteringDepth("NIR", 3)
                             radiation.setDirectRayCount("NIR", 100)
                             radiation.setDiffuseRayCount("NIR", 1000)
 
-                            radiation.addRadiationBand("SW")
                             radiation.disableEmission("SW")
                             radiation.setScatteringDepth("SW", 3)
                             radiation.setDirectRayCount("SW", 100)
                             radiation.setDiffuseRayCount("SW", 1000)
 
-                            radiation.addRadiationBand("PAR")
                             radiation.disableEmission("PAR")
                             radiation.setScatteringDepth("PAR", 3)
                             radiation.setDirectRayCount("PAR", 100)
@@ -522,24 +581,31 @@ def run_growth_tmrt_example(
                                 temperature_K=air_temperature_k,
                                 humidity_rel=air_humidity,
                             )
+
+                            # PAR solar flux in W/m² (wavelength range ~400-700 nm)
                             par_flux = solar_position.getSolarFluxPAR(
                                 pressure_Pa=pressure_pa,
                                 temperature_K=air_temperature_k,
                                 humidity_rel=air_humidity,
                                 turbidity=turbidity,
                             )
+                            # NIR solar flux in W/m² (wavelength range >700 nm)
                             nir_flux = solar_position.getSolarFluxNIR(
                                 pressure_Pa=pressure_pa,
                                 temperature_K=air_temperature_k,
                                 humidity_rel=air_humidity,
                                 turbidity=turbidity,
                             )
+                            #            Diffuse fraction as ratio (0.0-1.0) where:
+                            #            - 0.0 = all direct radiation
+                            #            - 1.0 = all diffuse radiation
                             diffuse_fraction = solar_position.getDiffuseFraction(
                                 pressure_Pa=pressure_pa,
                                 temperature_K=air_temperature_k,
                                 humidity_rel=air_humidity,
                                 turbidity=turbidity,
                             )
+                            
                             sw_flux = par_flux + nir_flux
 
                             radiation.setSourceFlux(
@@ -573,27 +639,54 @@ def run_growth_tmrt_example(
                                 wind_speed,
                                 pressure_pa,
                                 reset_surface_temperature=(i == 0),
-                            )
+                                )
 
-                            with BoundaryLayerConductanceModel(
-                                context
-                            ) as boundary_layer_model:
-                                boundary_layer_model.setBoundaryLayerModel(
-                                    "Ground", ground_uuids
-                                )
-                                boundary_layer_model.setBoundaryLayerModel(
-                                    "Pohlhausen", leaf_uuids
-                                )
+                            # Après apply_energy_balance_inputs(...) dans la boucle horaire
+                            context.setPrimitiveDataFloat(sensor_uuids, "air_temperature", air_temperature_k)
+                            context.setPrimitiveDataFloat(sensor_uuids, "air_humidity",    air_humidity)
+                            context.setPrimitiveDataFloat(sensor_uuids, "wind_speed",      wind_speed)
+                            context.setPrimitiveDataFloat(sensor_uuids, "air_pressure",    pressure_pa)
+                            context.setPrimitiveDataFloat(sensor_uuids, "temperature",     air_temperature_k)
+                            context.setPrimitiveDataUInt(sensor_uuids,  "energy_balance_flag", 0)
+
+                            with BoundaryLayerConductanceModel(context) as boundary_layer_model:
+                                # Sol : modèle empirique dédié (Kustas & Norman)
+                                boundary_layer_model.setBoundaryLayerModel("Ground", ground_uuids)
+
+                                # Feuilles oliviers : Pohlhausen (convection forcée laminaire)
+                                context.setPrimitiveDataFloat(leaf_uuids, "object_length", 0.05)
+                                boundary_layer_model.setBoundaryLayerModel("Pohlhausen", leaf_uuids)
+
+                                # Feuilles WPT : idem
+                                context.setPrimitiveDataFloat(wpt_leaf_uuids, "object_length", 0.05)
+                                boundary_layer_model.setBoundaryLayerModel("Pohlhausen", wpt_leaf_uuids)
+
+                                # Bâtiment : plaque inclinée (murs verticaux)
+                                boundary_layer_model.setBoundaryLayerModel("InclinedPlate", bat_uuids)
+
                                 boundary_layer_model.run()
 
                             radiation.runBand(["SW", "PAR", "NIR", "LW"])
 
+                            # Après runBand, vérifier que SW_ref ≈ PAR_ref + NIR_ref
+                            sw  = context.getPrimitiveData(reference_ground_uuid, "radiation_flux_SW")
+                            par = context.getPrimitiveData(reference_ground_uuid, "radiation_flux_PAR")
+                            nir = context.getPrimitiveData(reference_ground_uuid, "radiation_flux_NIR")
+                            print(f"SW={sw:.1f}  PAR+NIR={par+nir:.1f}  écart={abs(sw-(par+nir)):.1f} W/m²")
+                            # Attendu : écart < 5 W/m² (diffusion numérique du ray-tracing)
+
                             stomatal_model.run(leaf_uuids)
 
                             # Passe 1 : surfaces puis couche limite atmospherique (T_ABL).
-                            energy_balance_model.run()
+                            # Pas de temps : 3600s entre heures simulées, mais on fait des sous-pas
+                            # Pour Cp=1_200_000 J/m²·°C et gH~0.05 mol/m²/s :
+                            # τ = Cp / (cp_air × gH) ≈ 1_200_000 / (29.25 × 0.05) ≈ 820 000 s → très stable
+                            # On peut donc utiliser dt=600s (10 minutes) sans risque de divergence
+
+                            dt_seconds = 600.0  # 10 minutes
+                            energy_balance_model.run(dt=dt_seconds)
                             energy_balance_model.evaluateAirEnergyBalance(
-                                dt_sec=30.0, time_advance_sec=3600.0
+                                dt_sec=10.0, time_advance_sec=3600.0
                             )
 
                             # Mise a jour LW avec les nouvelles temperatures de surface
@@ -601,9 +694,9 @@ def run_growth_tmrt_example(
                             stomatal_model.run(leaf_uuids)                      # stomates réagissent à la nouvelle T
 
                             # Passe 2 : convergence surface + air
-                            energy_balance_model.run()
+                            energy_balance_model.run(dt=dt_seconds)
                             energy_balance_model.evaluateAirEnergyBalance(
-                                dt_sec=30.0, time_advance_sec=3600.0
+                                dt_sec=10.0, time_advance_sec=3600.0
                             )
 
                             photosynthesis_model.runForPrimitives(leaf_uuids)
@@ -624,6 +717,11 @@ def run_growth_tmrt_example(
                             WUE_canopy = A_canopy / E_canopy if abs(E_canopy) > 1e-10 else 0.0
                             print(f"WUE of the canopy = {WUE_canopy} umol CO2/mmol H2O")
 
+
+                            par_vals = [context.getPrimitiveData(u, "radiation_flux_PAR") for u in leaf_uuids[:10]]
+                            print(f"PAR feuilles (W/m²): min={min(par_vals):.1f} max={max(par_vals):.1f}")
+                            temps = [context.getPrimitiveData(u, "temperature") - 273.15 for u in leaf_uuids[:10]]
+                            print(f"T feuilles (°C): min={min(temps):.1f} max={max(temps):.1f}")
                             # Cartographie pseudocouleur Helios sur toutes les primitives
                             # all_uuids = context.getAllUUIDs()
                             # context.colorPrimitiveByDataPseudocolor(
@@ -644,7 +742,7 @@ def run_growth_tmrt_example(
                                 else:
                                     wall_fluxes.append(0.0)
 
-                            # Matrice des flux par heure
+                                                        # Matrice des flux par heure
                             _df_flux = pd.DataFrame(
                                 wall_fluxes,
                                 index=[f"Wall {i}" for i in range(len(wall_fluxes))],
@@ -655,20 +753,65 @@ def run_growth_tmrt_example(
                                 f"Heure {hour:02d}h : Flux sur murs = {np.sum(wall_fluxes):.1f} W/m²"
                             )
 
+                            ground_temperature = []
+                            for ground_uuid in ground_uuids:
+                                temperature = context.getPrimitiveData(ground_uuid, "temperature")
+                                if temperature:
+                                    ground_temperature.append(temperature - 273.15)  # ← convertir en °C ici
+                                else:
+                                    ground_temperature.append(0.0)
+
+                            _df_ground_temperature = pd.DataFrame(
+                                ground_temperature,
+                                index=[f"Ground {i}" for i in range(len(ground_temperature))],
+                                columns=[f"hour_{hour}"],
+                            )
+
+                            # Par ce bloc — matrice 2D ny×nx comme ground_patches
+                            ground_temp_matrix = np.zeros((ny, nx))
+                            for j in range(ny):
+                                for i in range(nx):
+                                    uuid = ground_patches[j][i]
+                                    temperature = context.getPrimitiveData(uuid, "temperature")
+                                    ground_temp_matrix[j, i] = (temperature - 273.15) if temperature else 0.0
+
+                            _df_ground_temperature = pd.DataFrame(
+                                ground_temp_matrix,
+                                index=[f"y{j}" for j in range(ny)],
+                                columns=[f"x{i}" for i in range(nx)],
+                            )
+
                             df_tmrt = compute_MRT(
-                                context, sensor_patches, output_dir, sigma=5.67e-8
+                                context, ground_patches, output_dir, sigma=5.67e-8
                             )
-                            figure_path = os.path.join(
-                                output_dir,
-                                f"tmrt_growth_{age:02d}days_{hour:02d}h.png"
-                            )
+
+                            figure_path_tmrt = os.path.join(output_dir, f"tmrt_growth_{age:02d}days_{hour:02d}h.png")
+
+
                             plt.figure(figsize=(7, 5))
                             plt.imshow(df_tmrt.values, cmap="inferno", origin="lower", vmin=20, vmax=70)
                             plt.colorbar(label="TMRT (degC)")
                             plt.title(f"TMRT growth={age}days hour={hour:02d}h")
                             plt.tight_layout()
                             
-                            plt.savefig(figure_path, dpi=180)
+                            plt.savefig(figure_path_tmrt, dpi=180)
+                            plt.close()
+
+                            figure_path_tground = os.path.join(output_dir, f"temperature_ground_{age:02d}days_{hour:02d}h.png")
+
+                            plt.figure(figsize=(7, 5))
+                            plt.imshow(
+                                _df_ground_temperature.values,
+                                cmap="inferno", origin="lower",
+                                vmin=20, vmax=70,
+                                extent=[-size_total.x/2, size_total.x/2, -size_total.y/2, size_total.y/2]
+                            )
+                            plt.colorbar(label="Temperature sol (°C)")
+                            plt.xlabel("X (m)")
+                            plt.ylabel("Y (m)")
+                            plt.title(f"Temperature ground growth={age}days hour={hour:02d}h")
+                            plt.tight_layout()
+                            plt.savefig(figure_path_tground, dpi=180)
                             plt.close()
 
                             irradiance_reference = context.getPrimitiveData(
@@ -681,13 +824,16 @@ def run_growth_tmrt_example(
                                 irradiance_reference,
                             )
 
+
                 context.writeOBJ(f"{output_dir}/scene_growth_{age:02d}days.obj")
 
 
 if __name__ == "__main__":
     growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
+    #growth_stages = [1460]
+    #save_growth_stage_canopies(growth_stages_days=growth_stages)
 
-    # save_growth_stage_canopies(growth_stages_days=growth_stages)
+    #growth_stages = [1460]
 
     run_growth_tmrt_example(
         longitude=-1.15,
@@ -695,7 +841,7 @@ if __name__ == "__main__":
         utc_offset=1,
         pressure_pa=101300.0,
         turbidity=0.05,
-        hours=[10, 12, 14],
+        hours=[8, 10, 12, 14, 16, 18],
         growth_steps_days=growth_stages,
         output_dir="resultats_ombres_growth",
     )
