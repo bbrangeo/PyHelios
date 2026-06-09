@@ -16,11 +16,12 @@ import example.pyhelios_svf_radiation_tmrt as tmrt_base
 from example.pyhelios_svf_radiation_tmrt import (
     create_ground_patch,
     create_sample_tree,
-    getAmbientLongwaveFlux,
+    _getAmbientLongwaveFlux,
     get_ramped_value,
 )
 from pyhelios import (
     BoundaryLayerConductanceModel,
+    CameraProperties,
     Context,
     EnergyBalanceModel,
     PhotosynthesisModel,
@@ -48,6 +49,16 @@ TREE_BUILD_PARAMETERS = {
     "scaffold_angle": 45.0,  # angle branches en degrés (défaut 40–50)
 }
 TREE_MODEL_LABEL: str = "olive"
+
+# Heure de la journee simulee pour l'export camera (une fois par etape de croissance).
+CAMERA_EXPORT_HOUR = 12
+
+# Bornes spectrales (nm) requises pour cameras + modele de ciel de Prague.
+RADIATION_BAND_WAVELENGTHS_NM: Dict[str, Tuple[int, int]] = {
+    "PAR": (400, 700),
+    "NIR": (701, 2500),
+    "SW": (400, 2500),
+}
 
 # Correspondance libellé PlantArchitecture → espèce bibliothèque stomatique Helios.
 STOMATAL_SPECIES_BY_TREE_LABEL: Dict[str, str] = {
@@ -246,6 +257,103 @@ def configure_plant_primitives(
     for plant_uuid in plant_uuids:
         context.setPrimitiveDataString(plant_uuid, "plant_part", "leaf")
     return plant_uuids
+
+
+def add_growth_radiation_bands(radiation: RadiationModel) -> None:
+    """Ajoute les bandes SW/PAR/NIR/LW avec bornes spectrales pour les cameras."""
+    radiation.addRadiationBand("LW")
+    for band_label, (wavelength_min, wavelength_max) in RADIATION_BAND_WAVELENGTHS_NM.items():
+        radiation.addRadiationBand(band_label, wavelength_min, wavelength_max)
+
+
+def setup_radiation_cameras(
+    radiation: RadiationModel,
+    scene_center: vec3 = vec3(0, 0, 0),
+) -> None:
+    """Enregistre les cameras de ray-tracing avant updateGeometry et runBand."""
+    overhead_props = CameraProperties(camera_resolution=(1024, 1024), HFOV=60.0)
+    radiation.addRadiationCamera(
+        camera_label="overhead_rgb",
+        band_labels=["PAR", "NIR", "SW"],
+        position=vec3(scene_center.x, scene_center.y, 35.0),
+        lookat_or_direction=vec3(scene_center.x, scene_center.y, 0.0),
+        camera_properties=overhead_props,
+        antialiasing_samples=50,
+    )
+    radiation.addRadiationCamera(
+        camera_label="side_view",
+        band_labels=["NIR"],
+        position=vec3(30.0, 0.0, 5.0),
+        lookat_or_direction=vec3(0.0, 0.0, 1.5),
+        camera_properties=CameraProperties(camera_resolution=(1024, 512), HFOV=45.0),
+        antialiasing_samples=50,
+    )
+
+
+def setup_camera_ml_labels(
+    context: Context,
+    leaf_uuids: List[int],
+    trunk_uuids: List[int],
+    ground_uuids: List[int],
+) -> None:
+    """Assigne des champs UINT pour les APIs camera ML (bounding boxes, segmentation)."""
+    if leaf_uuids:
+        context.setPrimitiveDataUInt(leaf_uuids, "cam_leaf", 1)
+    if trunk_uuids:
+        context.setPrimitiveDataUInt(trunk_uuids, "cam_trunk", 1)
+    if ground_uuids:
+        context.setPrimitiveDataUInt(ground_uuids, "cam_soil", 1)
+
+
+def export_growth_camera_outputs(
+    radiation: RadiationModel,
+    output_dir: str,
+    age: float,
+    hour: int,
+) -> None:
+    """Exporte images camera, labels YOLO et masques de segmentation.
+
+    autoCalibrateCameraImage est exclu : il exige une mire (DGK/Calibrite/Spyder)
+    visible par la camera, absente de cette scene agricole.
+    """
+    rgb_filename = radiation.writeCameraImage(
+        camera="overhead_rgb",
+        bands=["PAR", "NIR", "SW"],
+        imagefile_base=f"canopy_rgb_{int(age)}days_{hour:02d}h",
+        image_path=output_dir,
+    )
+    if not rgb_filename:
+        raise RuntimeError("Camera image export failed for overhead_rgb")
+
+    nir_filename = radiation.writeCameraImage(
+        camera="side_view",
+        bands=["NIR"],
+        imagefile_base=f"canopy_nir_{int(age)}days_{hour:02d}h",
+        image_path=output_dir,
+    )
+
+    radiation.writeImageBoundingBoxes(
+        camera_label="overhead_rgb",
+        primitive_data_labels=["cam_leaf", "cam_trunk", "cam_soil"],
+        object_class_ids=[0, 1, 2],
+        image_file=rgb_filename,
+        classes_txt_file="plant_classes.txt",
+        image_path=output_dir,
+    )
+
+    radiation.writeImageSegmentationMasks(
+        camera_label="overhead_rgb",
+        primitive_data_labels=["cam_leaf", "cam_trunk", "cam_soil"],
+        object_class_ids=[0, 1, 2],
+        json_filename=os.path.join(output_dir, f"segmentation_{int(age)}days_{hour:02d}h.json"),
+        image_file=rgb_filename,
+    )
+
+    print("Camera pipeline completed:")
+    print(f"  RGB Image: {rgb_filename}")
+    print(f"  NIR Image: {nir_filename}")
+    print("  Training data: plant_classes.txt + YOLO format labels")
+    print(f"  Segmentation: segmentation_{int(age)}days_{hour:02d}h.json")
 
 
 def apply_ground_surface_properties(
@@ -499,6 +607,15 @@ def run_growth_tmrt_example(
                     canopy_leaf_uuids = plant_uuids
                 leaf_uuids = canopy_leaf_uuids
 
+                wpt_trunk_uuids = [u for u in wpt_all_uuids if u not in set(wpt_leaf_uuids)]
+                all_leaf_uuids = list(set(leaf_uuids + wpt_leaf_uuids))
+                setup_camera_ml_labels(
+                    context,
+                    leaf_uuids=all_leaf_uuids,
+                    trunk_uuids=wpt_trunk_uuids,
+                    ground_uuids=ground_uuids,
+                )
+
                 stomatal_species = stomatal_species_for_tree_label(TREE_MODEL_LABEL)
 
                 # print("Computing sky view factors for ground patches...")
@@ -543,10 +660,7 @@ def run_growth_tmrt_example(
                     wind_speed = get_ramped_value(0.9, 1.0, hour, 6, 19)
 
                     with RadiationModel(context) as radiation:
-                        radiation.addRadiationBand("LW")
-                        radiation.addRadiationBand("PAR")
-                        radiation.addRadiationBand("NIR")
-                        radiation.addRadiationBand("SW")
+                        add_growth_radiation_bands(radiation)
 
                         with SolarPosition(context, utc_offset, latitude, longitude) as solar_position:
                             solar_position.setAtmosphericConditions(
@@ -577,7 +691,7 @@ def run_growth_tmrt_example(
                             radiation.setDirectRayCount("PAR", 100)
                             radiation.setDiffuseRayCount("PAR", 1000)
 
-                            lw_flux = getAmbientLongwaveFlux(
+                            lw_flux = _getAmbientLongwaveFlux(
                                 temperature_K=air_temperature_k,
                                 humidity_rel=air_humidity,
                             )
@@ -596,9 +710,9 @@ def run_growth_tmrt_example(
                                 humidity_rel=air_humidity,
                                 turbidity=turbidity,
                             )
-                            #            Diffuse fraction as ratio (0.0-1.0) where:
-                            #            - 0.0 = all direct radiation
-                            #            - 1.0 = all diffuse radiation
+                            # Diffuse fraction as ratio (0.0-1.0) where:
+                            # - 0.0 = all direct radiation
+                            # - 1.0 = all diffuse radiation
                             diffuse_fraction = solar_position.getDiffuseFraction(
                                 pressure_Pa=pressure_pa,
                                 temperature_K=air_temperature_k,
@@ -627,6 +741,10 @@ def run_growth_tmrt_example(
                                 "NIR", nir_flux * diffuse_fraction
                             )
                             radiation.setDiffuseRadiationFlux("LW", lw_flux)
+
+                            if hour == CAMERA_EXPORT_HOUR:
+                                setup_radiation_cameras(radiation, scene_center=center)
+
                             radiation.updateGeometry()
 
                             # --- Bilan energetique (apres radiation + stomatal) ---
@@ -666,7 +784,15 @@ def run_growth_tmrt_example(
 
                                 boundary_layer_model.run()
 
-                            radiation.runBand(["SW", "PAR", "NIR", "LW"])
+                                radiation.runBand(["SW", "PAR", "NIR", "LW"])
+
+                                if hour == CAMERA_EXPORT_HOUR:
+                                    export_growth_camera_outputs(
+                                        radiation,
+                                        output_dir=output_dir,
+                                        age=age,
+                                        hour=hour,
+                                    )
 
                             # Après runBand, vérifier que SW_ref ≈ PAR_ref + NIR_ref
                             sw  = context.getPrimitiveData(reference_ground_uuid, "radiation_flux_SW")
@@ -829,8 +955,8 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
-    #growth_stages = [1460]
+    #growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
+    growth_stages = [365]
     #save_growth_stage_canopies(growth_stages_days=growth_stages)
 
     #growth_stages = [1460]
@@ -841,7 +967,7 @@ if __name__ == "__main__":
         utc_offset=1,
         pressure_pa=101300.0,
         turbidity=0.05,
-        hours=[8, 10, 12, 14, 16, 18],
+        hours=[12],
         growth_steps_days=growth_stages,
         output_dir="resultats_ombres_growth",
     )
