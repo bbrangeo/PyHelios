@@ -955,8 +955,8 @@ def run_growth_tmrt_example(
 
 
 if __name__ == "__main__":
-    #growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
-    growth_stages = [365]
+    growth_stages = [365, 730, 1095, 1460, 1825]  # 1 à 5 ans de croissance (âge réel: 4 à 8 ans) car oliveier commence a 3 ans  voir https://plantsimulationlab.github.io/Helios/_plant_architecture_doc.html
+    #growth_stages = [365]
     #save_growth_stage_canopies(growth_stages_days=growth_stages)
 
     #growth_stages = [1460]
